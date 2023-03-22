@@ -5,12 +5,16 @@ dotenv.config();
 
 const providers: IProvider[] = [
     {
-        url: "https://node.dusa.io/testnet",
+        url: "http://localhost:33035",
         type: ProviderType.PUBLIC,
     },
     {
-        url: "https://node.dusa.io/testnet",
+        url: "http://localhost:33034",
         type: ProviderType.PRIVATE,
+    },
+    {
+        url: "ws://localhost:33036",
+        type: ProviderType.WS,
     },
 ];
 
