@@ -1,0 +1,19 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model History {
+  poolAddress String
+  date        DateTime
+  tvl         Float
+  volume      Float
+
+  @@id([date, poolAddress])
+}
