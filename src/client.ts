@@ -5,15 +5,15 @@ dotenv.config();
 
 const providers: IProvider[] = [
     {
-        url: "http://localhost:33035",
+        url: "http://64.226.72.133:33035",
         type: ProviderType.PUBLIC,
     },
     {
-        url: "http://localhost:33034",
+        url: "http://64.226.72.133:33034",
         type: ProviderType.PRIVATE,
     },
     {
-        url: "ws://localhost:33036",
+        url: "ws://64.226.72.133:33036",
         type: ProviderType.WS,
     },
 ];

@@ -13,11 +13,29 @@ export type Context = inferAsyncReturnType<typeof createContext>;
 export const t = initTRPC.context<Context>().create();
 
 export const appRouter = t.router({
-    getUserProfile: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
-        return await ctx.prisma.history.findMany({
+    getVolume: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
+        return ctx.prisma.volume.findMany({
+            where: {
+                address: input,
+            },
+        });
+    }),
+    getTVL: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
+        return ctx.prisma.tVL.findMany({
+            where: {
+                address: input,
+            },
+        });
+    }),
+    getRecentSwaps: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
+        return ctx.prisma.swap.findMany({
             where: {
                 poolAddress: input,
             },
+            orderBy: {
+                timestamp: "desc",
+            },
+            take: 10,
         });
     }),
 });

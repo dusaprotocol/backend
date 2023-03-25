@@ -26,8 +26,10 @@ else {
             await web3Client
                 .smartContracts()
                 .awaitRequiredOperationStatus(operation[0], EOperationStatus.INCLUDED_PENDING);
-            const op = (operation[1] as unknown as IFilledBlockInfo).content.op;
-            // console.log(op);
+            // const op = (operation[1] as unknown as IFilledBlockInfo).content.op;
+            const op = operation[1][0].content.op;
+            console.log(op);
+
             web3Client
                 .smartContracts()
                 .getFilteredScOutputEvents({

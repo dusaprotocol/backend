@@ -4,7 +4,7 @@ specifiers:
   '@massalabs/massa-web3': ^1.16.1
   '@noble/ed25519': ^1.7.3
   '@prisma/client': ^4.11.0
-  '@trpc/server': ^10.17.0
+  '@trpc/server': ^10.18.0
   '@types/cors': ^2.8.13
   '@types/express': ^4.17.17
   '@types/jsonwebtoken': ^9.0.1
@@ -22,7 +22,7 @@ dependencies:
   '@massalabs/massa-web3': 1.16.1
   '@noble/ed25519': 1.7.3
   '@prisma/client': 4.11.0_prisma@4.11.0
-  '@trpc/server': 10.17.0
+  '@trpc/server': 10.18.0
   cors: 2.8.5
   dotenv: 16.0.3
   express: 4.18.2
@@ -382,8 +382,8 @@ packages:
     resolution: {integrity: sha512-0AEBi2HXGV02cf6ASsBPhfsVIbVSDC9nbQed4iiY5eHttW9ZtMxHThuKZE1pnESbr8HRdgmFSa/Kn4OSNYuibg==}
     requiresBuild: true
 
-  /@trpc/server/10.17.0:
-    resolution: {integrity: sha512-ZY8jUsJpyqyu80k7TbCcdAx7NsoQAnPK27lGS4/9R42yMKrt7KJdS0Ka2KF1KRRkr112qxTskVqUufVpRVLq7Q==}
+  /@trpc/server/10.18.0:
+    resolution: {integrity: sha512-nVMqdDIF9YLOeC3g6RdAvdCPqkHFjpshSqZGThZ+fyjiWSUXj2ZKCduhJFnY77TjtgODojeaaghmzcnjxb+Onw==}
     dev: false
 
   /@types/body-parser/1.19.2:

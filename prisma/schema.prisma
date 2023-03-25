@@ -9,11 +9,28 @@ datasource db {
   relationMode = "prisma"
 }
 
-model History {
-  poolAddress String
-  date        DateTime
-  tvl         Float
-  volume      Float
+model TVL {
+  address String
+  date    DateTime
+  tvl     Float
 
-  @@id([date, poolAddress])
+  @@id([date, address])
+}
+
+model Volume {
+  address String
+  date    DateTime
+  volume  Float
+
+  @@id([date, address])
+}
+
+model Swap {
+  poolAddress String
+  tokenIn     String
+  tokenOut    String
+  amountIn    Float
+  amountOut   Float
+  timestamp   DateTime
+  txHash      String   @id
 }
