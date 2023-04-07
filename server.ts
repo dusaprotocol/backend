@@ -50,3 +50,8 @@ else {
         });
     });
 }
+
+// @ts-ignore: Unreachable code error
+BigInt.prototype.toJSON = function (): number {
+    return Number(this);
+};

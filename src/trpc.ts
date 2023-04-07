@@ -13,20 +13,38 @@ export type Context = inferAsyncReturnType<typeof createContext>;
 export const t = initTRPC.context<Context>().create();
 
 export const appRouter = t.router({
-    getVolume: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
-        return ctx.prisma.volume.findMany({
-            where: {
-                address: input,
-            },
-        });
-    }),
-    getTVL: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
-        return ctx.prisma.tVL.findMany({
-            where: {
-                address: input,
-            },
-        });
-    }),
+    getVolume: t.procedure
+        .input(
+            z.object({
+                address: z.string(),
+                take: z.number(),
+            })
+        )
+        .query(async ({ input, ctx }) => {
+            const { address, take } = input;
+            return ctx.prisma.volume.findMany({
+                where: {
+                    address,
+                },
+                take,
+            });
+        }),
+    getTVL: t.procedure
+        .input(
+            z.object({
+                address: z.string(),
+                take: z.number(),
+            })
+        )
+        .query(async ({ input, ctx }) => {
+            const { address, take } = input;
+            return ctx.prisma.tVL.findMany({
+                where: {
+                    address,
+                },
+                take,
+            });
+        }),
     getRecentSwaps: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
         return ctx.prisma.swap.findMany({
             where: {
@@ -38,6 +56,7 @@ export const appRouter = t.router({
             take: 10,
         });
     }),
+    // getPoolDistribution: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
 });
 
 export const expressMiddleware = trpcExpress.createExpressMiddleware({
