@@ -4,6 +4,7 @@ import { IFilledBlockInfo } from "@massalabs/massa-web3/dist/interfaces/ISubscri
 import cors from "cors";
 import { expressMiddleware } from "./src/trpc";
 import { EOperationStatus } from "@massalabs/massa-web3";
+import { processNewEvents } from "./src/socket";
 
 // Start TRPC server
 
@@ -23,12 +24,9 @@ else {
 
     wsClient.subscribeFilledBlocks(async (block) => {
         block.operations.forEach(async (operation) => {
-            await web3Client
-                .smartContracts()
-                .awaitRequiredOperationStatus(operation[0], EOperationStatus.INCLUDED_PENDING);
+            await web3Client.smartContracts().awaitRequiredOperationStatus(operation[0], EOperationStatus.FINAL);
             // const op = (operation[1] as unknown as IFilledBlockInfo).content.op;
-            const op = operation[1][0].content.op;
-            console.log(op);
+            // console.log(op);
 
             web3Client
                 .smartContracts()
@@ -41,8 +39,9 @@ else {
                     original_operation_id: operation[0],
                 })
                 .then((events) => {
-                    console.log(events);
+                    processNewEvents(events);
                 });
+
             // if ("CallSC" in op) {
             //     const args = new Args((op as ICallSmartContractOpType).CallSC.param);
             //     console.log(args.nextString());

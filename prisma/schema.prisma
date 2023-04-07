@@ -27,10 +27,11 @@ model Volume {
 
 model Swap {
   poolAddress String
-  tokenIn     String
-  tokenOut    String
-  amountIn    Float
-  amountOut   Float
+  swapForY    Boolean
+  binId       Int
+  amountIn    BigInt
+  amountOut   BigInt
   timestamp   DateTime
-  txHash      String   @id
+  txHash      String
+  id          Int      @id @default(autoincrement())
 }
