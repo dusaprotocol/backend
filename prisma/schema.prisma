@@ -25,6 +25,17 @@ model Volume {
   @@id([date, address])
 }
 
+model Price {
+  address String
+  date    DateTime
+  open    Float
+  close   Float
+  high    Float
+  low     Float
+
+  @@id([date, address])
+}
+
 model Swap {
   poolAddress String
   swapForY    Boolean
