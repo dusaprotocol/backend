@@ -1,105 +1,208 @@
 import { prisma } from "./db";
+import { getBinStep, getPriceFromId } from "./methods";
 
 // EVENT PROCESSING
 
-export async function processSwap(
+export function processSwap(
     txHash: string,
     timestamp: string | Date,
     poolAddress: string,
+    tokenIn: string,
+    tokenOut: string,
     swapEvents: string[]
 ) {
-    let binId = 0;
-    let swapForY = false;
-    let amountIn = 0;
-    let amountOut = 0;
+    getBinStep(poolAddress).then((binStep) => {
+        if (!binStep) return;
 
-    swapEvents.forEach(async (event) => {
-        const [
-            to,
-            _binId,
-            _swapForY,
-            _amountIn,
-            _amountOut,
-            volatilityAccumulated,
-            totalFees,
-        ] = event.split(",");
+        let binId = 0;
+        let price = 0;
+        let swapForY = false;
+        let amountIn = 0;
+        let amountOut = 0;
 
-        binId = Number(_binId);
-        swapForY = _swapForY === "true";
-        amountIn += Number(_amountIn);
-        amountOut += Number(_amountOut);
-    });
+        swapEvents.forEach((event) => {
+            const [
+                to,
+                _binId,
+                _swapForY,
+                _amountIn,
+                _amountOut,
+                volatilityAccumulated,
+                totalFees,
+            ] = event.split(",");
 
-    addVolume(poolAddress, Number(amountIn));
-    await prisma.swap.create({
-        data: {
-            poolAddress,
-            swapForY,
-            binId,
-            amountIn,
-            amountOut,
-            timestamp,
-            txHash,
-        },
+            binId = Number(_binId);
+            price = getPriceFromId(binId, binStep);
+            swapForY = _swapForY === "true";
+            amountIn += Number(_amountIn);
+            amountOut += Number(_amountOut);
+        });
+
+        addVolume(poolAddress, getTokenValue(tokenIn) * amountIn);
+        addPrice(poolAddress, price);
+
+        prisma.swap
+            .create({
+                data: {
+                    poolAddress,
+                    swapForY,
+                    binId,
+                    amountIn,
+                    amountOut,
+                    timestamp,
+                    txHash,
+                },
+            })
+            .then((e) => console.log(e))
+            .catch((e) => console.log(e));
     });
 }
 
-export async function processAddLiquidity(data: string) {
-    const [token, amount, caller] = data.split(",");
-    addTvl(token, Number(amount));
+export function processAddLiquidity(
+    poolAddress: string,
+    tokenX: string,
+    tokenY: string,
+    addEvents: string[]
+) {
+    getBinStep(poolAddress).then((binStep) => {
+        if (!binStep) return;
+
+        let binId = 0;
+        let price = 0;
+        let amountX = 0;
+        let amountY = 0;
+
+        addEvents.forEach((event) => {
+            const [to, _binId, _amountX, _amountY] = event.split(",");
+
+            binId = Number(_binId);
+            price = getPriceFromId(binId, binStep);
+            amountX += Number(_amountX);
+            amountY += Number(_amountY);
+        });
+
+        const value =
+            getTokenValue(tokenX) * amountX + getTokenValue(tokenY) * amountY;
+        addTvl(poolAddress, Number(value));
+    });
 }
 
-export async function processRemoveLiquidity(data: string) {
+export function processRemoveLiquidity(data: string) {
     const [token, amount, caller] = data.split(",");
     addTvl(token, -Number(amount));
 }
 
 // COMMON PRISMA ACTIONS
 
-async function addVolume(address: string, amount: number) {
+function addVolume(address: string, amount: number) {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
 
-    await prisma.volume.upsert({
-        where: {
-            date_address: {
+    prisma.volume
+        .upsert({
+            where: {
+                date_address: {
+                    address,
+                    date,
+                },
+            },
+            update: {
+                volume: {
+                    increment: amount,
+                },
+            },
+            create: {
                 address,
+                volume: amount,
                 date,
             },
-        },
-        update: {
-            volume: {
-                increment: amount,
-            },
-        },
-        create: {
-            address,
-            volume: amount,
-            date,
-        },
-    });
+        })
+        .then((e) => console.log(e))
+        .catch((e) => console.log(e));
 }
 
-async function addTvl(address: string, amount: number) {
+function addTvl(address: string, amount: number) {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
 
-    await prisma.tVL.upsert({
-        where: {
-            date_address: {
+    prisma.tVL
+        .upsert({
+            where: {
+                date_address: {
+                    address,
+                    date,
+                },
+            },
+            update: {
+                tvl: {
+                    increment: amount,
+                },
+            },
+            create: {
                 address,
+                tvl: amount,
                 date,
             },
-        },
-        update: {
-            tvl: {
-                increment: amount,
+        })
+        .then((e) => console.log(e))
+        .catch((e) => console.log(e));
+}
+
+function addPrice(address: string, price: number) {
+    const date = new Date();
+    date.setUTCHours(date.getHours(), 0, 0, 0);
+
+    prisma.price
+        .findUnique({
+            where: {
+                date_address: {
+                    address,
+                    date,
+                },
             },
-        },
-        create: {
-            address,
-            tvl: amount,
-            date,
-        },
-    });
+        })
+        .then((curr) => {
+            if (!curr) {
+                prisma.price
+                    .create({
+                        data: {
+                            address,
+                            open: price,
+                            high: price,
+                            low: price,
+                            close: price,
+                            date,
+                        },
+                    })
+                    .then((e) => console.log(e))
+                    .catch((e) => console.log(e));
+                return;
+            }
+
+            prisma.price
+                .update({
+                    where: {
+                        date_address: {
+                            address,
+                            date,
+                        },
+                    },
+                    data: {
+                        high: {
+                            set: curr.high < price ? price : undefined,
+                        },
+                        low: {
+                            set: curr.low > price ? price : undefined,
+                        },
+                    },
+                })
+                .then((e) => console.log(e))
+                .catch((e) => console.log(e));
+        });
+}
+
+// MISC
+
+function getTokenValue(token: string): number {
+    return 1;
 }
