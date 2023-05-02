@@ -4,11 +4,7 @@ import { IFilledBlockInfo } from "@massalabs/massa-web3/dist/interfaces/ISubscri
 import cors from "cors";
 import { expressMiddleware } from "./src/trpc";
 import { EOperationStatus, WebsocketEvent } from "@massalabs/massa-web3";
-import {
-    processAddLiquidity,
-    processRemoveLiquidity,
-    processSwap,
-} from "./src/socket";
+import { processLiquidity, processSwap } from "./src/socket";
 import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/interfaces/OperationTypes";
 import { priceTask, volumeAndTVLTask } from "./src/crons";
 
@@ -20,7 +16,7 @@ app.use("/trpc", expressMiddleware);
 app.listen(3001);
 console.log("Listening on port 3001");
 
-// Start cron
+// Start cron tasks
 
 priceTask.start();
 volumeAndTVLTask.start();
@@ -47,7 +43,7 @@ else {
     });
 
     wsClient.on(WebsocketEvent.ON_PING, () => {
-        console.log("ws ping");
+        console.log("ws ping", Date.now());
     });
 
     wsClient.on(WebsocketEvent.ON_ERROR, (errorMessage) => {
@@ -91,15 +87,6 @@ else {
                                 )
                                     return;
 
-                                console.log(
-                                    events.map((e) => e.data),
-                                    method
-                                );
-
-                                const call_stack = events[0].context.call_stack;
-                                const caller = call_stack[0];
-                                const callee =
-                                    call_stack[call_stack.length - 1];
                                 const timestamp = new Date(); // events[0].context.slot;
                                 if (method === "swapExactTokensForTokens") {
                                     const pairAddress =
@@ -118,34 +105,37 @@ else {
                                         tokenOut,
                                         events.slice(1, -1).map((e) => e.data)
                                     );
-                                } else if (method === "addLiquidity") {
-                                    console.log(events[0].context.call_stack);
-                                    console.log(events[1].context.call_stack);
+                                } else if (
+                                    method === "addLiquidity" ||
+                                    method === "removeLiquidity"
+                                ) {
+                                    const isAdd = method === "addLiquidity";
 
-                                    const tokenX =
-                                        events[0].context.call_stack[0];
-                                    const tokenY =
-                                        events[1].context.call_stack[0];
+                                    const tokenX = ""; //getCallee(events[0]);
+                                    const tokenY = ""; // getCallee(events[1]);
                                     const pairAddress =
-                                        events[0].data.split(",")[1];
+                                        events[0].data.split(",")[
+                                            isAdd ? 1 : 2
+                                        ];
 
-                                    processAddLiquidity(
+                                    processLiquidity(
                                         pairAddress,
                                         tokenX,
                                         tokenY,
                                         events
                                             .map((e) => e.data)
-                                            .filter((e) =>
-                                                e.startsWith(
-                                                    "DEPOSITED_TO_BIN:"
-                                                )
-                                            )
+                                            .filter(
+                                                (e) =>
+                                                    e.startsWith(
+                                                        "DEPOSITED_TO_BIN:"
+                                                    ) ||
+                                                    e.startsWith(
+                                                        "WITHDRAWN_FROM_BIN:"
+                                                    )
+                                            ),
+                                        isAdd
                                     );
-                                }
-                                // else if (method === "removeLiquidity") {
-                                //     processRemoveLiquidity()
-                                // }
-                                // else return;
+                                } else return;
                             });
                     });
             }

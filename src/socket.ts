@@ -1,3 +1,5 @@
+import { Args, strToBytes } from "@massalabs/massa-web3";
+import { web3Client } from "./client";
 import { prisma } from "./db";
 import { getBinStep, getPriceFromId } from "./methods";
 
@@ -38,7 +40,13 @@ export function processSwap(
             amountOut += Number(_amountOut);
         });
 
-        addVolume(poolAddress, getTokenValue(tokenIn) * amountIn);
+        getActivePrice(poolAddress, binId).then((activePrice) => {
+            console.log({ activePrice, price });
+            const value =
+                (amountIn * (swapForY ? activePrice : 1 / activePrice)) /
+                10 ** 9;
+            addVolume(poolAddress, value);
+        });
         addPrice(poolAddress, price);
 
         prisma.swap
@@ -58,38 +66,33 @@ export function processSwap(
     });
 }
 
-export function processAddLiquidity(
+export function processLiquidity(
     poolAddress: string,
     tokenX: string,
     tokenY: string,
-    addEvents: string[]
+    events: string[],
+    isAddLiquidity: boolean
 ) {
     getBinStep(poolAddress).then((binStep) => {
         if (!binStep) return;
 
-        let binId = 0;
-        let price = 0;
         let amountX = 0;
         let amountY = 0;
 
-        addEvents.forEach((event) => {
+        events.forEach((event) => {
             const [to, _binId, _amountX, _amountY] = event.split(",");
 
-            binId = Number(_binId);
-            price = getPriceFromId(binId, binStep);
             amountX += Number(_amountX);
             amountY += Number(_amountY);
         });
 
-        const value =
-            getTokenValue(tokenX) * amountX + getTokenValue(tokenY) * amountY;
-        addTvl(poolAddress, Number(value));
+        getActivePrice(poolAddress, binStep).then((price) => {
+            const value =
+                (price * amountX) / 10 ** 9 + amountY / 10 ** 9 / price;
+            console.log({ price, value, amountX, amountY });
+            addTvl(poolAddress, isAddLiquidity ? value : -value);
+        });
     });
-}
-
-export function processRemoveLiquidity(data: string) {
-    const [token, amount, caller] = data.split(",");
-    addTvl(token, -Number(amount));
 }
 
 // COMMON PRISMA ACTIONS
@@ -203,6 +206,22 @@ function addPrice(address: string, price: number) {
 
 // MISC
 
-function getTokenValue(token: string): number {
-    return 1;
-}
+const getActivePrice = (
+    poolAddress: string,
+    binStep: number
+): Promise<number> =>
+    web3Client
+        .publicApi()
+        .getDatastoreEntries([
+            {
+                address: poolAddress,
+                key: strToBytes("PAIR_INFORMATION"),
+            },
+        ])
+        .then((r) => {
+            const data = r[0].final_value;
+            if (!data) return 0;
+            const args = new Args(data);
+            const activeId = args.nextU32();
+            return getPriceFromId(activeId, binStep);
+        });

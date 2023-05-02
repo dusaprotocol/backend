@@ -1,4 +1,4 @@
-import { Args, strToBytes } from "@massalabs/massa-web3";
+import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 
 const REAL_ID_SHIFT = 2 ** 17;
@@ -25,3 +25,6 @@ export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
             const binStep = args.nextU32();
             return binStep;
         });
+
+export const getCallee = (event: IEvent): string =>
+    event.context.call_stack[event.context.call_stack.length - 1];

@@ -27,11 +27,14 @@ const fillPrice = () => {
                         return;
                     }
 
+                    const date = new Date();
+                    date.setUTCHours(date.getHours(), 0, 0, 0);
+
                     prisma.price
                         .create({
                             data: {
                                 address: address.address,
-                                date: new Date(),
+                                date,
                                 close: price.close,
                                 high: price.close,
                                 low: price.close,
@@ -49,6 +52,9 @@ const fillVolumeAndTVL = () => {
     console.log("running the volume & TVL task");
 
     getPairAddresses().then((entries) => {
+        const date = new Date();
+        date.setUTCHours(0, 0, 0, 0);
+
         entries.forEach((entry) => {
             prisma.tVL
                 .findFirst({
@@ -68,7 +74,7 @@ const fillVolumeAndTVL = () => {
                         .create({
                             data: {
                                 address: entry.address,
-                                date: new Date(),
+                                date,
                                 tvl: tvl.tvl,
                             },
                         })
@@ -94,7 +100,7 @@ const fillVolumeAndTVL = () => {
                         .create({
                             data: {
                                 address: entry.address,
-                                date: new Date(),
+                                date,
                                 volume: volume.volume,
                             },
                         })

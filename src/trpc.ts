@@ -85,11 +85,19 @@ export const appRouter = t.router({
                     const res: Price[] = [];
                     prices.forEach((price, i) => {
                         if (take === 168) {
-                            if (i % 6 === 0) res.push(price);
+                            if (i % 6 === 0)
+                                res.push({
+                                    ...price,
+                                    open: prices[prices.length - 1].open,
+                                });
                             return;
                         }
                         if (take === 720) {
-                            if (i % 24 === 0) res.push(price);
+                            if (i % 24 === 0)
+                                res.push({
+                                    ...price,
+                                    open: prices[prices.length - 1].open,
+                                });
                             return;
                         }
                         res.push(price);
