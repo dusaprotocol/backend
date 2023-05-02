@@ -10,6 +10,7 @@ import {
     processSwap,
 } from "./src/socket";
 import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/interfaces/OperationTypes";
+import { priceTask, volumeAndTVLTask } from "./src/crons";
 
 // Start TRPC server
 
@@ -18,6 +19,11 @@ app.use(cors());
 app.use("/trpc", expressMiddleware);
 app.listen(3001);
 console.log("Listening on port 3001");
+
+// Start cron
+
+priceTask.start();
+volumeAndTVLTask.start();
 
 // Start WS client
 
