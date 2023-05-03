@@ -14,7 +14,9 @@ async function generateAnalytics() {
 
     let prevValue = 5000;
     for (let i = 0; i < 720; i++) {
-        const value = Math.round(prevValue + Math.random() * 1000 - 500);
+        const value = Math.abs(
+            Math.round(prevValue + Math.random() * 1000 - 250)
+        );
         const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
         const date = new Date(Date.now() - 1000 * 60 * 60 * i);
 
@@ -23,7 +25,7 @@ async function generateAnalytics() {
             date,
             tvl: BigInt(value),
             volume: BigInt(value),
-            fees: BigInt(value / 1000),
+            fees: BigInt(Math.round(value / 1000)),
         });
         dataSwap.push({
             poolAddress: address,
