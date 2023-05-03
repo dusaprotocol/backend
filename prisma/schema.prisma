@@ -9,18 +9,13 @@ datasource db {
   relationMode = "prisma"
 }
 
-model TVL {
+model Analytics {
   address String
   date    DateTime
-  tvl     Float
-
-  @@id([date, address])
-}
-
-model Volume {
-  address String
-  date    DateTime
-  volume  Float
+  volume  BigInt
+  tvl     BigInt
+  feesIn  BigInt
+  feesOut BigInt
 
   @@id([date, address])
 }

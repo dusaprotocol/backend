@@ -6,12 +6,16 @@ import { expressMiddleware } from "./src/trpc";
 import { EOperationStatus, WebsocketEvent } from "@massalabs/massa-web3";
 import { processLiquidity, processSwap } from "./src/socket";
 import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/interfaces/OperationTypes";
-import { priceTask, volumeAndTVLTask } from "./src/crons";
+import { analyticsTask, priceTask } from "./src/crons";
 
 // Start TRPC server
 
 const app = express();
 app.use(cors());
+app.get("/", (req, res) => {
+    console.log(req.ip);
+    res.send("Hello World!");
+});
 app.use("/trpc", expressMiddleware);
 app.listen(3001);
 console.log("Listening on port 3001");
@@ -19,7 +23,7 @@ console.log("Listening on port 3001");
 // Start cron tasks
 
 priceTask.start();
-volumeAndTVLTask.start();
+analyticsTask.start();
 
 // Start WS client
 
@@ -54,7 +58,7 @@ else {
     console.log("Connected to WS");
 
     wsClient.subscribeFilledBlocks(async (block) => {
-        // console.log(block.header.id, block.operations.length);
+        console.log(block.header.id, block.operations.length);
         block.operations.forEach(async (operation) => {
             const txId = operation[0];
             console.log(txId);

@@ -1,32 +1,30 @@
-import { Price, Prisma, PrismaClient, Swap, TVL, Volume } from "@prisma/client";
+import { Analytics, Price, Prisma, PrismaClient } from "@prisma/client";
 import { getPriceFromId } from "../src/methods";
+import { getActivePrice } from "../src/socket";
 
 const prisma = new PrismaClient();
 
-const address = "AS124ifN6bDe67AaWanjRi1Lev1WtZZB35U49xD4VzjJFLP9igUNg";
+const address = "AS12wTGqjCqaFMmvGuBqKHPdiBhsFkcazFfXvUgaDW4dq4pj16ZxB";
 const precision = 10 ** 9;
-const binStep = 25;
+const binStep = 15;
 
-async function generateVolumeAndTVL() {
-    const dataVolume: Volume[] = [];
-    const dataTVL: TVL[] = [];
+async function generateAnalytics() {
+    const data: Analytics[] = [];
     const dataSwap: Prisma.Enumerable<Prisma.SwapCreateManyInput> = [];
 
     let prevValue = 5000;
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 720; i++) {
         const value = Math.round(prevValue + Math.random() * 1000 - 500);
         const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
         const date = new Date(Date.now() - 1000 * 60 * 60 * 24 * i);
 
-        dataTVL.push({
+        data.push({
             address,
             date,
-            tvl: value,
-        });
-        dataVolume.push({
-            address,
-            date,
-            volume: value,
+            tvl: BigInt(value),
+            volume: BigInt(value),
+            feesIn: BigInt(0),
+            feesOut: BigInt(0),
         });
         dataSwap.push({
             poolAddress: address,
@@ -41,14 +39,9 @@ async function generateVolumeAndTVL() {
         prevValue = value;
     }
 
-    prisma.tVL
+    prisma.analytics
         .createMany({
-            data: dataTVL,
-        })
-        .catch((err) => console.log(err));
-    prisma.volume
-        .createMany({
-            data: dataVolume,
+            data,
         })
         .catch((err) => console.log(err));
     prisma.swap
@@ -61,20 +54,19 @@ async function generateVolumeAndTVL() {
 async function generatePrices() {
     const data: Price[] = [];
 
-    let prevPrice = 1;
+    let prevPrice = await getActivePrice(address, binStep);
     for (let j = 0; j < 720; j++) {
         const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
 
         data.push({
             address,
             date: new Date(Date.now() - 1000 * 60 * 60 * j),
-            open: prevPrice,
-            close: price,
+            open: price,
+            close: prevPrice,
             high: Math.max(prevPrice, price) * (1 + Math.random() * 0.1),
             low: Math.min(prevPrice, price) * (1 - Math.random() * 0.1),
         });
         prevPrice = price;
-        console.log(j);
     }
 
     await prisma.price
@@ -85,7 +77,7 @@ async function generatePrices() {
 }
 
 async function main() {
-    generateVolumeAndTVL();
+    generateAnalytics();
     generatePrices();
 }
 

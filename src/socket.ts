@@ -21,6 +21,7 @@ export function processSwap(
         let swapForY = false;
         let amountIn = 0;
         let amountOut = 0;
+        let totalFees = 0;
 
         swapEvents.forEach((event) => {
             const [
@@ -30,7 +31,7 @@ export function processSwap(
                 _amountIn,
                 _amountOut,
                 volatilityAccumulated,
-                totalFees,
+                _totalFees,
             ] = event.split(",");
 
             binId = Number(_binId);
@@ -38,13 +39,13 @@ export function processSwap(
             swapForY = _swapForY === "true";
             amountIn += Number(_amountIn);
             amountOut += Number(_amountOut);
+            totalFees += Number(_totalFees);
         });
 
-        getActivePrice(poolAddress, binId).then((activePrice) => {
+        console.log({ totalFees });
+        getActivePrice(poolAddress, binStep).then((activePrice) => {
             console.log({ activePrice, price });
-            const value =
-                (amountIn * (swapForY ? activePrice : 1 / activePrice)) /
-                10 ** 9;
+            const value = amountIn * (swapForY ? activePrice : 1 / activePrice);
             addVolume(poolAddress, value);
         });
         addPrice(poolAddress, price);
@@ -99,9 +100,9 @@ export function processLiquidity(
 
 function addVolume(address: string, amount: number) {
     const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCHours(date.getHours(), 0, 0, 0);
 
-    prisma.volume
+    prisma.analytics
         .upsert({
             where: {
                 date_address: {
@@ -111,13 +112,16 @@ function addVolume(address: string, amount: number) {
             },
             update: {
                 volume: {
-                    increment: amount,
+                    increment: Math.round(amount),
                 },
             },
             create: {
                 address,
-                volume: amount,
                 date,
+                volume: Math.round(amount),
+                feesIn: 0,
+                feesOut: 0,
+                tvl: 0,
             },
         })
         .then((e) => console.log(e))
@@ -126,9 +130,9 @@ function addVolume(address: string, amount: number) {
 
 function addTvl(address: string, amount: number) {
     const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCHours(date.getHours(), 0, 0, 0);
 
-    prisma.tVL
+    prisma.analytics
         .upsert({
             where: {
                 date_address: {
@@ -138,13 +142,16 @@ function addTvl(address: string, amount: number) {
             },
             update: {
                 tvl: {
-                    increment: amount,
+                    increment: Math.round(amount),
                 },
             },
             create: {
                 address,
-                tvl: amount,
                 date,
+                volume: 0,
+                feesIn: 0,
+                feesOut: 0,
+                tvl: Math.round(amount),
             },
         })
         .then((e) => console.log(e))
@@ -154,6 +161,8 @@ function addTvl(address: string, amount: number) {
 function addPrice(address: string, price: number) {
     const date = new Date();
     date.setUTCHours(date.getHours(), 0, 0, 0);
+
+    console.log({ price });
 
     prisma.price
         .findUnique({
@@ -206,7 +215,7 @@ function addPrice(address: string, price: number) {
 
 // MISC
 
-const getActivePrice = (
+export const getActivePrice = (
     poolAddress: string,
     binStep: number
 ): Promise<number> =>
@@ -221,7 +230,9 @@ const getActivePrice = (
         .then((r) => {
             const data = r[0].final_value;
             if (!data) return 0;
+
             const args = new Args(data);
             const activeId = args.nextU32();
+            console.log({ activeId, binStep });
             return getPriceFromId(activeId, binStep);
         });

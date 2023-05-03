@@ -48,15 +48,15 @@ const fillPrice = () => {
     });
 };
 
-const fillVolumeAndTVL = () => {
+const fillAnalytics = () => {
     console.log("running the volume & TVL task");
 
     getPairAddresses().then((entries) => {
         const date = new Date();
-        date.setUTCHours(0, 0, 0, 0);
+        date.setUTCHours(date.getUTCHours(), 0, 0, 0);
 
         entries.forEach((entry) => {
-            prisma.tVL
+            prisma.analytics
                 .findFirst({
                     where: {
                         address: entry.address,
@@ -65,59 +65,35 @@ const fillVolumeAndTVL = () => {
                         date: "desc",
                     },
                 })
-                .then((tvl) => {
-                    if (tvl === null) {
+                .then((analytic) => {
+                    if (analytic === null) {
                         return;
                     }
 
-                    prisma.tVL
+                    const { feesIn, feesOut, volume, tvl } = analytic;
+                    prisma.analytics
                         .create({
                             data: {
                                 address: entry.address,
                                 date,
-                                tvl: tvl.tvl,
+                                tvl,
+                                volume,
+                                feesIn,
+                                feesOut,
                             },
                         })
                         .then((t) => console.log(t))
-                        .catch((e) => console.log(e));
-                });
-
-            prisma.volume
-                .findFirst({
-                    where: {
-                        address: entry.address,
-                    },
-                    orderBy: {
-                        date: "desc",
-                    },
-                })
-                .then((volume) => {
-                    if (volume === null) {
-                        return;
-                    }
-
-                    prisma.volume
-                        .create({
-                            data: {
-                                address: entry.address,
-                                date,
-                                volume: volume.volume,
-                            },
-                        })
-                        .then((v) => console.log(v))
                         .catch((e) => console.log(e));
                 });
         });
     });
 };
 
-export const priceTask = cron.schedule("0 0 */1 * * *", () => fillPrice(), {
+const everyHour = "0 0 */1 * * *" as const;
+
+export const priceTask = cron.schedule(everyHour, () => fillPrice(), {
     scheduled: false,
 });
-export const volumeAndTVLTask = cron.schedule(
-    "0 0 0 * * *",
-    () => fillVolumeAndTVL(),
-    {
-        scheduled: false,
-    }
-);
+export const analyticsTask = cron.schedule(everyHour, () => fillAnalytics(), {
+    scheduled: false,
+});
