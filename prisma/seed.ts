@@ -4,11 +4,31 @@ import { getActivePrice } from "../src/socket";
 
 const prisma = new PrismaClient();
 
-const address = "AS12wTGqjCqaFMmvGuBqKHPdiBhsFkcazFfXvUgaDW4dq4pj16ZxB";
+interface Pool {
+    address: string;
+    binStep: number;
+    activeId: number;
+}
+const pools: Pool[] = [
+    {
+        address: "AS12X8oSMiAiWKdvCQC5qkjatdekRGoKL3WQuHeqjkvpGqED2TKLs",
+        binStep: 10,
+        activeId: 138585,
+    },
+    {
+        address: "AS12SGtka2SuN9iYdxBfdkWUpojTXScciSGatghrDGeWsztLLMsDX",
+        binStep: 20,
+        activeId: 131878,
+    },
+    {
+        address: "AS1a47urhXAqfhZ6aConWbb1Uc19rrjqjwgEAFr4JSxxcuBihi2J",
+        binStep: 15,
+        activeId: 135008,
+    },
+];
 const precision = 10 ** 9;
-const binStep = 15;
 
-async function generateAnalytics() {
+async function generateAnalytics(pool: Pool) {
     const data: Analytics[] = [];
     const dataSwap: Prisma.Enumerable<Prisma.SwapCreateManyInput> = [];
 
@@ -21,14 +41,14 @@ async function generateAnalytics() {
         const date = new Date(Date.now() - 1000 * 60 * 60 * i);
 
         data.push({
-            address,
+            address: pool.address,
             date,
             tvl: BigInt(value),
             volume: BigInt(value),
             fees: BigInt(Math.round(value / 1000)),
         });
         dataSwap.push({
-            poolAddress: address,
+            poolAddress: pool.address,
             swapForY: Math.random() > 0.5,
             timestamp: date,
             binId,
@@ -45,22 +65,22 @@ async function generateAnalytics() {
             data,
         })
         .catch((err) => console.log(err));
-    prisma.swap
-        .createMany({
-            data: dataSwap,
-        })
-        .catch((err) => console.log(err));
+    // prisma.swap
+    //     .createMany({
+    //         data: dataSwap,
+    //     })
+    //     .catch((err) => console.log(err));
 }
 
-async function generatePrices() {
+async function generatePrices(pool: Pool) {
     const data: Price[] = [];
 
-    let prevPrice = await getActivePrice(address, binStep);
+    let prevPrice = await getActivePrice(pool.address, pool.binStep);
     for (let j = 0; j < 720; j++) {
         const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
 
         data.push({
-            address,
+            address: pool.address,
             date: new Date(Date.now() - 1000 * 60 * 60 * j),
             open: price,
             close: prevPrice,
@@ -78,8 +98,10 @@ async function generatePrices() {
 }
 
 async function main() {
-    generateAnalytics();
-    generatePrices();
+    for (const pool of pools) {
+        generateAnalytics(pool);
+        generatePrices(pool);
+    }
 }
 
 main();
