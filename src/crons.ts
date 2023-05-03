@@ -70,7 +70,7 @@ const fillAnalytics = () => {
                         return;
                     }
 
-                    const { feesIn, feesOut, volume, tvl } = analytic;
+                    const { fees, volume, tvl } = analytic;
                     prisma.analytics
                         .create({
                             data: {
@@ -78,8 +78,7 @@ const fillAnalytics = () => {
                                 date,
                                 tvl,
                                 volume,
-                                feesIn,
-                                feesOut,
+                                fees,
                             },
                         })
                         .then((t) => console.log(t))

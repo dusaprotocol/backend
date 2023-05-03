@@ -17,7 +17,7 @@ export type Context = inferAsyncReturnType<typeof createContext>;
 export const t = initTRPC.context<Context>().create();
 
 export const appRouter = t.router({
-    getAnalytics: t.procedure
+    getVolume: t.procedure
         .input(
             z.object({
                 address: z.string(),
@@ -30,9 +30,72 @@ export const appRouter = t.router({
                 where: {
                     address,
                 },
+                select: {
+                    volume: true,
+                    date: true,
+                },
                 take,
             });
         }),
+    getTVL: t.procedure
+        .input(
+            z.object({
+                address: z.string(),
+                take: z.number(),
+            })
+        )
+        .query(async ({ input, ctx }) => {
+            const { address, take } = input;
+            return ctx.prisma.analytics.findMany({
+                where: {
+                    address,
+                },
+                select: {
+                    tvl: true,
+                    date: true,
+                },
+                take,
+            });
+        }),
+    get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
+        return ctx.prisma.analytics
+            .findMany({
+                where: {
+                    address: input,
+                },
+                orderBy: {
+                    date: "desc",
+                },
+                take: 48,
+            })
+            .then((analytics) => {
+                const yesterday = analytics.slice(0, 24);
+                const today = analytics.slice(24, 48);
+                const fees = today.reduce(
+                    (acc, curr) => acc + Number(curr.fees),
+                    0
+                );
+                const feesYesterday = yesterday.reduce(
+                    (acc, curr) => acc + Number(curr.fees),
+                    0
+                );
+                const volume = today.reduce(
+                    (acc, curr) => acc + Number(curr.volume),
+                    0
+                );
+                const volumeYesterday = yesterday.reduce(
+                    (acc, curr) => acc + Number(curr.volume),
+                    0
+                );
+                const feesPctChange = fees
+                    ? ((fees - feesYesterday) / feesYesterday) * 100
+                    : 0;
+                const volumePctChange = volume
+                    ? ((volume - volumeYesterday) / volumeYesterday) * 100
+                    : 0;
+                return { fees, volume, feesPctChange, volumePctChange };
+            });
+    }),
     getRecentSwaps: t.procedure
         .input(z.string())
         .query(async ({ input, ctx }) => {

@@ -14,8 +14,7 @@ model Analytics {
   date    DateTime
   volume  BigInt
   tvl     BigInt
-  feesIn  BigInt
-  feesOut BigInt
+  fees    BigInt
 
   @@id([date, address])
 }

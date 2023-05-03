@@ -119,8 +119,7 @@ function addVolume(address: string, amount: number) {
                 address,
                 date,
                 volume: Math.round(amount),
-                feesIn: 0,
-                feesOut: 0,
+                fees: 0,
                 tvl: 0,
             },
         })
@@ -149,8 +148,7 @@ function addTvl(address: string, amount: number) {
                 address,
                 date,
                 volume: 0,
-                feesIn: 0,
-                feesOut: 0,
+                fees: 0,
                 tvl: Math.round(amount),
             },
         })
