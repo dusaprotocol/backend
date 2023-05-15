@@ -69,8 +69,8 @@ export const appRouter = t.router({
                 take: 48,
             })
             .then((analytics) => {
-                const yesterday = analytics.slice(0, 24);
-                const today = analytics.slice(24, 48);
+                const today = analytics.slice(0, 24);
+                const yesterday = analytics.slice(24, 48);
                 const fees = today.reduce(
                     (acc, curr) => acc + Number(curr.fees),
                     0

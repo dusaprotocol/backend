@@ -2,6 +2,7 @@ import { Args, strToBytes } from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 import { prisma } from "./db";
 import { getBinStep, getPriceFromId } from "./methods";
+import { Prisma } from "@prisma/client";
 
 // EVENT PROCESSING
 
@@ -189,6 +190,11 @@ function addPrice(address: string, price: number) {
                 return;
             }
 
+            const data: Prisma.PriceUpdateInput = {};
+            if (price > curr.high) data.high = price;
+            if (price < curr.low) data.low = price;
+            console.log(data);
+
             prisma.price
                 .update({
                     where: {
@@ -197,14 +203,7 @@ function addPrice(address: string, price: number) {
                             date,
                         },
                     },
-                    data: {
-                        high: {
-                            set: curr.high < price ? price : undefined,
-                        },
-                        low: {
-                            set: curr.low > price ? price : undefined,
-                        },
-                    },
+                    data,
                 })
                 .then((e) => console.log(e))
                 .catch((e) => console.log(e));

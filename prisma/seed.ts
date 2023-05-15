@@ -17,6 +17,7 @@ async function generateAnalytics() {
         const value = Math.round(prevValue + Math.random() * 1000 - 500);
         const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
         const date = new Date(Date.now() - 1000 * 60 * 60 * i);
+        date.setUTCHours(date.getHours(), 0, 0, 0);
 
         data.push({
             address,
@@ -56,10 +57,12 @@ async function generatePrices() {
     let prevPrice = await getActivePrice(address, binStep);
     for (let j = 0; j < 720; j++) {
         const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
+        const date = new Date(Date.now() - 1000 * 60 * 60 * j);
+        date.setUTCHours(date.getHours(), 0, 0, 0);
 
         data.push({
             address,
-            date: new Date(Date.now() - 1000 * 60 * 60 * j),
+            date,
             open: price,
             close: prevPrice,
             high: Math.max(prevPrice, price) * (1 + Math.random() * 0.1),
