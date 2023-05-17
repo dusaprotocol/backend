@@ -9,21 +9,24 @@ interface Pool {
     binStep: number;
     activeId: number;
 }
+
 const pools: Pool[] = [
     {
-        address: "AS12X8oSMiAiWKdvCQC5qkjatdekRGoKL3WQuHeqjkvpGqED2TKLs",
+        address: "AS129LnZTYzWwXhBT6tVHbVTQRHPdB4PRdaV8nzRUBLBL647i1KMZ",
         binStep: 10,
-        activeId: 138585,
+        activeId: 123559,
     },
     {
-        address: "AS12SGtka2SuN9iYdxBfdkWUpojTXScciSGatghrDGeWsztLLMsDX",
+        // USDC-MASSA
+        address: "AS12Gnt1pVQJ4ip4DRRLmdusGj3wVjkA9NVpCKP1qs8CyzCgbWwHF",
         binStep: 20,
-        activeId: 131878,
+        activeId: 130266,
     },
     {
-        address: "AS1a47urhXAqfhZ6aConWbb1Uc19rrjqjwgEAFr4JSxxcuBihi2J",
+        // MASSA-WETH
+        address: "AS128hN9i7DRCcFTmY4LVErFoHR2omShNiQPu662JoEAbWx4CEMF1",
         binStep: 15,
-        activeId: 135008,
+        activeId: 127136,
     },
 ];
 const precision = 10 ** 9;
@@ -39,6 +42,7 @@ async function generateAnalytics(pool: Pool) {
         );
         const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
         const date = new Date(Date.now() - 1000 * 60 * 60 * i);
+        date.setUTCHours(date.getHours(), 0, 0, 0);
 
         data.push({
             address: pool.address,
@@ -78,10 +82,12 @@ async function generatePrices(pool: Pool) {
     let prevPrice = await getActivePrice(pool.address, pool.binStep);
     for (let j = 0; j < 720; j++) {
         const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
+        const date = new Date(Date.now() - 1000 * 60 * 60 * j);
+        date.setUTCHours(date.getHours(), 0, 0, 0);
 
         data.push({
             address: pool.address,
-            date: new Date(Date.now() - 1000 * 60 * 60 * j),
+            date,
             open: price,
             close: prevPrice,
             high: Math.max(prevPrice, price) * (1 + Math.random() * 0.1),
