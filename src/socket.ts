@@ -190,7 +190,9 @@ function addPrice(address: string, price: number) {
                 return;
             }
 
-            const data: Prisma.PriceUpdateInput = {};
+            const data: Prisma.PriceUpdateInput = {
+                close: price,
+            };
             if (price > curr.high) data.high = price;
             if (price < curr.low) data.low = price;
             console.log(data);
