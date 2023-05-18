@@ -2,7 +2,14 @@ import * as trpcExpress from "@trpc/server/adapters/express";
 import { inferAsyncReturnType, initTRPC } from "@trpc/server";
 import { string, z } from "zod";
 import { prisma } from "./db";
-import type { Price } from "@prisma/client";
+import type { Price, Prisma } from "@prisma/client";
+
+type Volume = Prisma.AnalyticsGetPayload<{
+    select: {
+        volume: true;
+        date: true;
+    };
+}>;
 
 export const createContext = ({
     req,
@@ -26,16 +33,52 @@ export const appRouter = t.router({
         )
         .query(async ({ input, ctx }) => {
             const { address, take } = input;
-            return ctx.prisma.analytics.findMany({
-                where: {
-                    address,
-                },
-                select: {
-                    volume: true,
-                    date: true,
-                },
-                take,
-            });
+            return ctx.prisma.analytics
+                .findMany({
+                    where: {
+                        address,
+                    },
+                    select: {
+                        volume: true,
+                        date: true,
+                    },
+                    orderBy: {
+                        date: "desc",
+                    },
+                    take,
+                })
+                .then((analytics) => {
+                    const res: Volume[] = [];
+
+                    let acc = 0;
+                    let date = analytics[0].date;
+                    analytics.forEach((analytic, i) => {
+                        if (
+                            date.getUTCDay() !== analytic.date.getUTCDay() ||
+                            i === analytics.length - 1
+                        ) {
+                            res.push({ date, volume: BigInt(acc) });
+                            acc = 0;
+                            date = analytic.date;
+                            return;
+                        }
+
+                        acc += Number(analytic.volume);
+                    });
+
+                    const nbEntriesToFill = take / 24 - res.length;
+                    const emptyEntries = Array.from(
+                        { length: nbEntriesToFill },
+                        (_, i) => ({
+                            volume: BigInt(0),
+                            date: new Date(
+                                res[res.length - 1].date.getTime() -
+                                    1000 * 60 * 60 * 24 * (i + 1)
+                            ),
+                        })
+                    );
+                    return res.concat(emptyEntries).reverse();
+                });
         }),
     getTVL: t.procedure
         .input(
