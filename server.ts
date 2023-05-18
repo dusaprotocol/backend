@@ -5,6 +5,7 @@ import { expressMiddleware } from "./src/trpc";
 import { processLiquidity, processSwap } from "./src/socket";
 import { analyticsTask, priceTask } from "./src/crons";
 import { EOperationStatus } from "@massalabs/massa-web3";
+import { getCallee } from "./src/methods";
 
 // Start TRPC server
 
@@ -25,9 +26,12 @@ app.get("/tx/:txId/:method", async (req, res) => {
         .smartContracts()
         .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL)
         .then((status) => {
-            if (status !== EOperationStatus.FINAL) return;
+            if (status !== EOperationStatus.FINAL) {
+                console.log(txId + " failed to reached final status");
+                return;
+            }
 
-            console.log(txId + "has reached final status");
+            console.log(txId + " has reached final status");
 
             web3Client
                 .smartContracts()
@@ -50,16 +54,17 @@ app.get("/tx/:txId/:method", async (req, res) => {
                     const timestamp = new Date(); // events[0].context.slot;
                     if (method === "swapExactTokensForTokens") {
                         const pairAddress = events[0].data.split(",")[1];
-                        const tokenIn = events[0].data.split(":")[0];
-                        const tokenOut =
-                            events[events.length - 1].data.split(":")[0];
+                        const tokenIn = getCallee(events[0]);
+                        const tokenOut = getCallee(events[events.length - 1]);
                         processSwap(
                             txId,
                             timestamp,
                             pairAddress,
                             tokenIn,
                             tokenOut,
-                            events.slice(1, -1).map((e) => e.data)
+                            events
+                                .map((e) => e.data)
+                                .filter((e) => e.startsWith("SWAP:"))
                         );
                     } else if (
                         method === "addLiquidity" ||

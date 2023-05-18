@@ -87,12 +87,10 @@ export const appRouter = t.router({
                     (acc, curr) => acc + Number(curr.volume),
                     0
                 );
-                const feesPctChange = fees
-                    ? ((fees - feesYesterday) / feesYesterday) * 100
-                    : 0;
-                const volumePctChange = volume
-                    ? ((volume - volumeYesterday) / volumeYesterday) * 100
-                    : 0;
+                const feesPctChange =
+                    ((fees - feesYesterday) / (feesYesterday || 1)) * 100;
+                const volumePctChange =
+                    ((volume - volumeYesterday) / (volumeYesterday || 1)) * 100;
                 return { fees, volume, feesPctChange, volumePctChange };
             });
     }),
