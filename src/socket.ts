@@ -2,6 +2,8 @@ import { Args, strToBytes } from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 import { prisma } from "./db";
 import { getBinStep, getPriceFromId } from "./methods";
+import { Prisma } from "@prisma/client";
+import { factorySC, usdcSC } from "./contracts";
 
 // EVENT PROCESSING
 
@@ -42,11 +44,12 @@ export function processSwap(
             totalFees += Number(_totalFees);
         });
 
-        console.log({ totalFees });
-        getActivePrice(poolAddress, binStep).then((activePrice) => {
-            console.log({ activePrice, price });
-            const value = amountIn * (swapForY ? activePrice : 1 / activePrice);
-            addVolume(poolAddress, value);
+        getTokenValue(tokenIn).then((valueIn) => {
+            if (!valueIn) return;
+
+            const volume = Math.round((amountIn / 10 ** 9) * valueIn);
+            const fees = Math.round((totalFees / 10 ** 9) * valueIn * 100); // fees are stored in cents
+            addVolume(poolAddress, volume, fees);
         });
         addPrice(poolAddress, price);
 
@@ -62,7 +65,7 @@ export function processSwap(
                     txHash,
                 },
             })
-            .then((e) => console.log(e))
+            // .then((e) => console.log(e))
             .catch((e) => console.log(e));
     });
 }
@@ -98,7 +101,7 @@ export function processLiquidity(
 
 // COMMON PRISMA ACTIONS
 
-function addVolume(address: string, amount: number) {
+function addVolume(address: string, volume: number, fees: number) {
     const date = new Date();
     date.setUTCHours(date.getHours(), 0, 0, 0);
 
@@ -112,22 +115,25 @@ function addVolume(address: string, amount: number) {
             },
             update: {
                 volume: {
-                    increment: Math.round(amount),
+                    increment: volume,
+                },
+                fees: {
+                    increment: fees,
                 },
             },
             create: {
                 address,
                 date,
-                volume: Math.round(amount),
-                fees: 0,
+                volume,
+                fees,
                 tvl: 0,
             },
         })
-        .then((e) => console.log(e))
+        // .then((e) => console.log(e))
         .catch((e) => console.log(e));
 }
 
-function addTvl(address: string, amount: number) {
+function addTvl(address: string, tvl: number) {
     const date = new Date();
     date.setUTCHours(date.getHours(), 0, 0, 0);
 
@@ -141,7 +147,7 @@ function addTvl(address: string, amount: number) {
             },
             update: {
                 tvl: {
-                    increment: Math.round(amount),
+                    increment: tvl,
                 },
             },
             create: {
@@ -149,18 +155,16 @@ function addTvl(address: string, amount: number) {
                 date,
                 volume: 0,
                 fees: 0,
-                tvl: Math.round(amount),
+                tvl,
             },
         })
-        .then((e) => console.log(e))
+        // .then((e) => console.log(e))
         .catch((e) => console.log(e));
 }
 
 function addPrice(address: string, price: number) {
     const date = new Date();
     date.setUTCHours(date.getHours(), 0, 0, 0);
-
-    console.log({ price });
 
     prisma.price
         .findUnique({
@@ -184,10 +188,16 @@ function addPrice(address: string, price: number) {
                             date,
                         },
                     })
-                    .then((e) => console.log(e))
+                    // .then((e) => console.log(e))
                     .catch((e) => console.log(e));
                 return;
             }
+
+            const data: Prisma.PriceUpdateInput = {
+                close: price,
+            };
+            if (price > curr.high) data.high = price;
+            if (price < curr.low) data.low = price;
 
             prisma.price
                 .update({
@@ -197,16 +207,9 @@ function addPrice(address: string, price: number) {
                             date,
                         },
                     },
-                    data: {
-                        high: {
-                            set: curr.high < price ? price : undefined,
-                        },
-                        low: {
-                            set: curr.low > price ? price : undefined,
-                        },
-                    },
+                    data,
                 })
-                .then((e) => console.log(e))
+                // .then((e) => console.log(e))
                 .catch((e) => console.log(e));
         });
 }
@@ -231,6 +234,71 @@ export const getActivePrice = (
 
             const args = new Args(data);
             const activeId = args.nextU32();
-            console.log({ activeId, binStep });
             return getPriceFromId(activeId, binStep);
         });
+
+export const fetchPairBinSteps = async (
+    token0: string,
+    token1: string
+): Promise<number[]> =>
+    web3Client
+        .smartContracts()
+        .readSmartContract({
+            fee: BigInt(1_000_000),
+            targetAddress: factorySC,
+            targetFunction: "getAvailableLBPairBinSteps",
+            maxGas: BigInt(100_000_000),
+            parameter: new Args()
+                .addString(token0)
+                .addString(token1)
+                .serialize(),
+        })
+        .then((res) => {
+            return res.info.output_events[0]?.data.split(",").map(Number);
+        });
+
+export const fetchPairAddress = async (
+    token0: string,
+    token1: string,
+    binStep: number
+): Promise<string | undefined> =>
+    web3Client
+        .smartContracts()
+        .readSmartContract({
+            fee: BigInt(1_000_000),
+            targetAddress: factorySC,
+            targetFunction: "getLBPairInformation",
+            parameter: new Args()
+                .addString(token0)
+                .addString(token1)
+                .addU32(binStep)
+                .serialize(),
+            maxGas: BigInt(100_000_000),
+        })
+        .then((res) => {
+            const returnValue = new Args(res.returnValue);
+            const _ = returnValue.nextU32();
+            const lpAddress = returnValue.nextString();
+            return lpAddress;
+        })
+        .catch((err) => {
+            console.log(err);
+            return undefined;
+        });
+
+export const getTokenValue = async (
+    tokenAddress: string
+): Promise<number | undefined> => {
+    if (tokenAddress === usdcSC) return 1;
+
+    const binSteps = await fetchPairBinSteps(tokenAddress, usdcSC);
+    const pairAddress = await fetchPairAddress(
+        tokenAddress,
+        usdcSC,
+        binSteps[0]
+    );
+    if (!pairAddress) return;
+
+    const price = await getActivePrice(pairAddress, binSteps[0]);
+    return tokenAddress < usdcSC ? price : 1 / price;
+};

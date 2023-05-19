@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { prisma } from "./db";
 
 const getPairAddresses = (): Promise<{ address: string }[]> =>
     prisma.price.findMany({
@@ -66,19 +67,16 @@ const fillAnalytics = () => {
                     },
                 })
                 .then((analytic) => {
-                    if (analytic === null) {
-                        return;
-                    }
+                    if (!analytic) return;
 
-                    const { fees, volume, tvl } = analytic;
                     prisma.analytics
                         .create({
                             data: {
                                 address: entry.address,
                                 date,
-                                tvl,
-                                volume,
-                                fees,
+                                tvl: analytic.tvl,
+                                volume: 0,
+                                fees: 0,
                             },
                         })
                         .then((t) => console.log(t))

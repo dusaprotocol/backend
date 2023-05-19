@@ -2,7 +2,21 @@ import * as trpcExpress from "@trpc/server/adapters/express";
 import { inferAsyncReturnType, initTRPC } from "@trpc/server";
 import { string, z } from "zod";
 import { prisma } from "./db";
-import type { Price } from "@prisma/client";
+import type { Price, Prisma } from "@prisma/client";
+
+type Volume = Prisma.AnalyticsGetPayload<{
+    select: {
+        volume: true;
+        date: true;
+    };
+}>;
+
+type TVL = Prisma.AnalyticsGetPayload<{
+    select: {
+        tvl: true;
+        date: true;
+    };
+}>;
 
 export const createContext = ({
     req,
@@ -26,16 +40,52 @@ export const appRouter = t.router({
         )
         .query(async ({ input, ctx }) => {
             const { address, take } = input;
-            return ctx.prisma.analytics.findMany({
-                where: {
-                    address,
-                },
-                select: {
-                    volume: true,
-                    date: true,
-                },
-                take,
-            });
+            return ctx.prisma.analytics
+                .findMany({
+                    where: {
+                        address,
+                    },
+                    select: {
+                        volume: true,
+                        date: true,
+                    },
+                    orderBy: {
+                        date: "desc",
+                    },
+                    take,
+                })
+                .then((analytics) => {
+                    const res: Volume[] = [];
+
+                    let acc = 0;
+                    let date = analytics[0].date;
+                    analytics.forEach((analytic, i) => {
+                        if (
+                            date.getDay() !== analytic.date.getDay() ||
+                            i === analytics.length - 1
+                        ) {
+                            res.push({ date, volume: BigInt(acc) });
+                            acc = 0;
+                            date = analytic.date;
+                            return;
+                        }
+
+                        acc += Number(analytic.volume);
+                    });
+
+                    const nbEntriesToFill = take / 24 - res.length;
+                    const emptyEntries = Array.from(
+                        { length: nbEntriesToFill },
+                        (_, i) => ({
+                            volume: BigInt(0),
+                            date: new Date(
+                                res[res.length - 1].date.getTime() -
+                                    1000 * 60 * 60 * 24 * (i + 1)
+                            ),
+                        })
+                    );
+                    return res.concat(emptyEntries).reverse();
+                });
         }),
     getTVL: t.procedure
         .input(
@@ -46,16 +96,52 @@ export const appRouter = t.router({
         )
         .query(async ({ input, ctx }) => {
             const { address, take } = input;
-            return ctx.prisma.analytics.findMany({
-                where: {
-                    address,
-                },
-                select: {
-                    tvl: true,
-                    date: true,
-                },
-                take,
-            });
+            return ctx.prisma.analytics
+                .findMany({
+                    where: {
+                        address,
+                    },
+                    select: {
+                        tvl: true,
+                        date: true,
+                    },
+                    orderBy: {
+                        date: "desc",
+                    },
+                    take,
+                })
+                .then((analytics) => {
+                    const res: TVL[] = [];
+
+                    let acc = 0;
+                    let date = analytics[0].date;
+                    analytics.forEach((analytic, i) => {
+                        if (
+                            date.getDay() !== analytic.date.getDay() ||
+                            i === analytics.length - 1
+                        ) {
+                            res.push({ date, tvl: BigInt(acc) });
+                            acc = 0;
+                            date = analytic.date;
+                            return;
+                        }
+
+                        acc += Number(analytic.tvl);
+                    });
+
+                    const nbEntriesToFill = take / 24 - res.length;
+                    const emptyEntries = Array.from(
+                        { length: nbEntriesToFill },
+                        (_, i) => ({
+                            tvl: BigInt(0),
+                            date: new Date(
+                                res[res.length - 1].date.getTime() -
+                                    1000 * 60 * 60 * 24 * (i + 1)
+                            ),
+                        })
+                    );
+                    return res.concat(emptyEntries).reverse();
+                });
         }),
     get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
         return ctx.prisma.analytics
@@ -69,8 +155,8 @@ export const appRouter = t.router({
                 take: 48,
             })
             .then((analytics) => {
-                const yesterday = analytics.slice(0, 24);
-                const today = analytics.slice(24, 48);
+                const today = analytics.slice(0, 24);
+                const yesterday = analytics.slice(24, 48);
                 const fees = today.reduce(
                     (acc, curr) => acc + Number(curr.fees),
                     0
@@ -87,12 +173,14 @@ export const appRouter = t.router({
                     (acc, curr) => acc + Number(curr.volume),
                     0
                 );
-                const feesPctChange = fees
-                    ? ((fees - feesYesterday) / feesYesterday) * 100
-                    : 0;
-                const volumePctChange = volume
-                    ? ((volume - volumeYesterday) / volumeYesterday) * 100
-                    : 0;
+                const feesPctChange =
+                    feesYesterday === 0
+                        ? 0
+                        : ((fees - feesYesterday) / feesYesterday) * 100;
+                const volumePctChange =
+                    volumeYesterday === 0
+                        ? 0
+                        : ((volume - volumeYesterday) / volumeYesterday) * 100;
                 return { fees, volume, feesPctChange, volumePctChange };
             });
     }),
