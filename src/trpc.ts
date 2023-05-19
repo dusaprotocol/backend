@@ -11,6 +11,13 @@ type Volume = Prisma.AnalyticsGetPayload<{
     };
 }>;
 
+type TVL = Prisma.AnalyticsGetPayload<{
+    select: {
+        tvl: true;
+        date: true;
+    };
+}>;
+
 export const createContext = ({
     req,
     res,
@@ -54,7 +61,7 @@ export const appRouter = t.router({
                     let date = analytics[0].date;
                     analytics.forEach((analytic, i) => {
                         if (
-                            date.getUTCDay() !== analytic.date.getUTCDay() ||
+                            date.getDay() !== analytic.date.getDay() ||
                             i === analytics.length - 1
                         ) {
                             res.push({ date, volume: BigInt(acc) });
@@ -89,16 +96,52 @@ export const appRouter = t.router({
         )
         .query(async ({ input, ctx }) => {
             const { address, take } = input;
-            return ctx.prisma.analytics.findMany({
-                where: {
-                    address,
-                },
-                select: {
-                    tvl: true,
-                    date: true,
-                },
-                take,
-            });
+            return ctx.prisma.analytics
+                .findMany({
+                    where: {
+                        address,
+                    },
+                    select: {
+                        tvl: true,
+                        date: true,
+                    },
+                    orderBy: {
+                        date: "desc",
+                    },
+                    take,
+                })
+                .then((analytics) => {
+                    const res: TVL[] = [];
+
+                    let acc = 0;
+                    let date = analytics[0].date;
+                    analytics.forEach((analytic, i) => {
+                        if (
+                            date.getDay() !== analytic.date.getDay() ||
+                            i === analytics.length - 1
+                        ) {
+                            res.push({ date, tvl: BigInt(acc) });
+                            acc = 0;
+                            date = analytic.date;
+                            return;
+                        }
+
+                        acc += Number(analytic.tvl);
+                    });
+
+                    const nbEntriesToFill = take / 24 - res.length;
+                    const emptyEntries = Array.from(
+                        { length: nbEntriesToFill },
+                        (_, i) => ({
+                            tvl: BigInt(0),
+                            date: new Date(
+                                res[res.length - 1].date.getTime() -
+                                    1000 * 60 * 60 * 24 * (i + 1)
+                            ),
+                        })
+                    );
+                    return res.concat(emptyEntries).reverse();
+                });
         }),
     get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
         return ctx.prisma.analytics
