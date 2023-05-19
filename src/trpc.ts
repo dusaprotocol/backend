@@ -174,9 +174,13 @@ export const appRouter = t.router({
                     0
                 );
                 const feesPctChange =
-                    ((fees - feesYesterday) / (feesYesterday || 1)) * 100;
+                    feesYesterday === 0
+                        ? 0
+                        : ((fees - feesYesterday) / feesYesterday) * 100;
                 const volumePctChange =
-                    ((volume - volumeYesterday) / (volumeYesterday || 1)) * 100;
+                    volumeYesterday === 0
+                        ? 0
+                        : ((volume - volumeYesterday) / volumeYesterday) * 100;
                 return { fees, volume, feesPctChange, volumePctChange };
             });
     }),
