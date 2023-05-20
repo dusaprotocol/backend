@@ -1,20 +1,22 @@
-import { Args, strToBytes } from "@massalabs/massa-web3";
+import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 import { prisma } from "./db";
-import { getBinStep, getPriceFromId } from "./methods";
+import { getBinStep, getCallee, getPriceFromId } from "./methods";
 import { Prisma } from "@prisma/client";
 import { factorySC, usdcSC } from "./contracts";
 
+type TxType = "addLiquidity" | "removeLiquidity" | "swap";
+
 // EVENT PROCESSING
 
-export function processSwap(
+export const processSwap = (
     txHash: string,
     timestamp: string | Date,
     poolAddress: string,
     tokenIn: string,
     tokenOut: string,
     swapEvents: string[]
-) {
+) => {
     getBinStep(poolAddress).then((binStep) => {
         if (!binStep) return;
 
@@ -68,15 +70,15 @@ export function processSwap(
             // .then((e) => console.log(e))
             .catch((e) => console.log(e));
     });
-}
+};
 
-export function processLiquidity(
+export const processLiquidity = (
     poolAddress: string,
     tokenX: string,
     tokenY: string,
     events: string[],
     isAddLiquidity: boolean
-) {
+) => {
     getBinStep(poolAddress).then((binStep) => {
         if (!binStep) return;
 
@@ -97,7 +99,55 @@ export function processLiquidity(
             addTvl(poolAddress, isAddLiquidity ? value : -value);
         });
     });
-}
+};
+
+export const processEvents = (
+    txId: string,
+    method: string,
+    events: IEvent[]
+) => {
+    if (events[events.length - 1].data.includes("massa_execution_error"))
+        return;
+
+    const timestamp = new Date(); // events[0].context.slot;
+    switch (method as TxType) {
+        case "swap": {
+            const pairAddress = events[0].data.split(",")[1];
+            const tokenIn = getCallee(events[0]);
+            const tokenOut = getCallee(events[events.length - 1]);
+            processSwap(
+                txId,
+                timestamp,
+                pairAddress,
+                tokenIn,
+                tokenOut,
+                events.map((e) => e.data).filter((e) => e.startsWith("SWAP:"))
+            );
+            break;
+        }
+        case "addLiquidity":
+        case "removeLiquidity":
+            const isAdd = method === "addLiquidity";
+
+            const tokenX = ""; //getCallee(events[0]);
+            const tokenY = ""; // getCallee(events[1]);
+            const pairAddress = events[0].data.split(",")[isAdd ? 1 : 2];
+
+            processLiquidity(
+                pairAddress,
+                tokenX,
+                tokenY,
+                events
+                    .map((e) => e.data)
+                    .filter(
+                        (e) =>
+                            e.startsWith("DEPOSITED_TO_BIN:") ||
+                            e.startsWith("WITHDRAWN_FROM_BIN:")
+                    ),
+                isAdd
+            );
+    }
+};
 
 // COMMON PRISMA ACTIONS
 

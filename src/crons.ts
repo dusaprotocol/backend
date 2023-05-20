@@ -1,13 +1,19 @@
 import cron from "node-cron";
 import { prisma } from "./db";
+import { web3Client } from "./client";
+import { dcaSC } from "./contracts";
+import { processEvents } from "./socket";
+import { ISlot } from "@massalabs/massa-web3";
 
-const getPairAddresses = (): Promise<{ address: string }[]> =>
-    prisma.price.findMany({
-        select: {
-            address: true,
-        },
-        distinct: ["address"],
-    });
+const getPairAddresses = () =>
+    prisma.price
+        .findMany({
+            select: {
+                address: true,
+            },
+            distinct: ["address"],
+        })
+        .then((res) => res.map((r) => r.address));
 
 const fillPrice = () => {
     console.log("running the price task");
@@ -17,7 +23,7 @@ const fillPrice = () => {
             prisma.price
                 .findFirst({
                     where: {
-                        address: address.address,
+                        address,
                     },
                     orderBy: {
                         date: "desc",
@@ -34,7 +40,7 @@ const fillPrice = () => {
                     prisma.price
                         .create({
                             data: {
-                                address: address.address,
+                                address,
                                 date,
                                 close: price.close,
                                 high: price.close,
@@ -52,15 +58,15 @@ const fillPrice = () => {
 const fillAnalytics = () => {
     console.log("running the volume & TVL task");
 
-    getPairAddresses().then((entries) => {
+    getPairAddresses().then((addresses) => {
         const date = new Date();
         date.setUTCHours(date.getUTCHours(), 0, 0, 0);
 
-        entries.forEach((entry) => {
+        addresses.forEach((address) => {
             prisma.analytics
                 .findFirst({
                     where: {
-                        address: entry.address,
+                        address,
                     },
                     orderBy: {
                         date: "desc",
@@ -72,7 +78,7 @@ const fillAnalytics = () => {
                     prisma.analytics
                         .create({
                             data: {
-                                address: entry.address,
+                                address,
                                 date,
                                 tvl: analytic.tvl,
                                 volume: 0,
@@ -87,10 +93,49 @@ const fillAnalytics = () => {
 };
 
 const everyHour = "0 0 */1 * * *" as const;
+const everyPeriod = "*/16 * * * * *" as const;
 
-export const priceTask = cron.schedule(everyHour, () => fillPrice(), {
+export const priceTask = cron.schedule(everyHour, fillPrice, {
     scheduled: false,
 });
-export const analyticsTask = cron.schedule(everyHour, () => fillAnalytics(), {
+export const analyticsTask = cron.schedule(everyHour, fillAnalytics, {
     scheduled: false,
 });
+
+let slot: ISlot = await web3Client
+    .publicApi()
+    .getNodeStatus()
+    .then((r) => ({
+        period: r.last_slot.period - 5,
+        thread: 0,
+    }));
+
+const processAutonomousEvents = () => {
+    console.log("running the autonomous events task for period", slot.period);
+
+    const start = slot;
+    const end = { ...slot, thread: 31 };
+    web3Client
+        .smartContracts()
+        .getFilteredScOutputEvents({
+            emitter_address: dcaSC,
+            is_final: null,
+            original_caller_address: null,
+            original_operation_id: null,
+            start,
+            end,
+        })
+        .then((events) => {
+            console.log(events.map((e) => e.data));
+            events.length && processEvents("", "swap", events.slice(1));
+            slot.period += 1;
+        });
+};
+
+export const autonomousEvents = cron.schedule(
+    everyPeriod,
+    processAutonomousEvents,
+    {
+        scheduled: false,
+    }
+);

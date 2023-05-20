@@ -22,6 +22,9 @@ dependencies:
   node-cron:
     specifier: ^3.0.2
     version: 3.0.2
+  ws:
+    specifier: ^8.13.0
+    version: 8.13.0(bufferutil@4.0.7)(utf-8-validate@6.0.3)
   zod:
     specifier: ^3.21.4
     version: 3.21.4
@@ -39,6 +42,9 @@ devDependencies:
   '@types/node-cron':
     specifier: ^3.0.7
     version: 3.0.7
+  '@types/ws':
+    specifier: ^8.5.4
+    version: 8.5.4
   nodemon:
     specifier: ^2.0.22
     version: 2.0.22
@@ -497,7 +503,6 @@ packages:
     resolution: {integrity: sha512-zdQDHKUgcX/zBc4GrwsE/7dVdAD8JR4EuiAXiiUhhfyIJXXb2+PrGshFyeXWQPMmmZ2XxgaqclgpIC7eTXc1mg==}
     dependencies:
       '@types/node': 18.16.3
-    dev: false
 
   /abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
