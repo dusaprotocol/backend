@@ -217,27 +217,22 @@ export const appRouter = t.router({
                     take,
                 })
                 .then((prices) => {
+                    if (take === 24) return prices.reverse();
+
                     const res: Price[] = [];
-                    prices.forEach((price, i) => {
-                        if (take === 168) {
-                            if (i % 6 === 0)
-                                res.push({
-                                    ...price,
-                                    open: prices[prices.length - 1].open,
-                                });
-                            return;
+                    prices.reverse().forEach((price, i) => {
+                        const open = res[res.length - 1]?.close ?? price.open;
+                        if (
+                            (take === 168 && i % 6 === 0) ||
+                            (take === 720 && i % 24 === 0)
+                        ) {
+                            res.push({
+                                ...price,
+                                open,
+                            });
                         }
-                        if (take === 720) {
-                            if (i % 24 === 0)
-                                res.push({
-                                    ...price,
-                                    open: prices[prices.length - 1].open,
-                                });
-                            return;
-                        }
-                        res.push(price);
                     });
-                    return res.reverse();
+                    return res;
                 });
         }),
 });
