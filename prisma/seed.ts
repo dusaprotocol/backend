@@ -1,6 +1,8 @@
 import { Analytics, Price, Prisma, PrismaClient } from "@prisma/client";
-import { getPriceFromId } from "../src/methods";
-import { getActivePrice } from "../src/socket";
+import { getCallee, getPriceFromId } from "../src/methods";
+import { addTvl, getActivePrice } from "../src/socket";
+import { web3Client } from "../src/client";
+import { getGenesisTimestamp, parseSlot } from "../src/utils";
 
 const prisma = new PrismaClient();
 
@@ -33,32 +35,21 @@ const precision = 10 ** 9;
 
 async function generateAnalytics(pool: Pool) {
     const data: Analytics[] = [];
-    const dataSwap: Prisma.Enumerable<Prisma.SwapCreateManyInput> = [];
 
     let prevValue = 5000;
     for (let i = 0; i < 720; i++) {
-        const value = Math.abs(
-            Math.round(prevValue + Math.random() * 1000 - 250)
-        );
+        const value = 0;
         const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
         const date = new Date(Date.now() - 1000 * 60 * 60 * i);
-        date.setUTCHours(date.getHours(), 0, 0, 0);
+        date.setHours(date.getHours(), 0, 0, 0);
 
         data.push({
             address: pool.address,
             date,
-            tvl: BigInt(value),
+            token0Locked: BigInt(value),
+            token1Locked: BigInt(value),
             volume: BigInt(value),
             fees: BigInt(Math.round(value / 1000)),
-        });
-        dataSwap.push({
-            poolAddress: pool.address,
-            swapForY: Math.random() > 0.5,
-            timestamp: date,
-            binId,
-            amountIn: BigInt(Math.floor(Math.random() * 10 * precision)),
-            amountOut: BigInt(Math.floor(Math.random() * 10 * precision)),
-            txHash: Math.random().toString(36).substring(2, 15),
         });
 
         prevValue = value;
@@ -69,21 +60,16 @@ async function generateAnalytics(pool: Pool) {
             data,
         })
         .catch((err) => console.log(err));
-    // prisma.swap
-    //     .createMany({
-    //         data: dataSwap,
-    //     })
-    //     .catch((err) => console.log(err));
 }
 
 async function generatePrices(pool: Pool) {
     const data: Price[] = [];
 
-    let prevPrice = await getActivePrice(pool.address, pool.binStep);
+    let prevPrice = await getActivePrice(pool.address);
     for (let j = 0; j < 720; j++) {
         const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
         const date = new Date(Date.now() - 1000 * 60 * 60 * j);
-        date.setUTCHours(date.getHours(), 0, 0, 0);
+        date.setHours(date.getHours(), 0, 0, 0);
 
         data.push({
             address: pool.address,
@@ -103,11 +89,49 @@ async function generatePrices(pool: Pool) {
         .catch((err) => console.log(err));
 }
 
+async function trackPastTVL() {
+    const genesisTimestamp = getGenesisTimestamp();
+
+    const events = await web3Client.smartContracts().getFilteredScOutputEvents({
+        start: null,
+        end: null,
+        emitter_address: null, //pool.address
+        original_caller_address: null,
+        original_operation_id: null,
+        is_final: null,
+    });
+    // const filtered = events.filter((e) => getCallee(e) === pool.address);
+    const filtered = events.filter(
+        (e) =>
+            e.data.startsWith("DEPOSITED_TO_BIN:") ||
+            e.data.startsWith("REMOVED_FROM_BIN:")
+    );
+    filtered.forEach((e) => {
+        if (
+            e.data.startsWith("DEPOSITED_TO_BIN:") ||
+            e.data.startsWith("REMOVED_FROM_BIN:")
+        ) {
+            const isAdd = e.data.startsWith("DEPOSITED_TO_BIN:");
+            const [_to, _binId, amountX, amountY] = e.data.split(",");
+            const date = parseSlot(e.context.slot, genesisTimestamp);
+
+            addTvl(
+                getCallee(e), //pool.address
+                isAdd ? Number(amountX) : Number(-amountX),
+                isAdd ? Number(amountY) : Number(-amountY),
+                new Date(date)
+            );
+        }
+    });
+}
+
 async function main() {
-    for (const pool of pools) {
-        generateAnalytics(pool);
-        generatePrices(pool);
-    }
+    // for (const pool of pools) {
+    //     generateAnalytics(pool);
+    //     generatePrices(pool);
+    // }
+
+    trackPastTVL();
 }
 
 main();

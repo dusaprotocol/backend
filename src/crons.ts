@@ -35,7 +35,7 @@ const fillPrice = () => {
                     }
 
                     const date = new Date();
-                    date.setUTCHours(date.getHours(), 0, 0, 0);
+                    date.setHours(date.getHours(), 0, 0, 0);
 
                     prisma.price
                         .create({
@@ -60,7 +60,7 @@ const fillAnalytics = () => {
 
     getPairAddresses().then((addresses) => {
         const date = new Date();
-        date.setUTCHours(date.getUTCHours(), 0, 0, 0);
+        date.setHours(date.getUTCHours(), 0, 0, 0);
 
         addresses.forEach((address) => {
             prisma.analytics
@@ -80,7 +80,8 @@ const fillAnalytics = () => {
                             data: {
                                 address,
                                 date,
-                                tvl: analytic.tvl,
+                                token0Locked: analytic.token0Locked,
+                                token1Locked: analytic.token1Locked,
                                 volume: 0,
                                 fees: 0,
                             },

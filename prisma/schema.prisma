@@ -10,11 +10,12 @@ datasource db {
 }
 
 model Analytics {
-  address String
-  date    DateTime
-  volume  BigInt
-  tvl     BigInt
-  fees    BigInt
+  address      String
+  date         DateTime
+  volume       BigInt
+  token0Locked BigInt
+  token1Locked BigInt
+  fees         BigInt
 
   @@id([date, address])
 }
