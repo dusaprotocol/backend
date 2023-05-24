@@ -29,6 +29,7 @@ const pools: Pool[] = [
         activeId: 127136,
     },
 ];
+const betaLaunch = new Date(1684332000 * 1000).getTime();
 const precision = 10 ** 9;
 
 async function generateAnalytics(pool: Pool) {
@@ -79,21 +80,24 @@ async function generateAnalytics(pool: Pool) {
 async function generatePrices(pool: Pool) {
     const data: Price[] = [];
 
-    let prevPrice = await getActivePrice(pool.address, pool.binStep);
+    let close = await getActivePrice(pool.address, pool.binStep);
     for (let j = 0; j < 720; j++) {
-        const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
-        const date = new Date(Date.now() - 1000 * 60 * 60 * j);
+        const open = close;
+        const high = close;
+        const low = close;
+
+        const date = new Date(betaLaunch - 1000 * 60 * 60 * j);
         date.setUTCHours(date.getHours(), 0, 0, 0);
 
         data.push({
             address: pool.address,
             date,
-            open: price,
-            close: prevPrice,
-            high: Math.max(prevPrice, price) * (1 + Math.random() * 0.1),
-            low: Math.min(prevPrice, price) * (1 - Math.random() * 0.1),
+            open,
+            close,
+            high,
+            low,
         });
-        prevPrice = price;
+        close = open;
     }
 
     await prisma.price
