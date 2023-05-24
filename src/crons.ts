@@ -13,7 +13,11 @@ const getPairAddresses = () =>
             },
             distinct: ["address"],
         })
-        .then((res) => res.map((r) => r.address));
+        .then((res) => res.map((r) => r.address))
+        .catch((e) => {
+            console.log(e);
+            return [];
+        });
 
 const fillPrice = () => {
     console.log("running the price task");
@@ -50,7 +54,8 @@ const fillPrice = () => {
                         })
                         .then((p) => console.log(p))
                         .catch((e) => console.log(e));
-                });
+                })
+                .catch((e) => console.log(e));
         });
     });
 };
@@ -128,7 +133,7 @@ const processAutonomousEvents = () => {
         })
         .then((events) => {
             console.log(events.map((e) => e.data));
-            events.length && processEvents("", "swap", events.slice(1));
+            processEvents("", "swap", events.slice(1));
             slot.period += 1;
         });
 };

@@ -107,7 +107,10 @@ export const processEvents = (
     method: string,
     events: IEvent[]
 ) => {
-    if (events[events.length - 1].data.includes("massa_execution_error"))
+    if (
+        !events.length ||
+        events[events.length - 1].data.includes("massa_execution_error")
+    )
         return;
 
     const genesisTimestamp = getGenesisTimestamp();
@@ -272,7 +275,8 @@ export const addPrice = (address: string, price: number) => {
                 })
                 // .then((e) => console.log(e))
                 .catch((e) => console.log(e));
-        });
+        })
+        .catch((e) => console.log(e));
 };
 
 // MISC

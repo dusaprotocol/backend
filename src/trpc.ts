@@ -87,6 +87,10 @@ export const appRouter = t.router({
                         })
                     );
                     return res.concat(emptyEntries).reverse();
+                })
+                .catch((e) => {
+                    console.log(e);
+                    return [];
                 });
         }),
     getTVL: t.procedure
@@ -152,6 +156,10 @@ export const appRouter = t.router({
                         })
                     );
                     return res.concat(emptyEntries).reverse();
+                })
+                .catch((e) => {
+                    console.log(e);
+                    return [];
                 });
         }),
     get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
@@ -193,20 +201,34 @@ export const appRouter = t.router({
                         ? 0
                         : ((volume - volumeYesterday) / volumeYesterday) * 100;
                 return { fees, volume, feesPctChange, volumePctChange };
+            })
+            .catch((e) => {
+                console.log(e);
+                return {
+                    fees: 0,
+                    volume: 0,
+                    feesPctChange: 0,
+                    volumePctChange: 0,
+                };
             });
     }),
     getRecentSwaps: t.procedure
         .input(z.string())
         .query(async ({ input, ctx }) => {
-            return ctx.prisma.swap.findMany({
-                where: {
-                    poolAddress: input,
-                },
-                orderBy: {
-                    timestamp: "desc",
-                },
-                take: 10,
-            });
+            return ctx.prisma.swap
+                .findMany({
+                    where: {
+                        poolAddress: input,
+                    },
+                    orderBy: {
+                        timestamp: "desc",
+                    },
+                    take: 10,
+                })
+                .catch((e) => {
+                    console.log(e);
+                    return [];
+                });
         }),
     getPrice: t.procedure
         .input(
@@ -244,6 +266,10 @@ export const appRouter = t.router({
                         }
                     });
                     return res;
+                })
+                .catch((e) => {
+                    console.log(e);
+                    return [];
                 });
         }),
 });
