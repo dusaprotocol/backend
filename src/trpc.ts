@@ -3,6 +3,7 @@ import { inferAsyncReturnType, initTRPC } from "@trpc/server";
 import { string, z } from "zod";
 import { prisma } from "./db";
 import type { Price, Prisma } from "@prisma/client";
+import { getActivePrice, getTokenValue } from "./socket";
 
 type Volume = Prisma.AnalyticsGetPayload<{
     select: {
@@ -13,7 +14,8 @@ type Volume = Prisma.AnalyticsGetPayload<{
 
 type TVL = Prisma.AnalyticsGetPayload<{
     select: {
-        tvl: true;
+        token0Locked: true;
+        token1Locked: true;
         date: true;
     };
 }>;
@@ -85,6 +87,10 @@ export const appRouter = t.router({
                         })
                     );
                     return res.concat(emptyEntries).reverse();
+                })
+                .catch((e) => {
+                    console.log(e);
+                    return [];
                 });
         }),
     getTVL: t.procedure
@@ -102,7 +108,8 @@ export const appRouter = t.router({
                         address,
                     },
                     select: {
-                        tvl: true,
+                        token0Locked: true,
+                        token1Locked: true,
                         date: true,
                     },
                     orderBy: {
@@ -113,27 +120,35 @@ export const appRouter = t.router({
                 .then((analytics) => {
                     const res: TVL[] = [];
 
-                    let acc = 0;
+                    let acc = [0, 0];
                     let date = analytics[0].date;
-                    analytics.forEach((analytic, i) => {
-                        if (
-                            date.getDay() !== analytic.date.getDay() ||
-                            i === analytics.length - 1
-                        ) {
-                            res.push({ date, tvl: BigInt(acc) });
-                            acc = 0;
-                            date = analytic.date;
-                            return;
-                        }
+                    getTokenValue(address).then((price) => {
+                        analytics.forEach((analytic, i) => {
+                            const nextDay =
+                                date.getDay() !== analytic.date.getDay() ||
+                                i === analytics.length - 1;
+                            if (nextDay) {
+                                res.push({
+                                    date,
+                                    token0Locked: BigInt(acc[0]),
+                                    token1Locked: BigInt(acc[1]),
+                                });
+                                acc = [0, 0];
+                                date = analytic.date;
+                                return;
+                            }
 
-                        acc += Number(analytic.tvl);
+                            acc[0] += Number(analytic.token0Locked);
+                            acc[1] += Number(analytic.token1Locked);
+                        });
                     });
 
                     const nbEntriesToFill = take / 24 - res.length;
-                    const emptyEntries = Array.from(
+                    const emptyEntries: TVL[] = Array.from(
                         { length: nbEntriesToFill },
                         (_, i) => ({
-                            tvl: BigInt(0),
+                            token0Locked: BigInt(0),
+                            token1Locked: BigInt(0),
                             date: new Date(
                                 res[res.length - 1].date.getTime() -
                                     1000 * 60 * 60 * 24 * (i + 1)
@@ -141,6 +156,10 @@ export const appRouter = t.router({
                         })
                     );
                     return res.concat(emptyEntries).reverse();
+                })
+                .catch((e) => {
+                    console.log(e);
+                    return [];
                 });
         }),
     get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
@@ -182,20 +201,34 @@ export const appRouter = t.router({
                         ? 0
                         : ((volume - volumeYesterday) / volumeYesterday) * 100;
                 return { fees, volume, feesPctChange, volumePctChange };
+            })
+            .catch((e) => {
+                console.log(e);
+                return {
+                    fees: 0,
+                    volume: 0,
+                    feesPctChange: 0,
+                    volumePctChange: 0,
+                };
             });
     }),
     getRecentSwaps: t.procedure
         .input(z.string())
         .query(async ({ input, ctx }) => {
-            return ctx.prisma.swap.findMany({
-                where: {
-                    poolAddress: input,
-                },
-                orderBy: {
-                    timestamp: "desc",
-                },
-                take: 10,
-            });
+            return ctx.prisma.swap
+                .findMany({
+                    where: {
+                        poolAddress: input,
+                    },
+                    orderBy: {
+                        timestamp: "desc",
+                    },
+                    take: 10,
+                })
+                .catch((e) => {
+                    console.log(e);
+                    return [];
+                });
         }),
     getPrice: t.procedure
         .input(
@@ -233,6 +266,10 @@ export const appRouter = t.router({
                         }
                     });
                     return res;
+                })
+                .catch((e) => {
+                    console.log(e);
+                    return [];
                 });
         }),
 });

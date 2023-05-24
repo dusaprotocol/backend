@@ -4,6 +4,7 @@ import { prisma } from "./db";
 import { getBinStep, getCallee, getPriceFromId } from "./methods";
 import { Prisma } from "@prisma/client";
 import { factorySC, usdcSC } from "./contracts";
+import { getGenesisTimestamp, parseSlot } from "./utils";
 
 type TxType = "addLiquidity" | "removeLiquidity" | "swap";
 
@@ -92,12 +93,12 @@ export const processLiquidity = (
             amountY += Number(_amountY);
         });
 
-        getActivePrice(poolAddress, binStep).then((price) => {
-            const value =
-                (price * amountX) / 10 ** 9 + amountY / 10 ** 9 / price;
-            console.log({ price, value, amountX, amountY });
-            addTvl(poolAddress, isAddLiquidity ? value : -value);
-        });
+        addTvl(
+            poolAddress,
+            isAddLiquidity ? amountX : -amountX,
+            isAddLiquidity ? amountY : -amountY,
+            new Date()
+        );
     });
 };
 
@@ -106,10 +107,14 @@ export const processEvents = (
     method: string,
     events: IEvent[]
 ) => {
-    if (events[events.length - 1].data.includes("massa_execution_error"))
+    if (
+        !events.length ||
+        events[events.length - 1].data.includes("massa_execution_error")
+    )
         return;
 
-    const timestamp = new Date(); // events[0].context.slot;
+    const genesisTimestamp = getGenesisTimestamp();
+    const timestamp = parseSlot(events[0].context.slot, genesisTimestamp);
     switch (method as TxType) {
         case "swap": {
             const pairAddress = events[0].data.split(",")[1];
@@ -117,7 +122,7 @@ export const processEvents = (
             const tokenOut = getCallee(events[events.length - 1]);
             processSwap(
                 txId,
-                timestamp,
+                new Date(timestamp),
                 pairAddress,
                 tokenIn,
                 tokenOut,
@@ -151,9 +156,9 @@ export const processEvents = (
 
 // COMMON PRISMA ACTIONS
 
-function addVolume(address: string, volume: number, fees: number) {
+export const addVolume = (address: string, volume: number, fees: number) => {
     const date = new Date();
-    date.setUTCHours(date.getHours(), 0, 0, 0);
+    date.setHours(date.getHours(), 0, 0, 0);
 
     prisma.analytics
         .upsert({
@@ -176,16 +181,21 @@ function addVolume(address: string, volume: number, fees: number) {
                 date,
                 volume,
                 fees,
-                tvl: 0,
+                token0Locked: 0,
+                token1Locked: 0,
             },
         })
         // .then((e) => console.log(e))
         .catch((e) => console.log(e));
-}
+};
 
-function addTvl(address: string, tvl: number) {
-    const date = new Date();
-    date.setUTCHours(date.getHours(), 0, 0, 0);
+export const addTvl = (
+    address: string,
+    token0Locked: number,
+    token1Locked: number,
+    date: Date = new Date()
+) => {
+    date.setHours(date.getHours(), 0, 0, 0);
 
     prisma.analytics
         .upsert({
@@ -196,8 +206,11 @@ function addTvl(address: string, tvl: number) {
                 },
             },
             update: {
-                tvl: {
-                    increment: tvl,
+                token0Locked: {
+                    increment: token0Locked,
+                },
+                token1Locked: {
+                    increment: token1Locked,
                 },
             },
             create: {
@@ -205,16 +218,17 @@ function addTvl(address: string, tvl: number) {
                 date,
                 volume: 0,
                 fees: 0,
-                tvl,
+                token0Locked,
+                token1Locked,
             },
         })
-        // .then((e) => console.log(e))
+        .then((e) => console.log(e))
         .catch((e) => console.log(e));
-}
+};
 
-function addPrice(address: string, price: number) {
+export const addPrice = (address: string, price: number) => {
     const date = new Date();
-    date.setUTCHours(date.getHours(), 0, 0, 0);
+    date.setHours(date.getHours(), 0, 0, 0);
 
     prisma.price
         .findUnique({
@@ -261,14 +275,15 @@ function addPrice(address: string, price: number) {
                 })
                 // .then((e) => console.log(e))
                 .catch((e) => console.log(e));
-        });
-}
+        })
+        .catch((e) => console.log(e));
+};
 
 // MISC
 
 export const getActivePrice = (
     poolAddress: string,
-    binStep: number
+    binStep?: number
 ): Promise<number> =>
     web3Client
         .publicApi()
@@ -277,13 +292,18 @@ export const getActivePrice = (
                 address: poolAddress,
                 key: strToBytes("PAIR_INFORMATION"),
             },
+            {
+                address: poolAddress,
+                key: strToBytes("FEES_PARAMETERS"),
+            },
         ])
         .then((r) => {
-            const data = r[0].final_value;
-            if (!data) return 0;
+            const pairInfoData = r[0].final_value;
+            const feesData = r[1].final_value;
+            if (!pairInfoData || !feesData) return 0;
 
-            const args = new Args(data);
-            const activeId = args.nextU32();
+            const activeId = new Args(pairInfoData).nextU32();
+            const binStep = new Args(feesData).nextU32();
             return getPriceFromId(activeId, binStep);
         });
 

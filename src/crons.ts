@@ -13,7 +13,11 @@ const getPairAddresses = () =>
             },
             distinct: ["address"],
         })
-        .then((res) => res.map((r) => r.address));
+        .then((res) => res.map((r) => r.address))
+        .catch((e) => {
+            console.log(e);
+            return [];
+        });
 
 const fillPrice = () => {
     console.log("running the price task");
@@ -35,7 +39,7 @@ const fillPrice = () => {
                     }
 
                     const date = new Date();
-                    date.setUTCHours(date.getHours(), 0, 0, 0);
+                    date.setHours(date.getHours(), 0, 0, 0);
 
                     prisma.price
                         .create({
@@ -50,7 +54,8 @@ const fillPrice = () => {
                         })
                         .then((p) => console.log(p))
                         .catch((e) => console.log(e));
-                });
+                })
+                .catch((e) => console.log(e));
         });
     });
 };
@@ -60,7 +65,7 @@ const fillAnalytics = () => {
 
     getPairAddresses().then((addresses) => {
         const date = new Date();
-        date.setUTCHours(date.getUTCHours(), 0, 0, 0);
+        date.setHours(date.getUTCHours(), 0, 0, 0);
 
         addresses.forEach((address) => {
             prisma.analytics
@@ -80,7 +85,8 @@ const fillAnalytics = () => {
                             data: {
                                 address,
                                 date,
-                                tvl: analytic.tvl,
+                                token0Locked: analytic.token0Locked,
+                                token1Locked: analytic.token1Locked,
                                 volume: 0,
                                 fees: 0,
                             },
@@ -127,7 +133,7 @@ const processAutonomousEvents = () => {
         })
         .then((events) => {
             console.log(events.map((e) => e.data));
-            events.length && processEvents("", "swap", events.slice(1));
+            processEvents("", "swap", events.slice(1));
             slot.period += 1;
         });
 };
