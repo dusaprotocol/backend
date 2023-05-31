@@ -132,7 +132,6 @@ const processAutonomousEvents = () => {
             end,
         })
         .then((events) => {
-            console.log(events.map((e) => e.data));
             processEvents("", "swap", events.slice(1));
             slot.period += 1;
         });

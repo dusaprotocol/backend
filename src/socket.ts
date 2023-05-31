@@ -19,6 +19,7 @@ export const processSwap = (
     swapEvents: string[]
 ) => {
     getBinStep(poolAddress).then((binStep) => {
+        console.log({ binStep });
         if (!binStep) return;
 
         let binId = 0;
@@ -48,6 +49,7 @@ export const processSwap = (
         });
 
         getTokenValue(tokenIn).then((valueIn) => {
+            console.log({ valueIn });
             if (!valueIn) return;
 
             const volume = Math.round((amountIn / 10 ** 9) * valueIn);
@@ -81,6 +83,7 @@ export const processLiquidity = (
     isAddLiquidity: boolean
 ) => {
     getBinStep(poolAddress).then((binStep) => {
+        console.log({ binStep });
         if (!binStep) return;
 
         let amountX = 0;
@@ -151,13 +154,21 @@ export const processEvents = (
                     ),
                 isAdd
             );
+            break;
+        default:
+            console.log(method);
+            break;
     }
 };
 
 // COMMON PRISMA ACTIONS
 
-export const addVolume = (address: string, volume: number, fees: number) => {
-    const date = new Date();
+export const addVolume = (
+    address: string,
+    volume: number,
+    fees: number,
+    date: Date = new Date()
+) => {
     date.setHours(date.getHours(), 0, 0, 0);
 
     prisma.analytics
@@ -226,8 +237,11 @@ export const addTvl = (
         .catch((e) => console.log(e));
 };
 
-export const addPrice = (address: string, price: number) => {
-    const date = new Date();
+export const addPrice = (
+    address: string,
+    price: number,
+    date: Date = new Date()
+) => {
     date.setHours(date.getHours(), 0, 0, 0);
 
     prisma.price
