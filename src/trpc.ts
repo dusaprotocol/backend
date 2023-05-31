@@ -234,11 +234,12 @@ export const appRouter = t.router({
         .input(
             z.object({
                 address: z.string(),
-                take: z.number(),
+                take: z.union([z.literal(24), z.literal(168), z.literal(720)]),
             })
         )
         .query(async ({ input, ctx }) => {
             const { address, take } = input;
+            console.log(address, take);
             return ctx.prisma.price
                 .findMany({
                     where: {
@@ -277,6 +278,24 @@ export const appRouter = t.router({
 export const expressMiddleware = trpcExpress.createExpressMiddleware({
     router: appRouter,
     createContext,
+    responseMeta(opts) {
+        const { ctx, paths, errors, type } = opts;
+        // checking that no procedures errored
+        const allOk = errors.length === 0;
+        // checking we're doing a query request
+        const isQuery = type === "query";
+        if (ctx?.res && allOk && isQuery) {
+            console.log("setting cache");
+            // cache request for 1 day
+            const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+            return {
+                headers: {
+                    "cache-control": `stale-while-revalidate=${ONE_DAY_IN_SECONDS}`,
+                },
+            };
+        }
+        return {};
+    },
 });
 
 // export type definition of API
