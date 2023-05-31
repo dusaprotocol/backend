@@ -14,6 +14,7 @@ interface Pool {
 
 const pools: Pool[] = [
     {
+        // USDC-ETH
         address: "AS129LnZTYzWwXhBT6tVHbVTQRHPdB4PRdaV8nzRUBLBL647i1KMZ",
         binStep: 10,
         activeId: 123559,
@@ -32,7 +33,6 @@ const pools: Pool[] = [
     },
 ];
 const betaLaunch = new Date(1684332000 * 1000).getTime();
-const precision = 10 ** 9;
 
 async function generateAnalytics(pool: Pool) {
     const data: Analytics[] = [];
@@ -129,13 +129,56 @@ async function trackPastTVL() {
     });
 }
 
+async function createMissingPrices(pool: Pool) {
+    const data: Price[] = [];
+    const lastMonthPrices = await prisma.price.findMany({
+        where: {
+            address: pool.address,
+            date: {
+                gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+            },
+        },
+        orderBy: {
+            date: "asc",
+        },
+    });
+    for (let i = 0; i < lastMonthPrices.length; i++) {
+        if (i === lastMonthPrices.length - 1) break;
+
+        const date = new Date(lastMonthPrices[i].date);
+        const nextDate = new Date(lastMonthPrices[i + 1].date);
+        const elapsed = nextDate.getTime() - date.getTime();
+        const oneHour = 1000 * 60 * 60;
+        if (elapsed !== oneHour) {
+            const missingHours = Math.floor(elapsed / oneHour);
+            console.log(missingHours, date, nextDate);
+
+            for (let j = 1; j < missingHours; j++) {
+                const missingData: Price = {
+                    address: pool.address,
+                    date: new Date(date.getTime() + oneHour * j),
+                    open: lastMonthPrices[i].close,
+                    close: lastMonthPrices[i].close,
+                    high: lastMonthPrices[i].close,
+                    low: lastMonthPrices[i].close,
+                };
+                data.push(missingData);
+            }
+        }
+    }
+    await prisma.price
+        .createMany({
+            data,
+        })
+        .then((res) => console.log(res))
+        .catch((err) => console.log(err));
+}
+
 async function main() {
     // for (const pool of pools) {
     //     generateAnalytics(pool);
     //     generatePrices(pool);
     // }
-
-    trackPastTVL();
 }
 
 main();
