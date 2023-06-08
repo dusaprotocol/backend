@@ -1,3 +1,6 @@
 [submodule "grpc/massa"]
 	path = grpc/massa
 	url = https://github.com/massalabs/massa
+[submodule "massa"]
+	path = massa
+	url = https://github.com/massalabs/massa
