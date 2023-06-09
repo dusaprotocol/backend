@@ -6,7 +6,8 @@
   "scripts": {
     "start": "ts-node main.ts",
     "dev": "nodemon main.ts",
-    "build": "buf generate"
+    "build": "buf generate",
+    "postinstall": "git submodule update --init --recursive && npm run build"
   },
   "dependencies": {
     "@massalabs/massa-web3": "^1.17.1",
