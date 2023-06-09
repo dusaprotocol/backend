@@ -1,9 +1,8 @@
 import * as trpcExpress from "@trpc/server/adapters/express";
 import { inferAsyncReturnType, initTRPC } from "@trpc/server";
 import { string, z } from "zod";
-import { prisma } from "../../src/db";
+import { prisma } from "../../common/db";
 import type { Price, Prisma } from "@prisma/client";
-import { getActivePrice, getTokenValue } from "../../indexer/src/socket";
 
 type Volume = Prisma.AnalyticsGetPayload<{
   select: {
@@ -122,25 +121,23 @@ export const appRouter = t.router({
 
           let acc = [0, 0];
           let date = analytics[0].date;
-          getTokenValue(address).then((price) => {
-            analytics.forEach((analytic, i) => {
-              const nextDay =
-                date.getDay() !== analytic.date.getDay() ||
-                i === analytics.length - 1;
-              if (nextDay) {
-                res.push({
-                  date,
-                  token0Locked: BigInt(acc[0]),
-                  token1Locked: BigInt(acc[1]),
-                });
-                acc = [0, 0];
-                date = analytic.date;
-                return;
-              }
+          analytics.forEach((analytic, i) => {
+            const nextDay =
+              date.getDay() !== analytic.date.getDay() ||
+              i === analytics.length - 1;
+            if (nextDay) {
+              res.push({
+                date,
+                token0Locked: BigInt(acc[0]),
+                token1Locked: BigInt(acc[1]),
+              });
+              acc = [0, 0];
+              date = analytic.date;
+              return;
+            }
 
-              acc[0] += Number(analytic.token0Locked);
-              acc[1] += Number(analytic.token1Locked);
-            });
+            acc[0] += Number(analytic.token0Locked);
+            acc[1] += Number(analytic.token1Locked);
           });
 
           const nbEntriesToFill = take / 24 - res.length;

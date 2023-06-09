@@ -1,9 +1,9 @@
 import cron from "node-cron";
-import { prisma } from "../../src/db";
-import { dcaSC } from "./contracts";
-import { processEvents } from "../src/socket";
 import { ISlot } from "@massalabs/massa-web3";
-import { web3Client } from "../../src/client";
+import { prisma } from "../../common/db";
+import { dcaSC } from "../../common/contracts";
+import { web3Client } from "../../common/client";
+import { processEvents } from "./socket";
 
 const getPairAddresses = () =>
   prisma.price

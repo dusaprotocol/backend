@@ -13,6 +13,7 @@ import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/esm/interfa
 import { IFilledBlockInfo } from "@massalabs/massa-web3/dist/esm/interfaces/ISubscribedFullBlocksMessage";
 import { priceTask, analyticsTask, autonomousEvents } from "./src/crons";
 import { processEvents } from "./src/socket";
+import { web3Client } from "../common/client";
 
 const port = process.env.PORT || 33037;
 const host = process.env.HOST || "37.187.156.118";
@@ -77,13 +78,38 @@ const subscribeFilledBlocks = async () => {
     stream.on("data", (data: NewFilledBlocksResponse) => {
       const block = data.getFilledBlock()?.toObject();
       const operations = block?.operationsList;
+
       console.log(block?.header?.id, operations?.length);
-      operations?.forEach((op) =>
-        console.log({
-          id: op.operationId,
-          call: op.operation?.content?.op?.callSc,
-        })
-      );
+      operations?.forEach(async (operation) => {
+        const op = operation?.operation?.content?.op;
+        const txId = operation?.operation?.id;
+        if (!op || !txId) return;
+
+        if (op.callSc) {
+          const method = op.callSc.targetFunc;
+
+          // const status = await  web3Client
+          //   .smartContracts()
+          //   .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL)
+          //     if (status !== EOperationStatus.FINAL) {
+          //       console.log(txId + " failed to reached final status");
+          //       return;
+          //     }
+          //     console.log(txId + " has reached final status");
+
+          web3Client
+            .smartContracts()
+            .getFilteredScOutputEvents({
+              start: null,
+              end: null,
+              emitter_address: null,
+              original_caller_address: null,
+              is_final: null,
+              original_operation_id: txId,
+            })
+            .then((events) => processEvents(txId, method, events));
+        }
+      });
     });
     stream.on("error", (err) => {
       console.log(err);
@@ -114,42 +140,7 @@ const subscribe = async <Req, Res extends { toObject: () => any }>(
   });
 };
 
-const stream = service.newFilledBlocks();
-stream.on("error", console.log);
-stream.on("end", () => console.log("end"));
-stream.on("data", (data: NewFilledBlocksResponse) => {
-  const block = data.getFilledBlock()?.toObject();
-  const operations = block?.operationsList;
-  console.log(block?.header?.id, operations?.length);
-  operations?.forEach((operation) => {
-    // const txId = operation[0];
-    // const op = (operation[1] as unknown as IFilledBlockInfo).content.op;
-    // if ("CallSC" in op) {
-    //   const method = (op as ICallSmartContractOpType).CallSC.target_func;
-    //   web3Client
-    //     .smartContracts()
-    //     .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL)
-    //     .then((status) => {
-    //       if (status !== EOperationStatus.FINAL) {
-    //         console.log(txId + " failed to reached final status");
-    //         return;
-    //       }
-    //       console.log(txId + " has reached final status");
-    //       web3Client
-    //         .smartContracts()
-    //         .getFilteredScOutputEvents({
-    //           start: null,
-    //           end: null,
-    //           emitter_address: null,
-    //           original_caller_address: null,
-    //           is_final: null,
-    //           original_operation_id: txId,
-    //         })
-    //         .then((events) => processEvents(txId, method, events));
-    //     });
-    // }
-  });
-});
+subscribeFilledBlocks();
 
 // Start cron tasks
 

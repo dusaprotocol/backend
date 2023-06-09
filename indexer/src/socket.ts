@@ -1,10 +1,15 @@
 import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
-import { web3Client } from "../../src/client";
-import { prisma } from "../../src/db";
-import { getBinStep, getCallee, getPriceFromId } from "../../src/methods";
 import { Prisma } from "@prisma/client";
-import { factorySC, usdcSC } from "./contracts";
-import { getGenesisTimestamp, parseSlot } from "../../src/utils";
+import { web3Client } from "../../common/client";
+import { prisma } from "../../common/db";
+import {
+  getBinStep,
+  getCallee,
+  getPriceFromId,
+  getTokenValue,
+} from "../../common/methods";
+import { factorySC, usdcSC } from "../../common/contracts";
+import { getGenesisTimestamp, parseSlot } from "../../common/utils";
 
 type TxType = "addLiquidity" | "removeLiquidity" | "swap";
 
@@ -277,91 +282,4 @@ export const addPrice = (address: string, price: number) => {
         .catch((e) => console.log(e));
     })
     .catch((e) => console.log(e));
-};
-
-// MISC
-
-export const getActivePrice = (
-  poolAddress: string,
-  binStep?: number
-): Promise<number> =>
-  web3Client
-    .publicApi()
-    .getDatastoreEntries([
-      {
-        address: poolAddress,
-        key: strToBytes("PAIR_INFORMATION"),
-      },
-      {
-        address: poolAddress,
-        key: strToBytes("FEES_PARAMETERS"),
-      },
-    ])
-    .then((r) => {
-      const pairInfoData = r[0].final_value;
-      const feesData = r[1].final_value;
-      if (!pairInfoData || !feesData) return 0;
-
-      const activeId = new Args(pairInfoData).nextU32();
-      const binStep = new Args(feesData).nextU32();
-      return getPriceFromId(activeId, binStep);
-    });
-
-export const fetchPairBinSteps = async (
-  token0: string,
-  token1: string
-): Promise<number[]> =>
-  web3Client
-    .smartContracts()
-    .readSmartContract({
-      fee: BigInt(1_000_000),
-      targetAddress: factorySC,
-      targetFunction: "getAvailableLBPairBinSteps",
-      maxGas: BigInt(100_000_000),
-      parameter: new Args().addString(token0).addString(token1).serialize(),
-    })
-    .then((res) => {
-      return res.info.output_events[0]?.data.split(",").map(Number);
-    });
-
-export const fetchPairAddress = async (
-  token0: string,
-  token1: string,
-  binStep: number
-): Promise<string | undefined> =>
-  web3Client
-    .smartContracts()
-    .readSmartContract({
-      fee: BigInt(1_000_000),
-      targetAddress: factorySC,
-      targetFunction: "getLBPairInformation",
-      parameter: new Args()
-        .addString(token0)
-        .addString(token1)
-        .addU32(binStep)
-        .serialize(),
-      maxGas: BigInt(100_000_000),
-    })
-    .then((res) => {
-      const returnValue = new Args(res.returnValue);
-      const _ = returnValue.nextU32();
-      const lpAddress = returnValue.nextString();
-      return lpAddress;
-    })
-    .catch((err) => {
-      console.log(err);
-      return undefined;
-    });
-
-export const getTokenValue = async (
-  tokenAddress: string
-): Promise<number | undefined> => {
-  if (tokenAddress === usdcSC) return 1;
-
-  const binSteps = await fetchPairBinSteps(tokenAddress, usdcSC);
-  const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binSteps[0]);
-  if (!pairAddress) return;
-
-  const price = await getActivePrice(pairAddress, binSteps[0]);
-  return tokenAddress < usdcSC ? price : 1 / price;
 };
