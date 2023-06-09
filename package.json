@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "postinstall": "prisma db pull && prisma generate",
     "start": "nodemon server.ts",
     "reset": "prisma migrate reset --force && prisma db push",
     "seed": "ts-node ./prisma/seed.ts"

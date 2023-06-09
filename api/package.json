@@ -5,12 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "postinstall": "prisma db pull && prisma generate",
     "start": "ts-node main.ts",
     "dev": "nodemon main.ts"
-  },
-  "prisma": {
-    "schema": "../prisma/schema.prisma"
   },
   "keywords": [],
   "author": "",
