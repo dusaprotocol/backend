@@ -11,8 +11,7 @@ import { TransactionsThroughputResponse } from "./build/nodejs/api_pb";
 import { EOperationStatus } from "@massalabs/massa-web3";
 import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/esm/interfaces/OperationTypes";
 import { IFilledBlockInfo } from "@massalabs/massa-web3/dist/esm/interfaces/ISubscribedFullBlocksMessage";
-import { web3Client } from "./src/client";
-import {priceTask, analyticsTask, autonomousEvents} from "./src/crons";
+import { priceTask, analyticsTask, autonomousEvents } from "./src/crons";
 import { processEvents } from "./src/socket";
 
 const port = process.env.PORT || 33037;

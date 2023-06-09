@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon main.ts",
+    "start": "ts-node main.ts",
+    "dev": "nodemon main.ts",
     "build": "buf generate"
   },
   "dependencies": {

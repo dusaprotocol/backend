@@ -5,7 +5,7 @@
     "preserveConstEnums": true,
     "moduleResolution": "Node",
     "strict": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "sourceMap": true,
     "target": "es2022",
   },
