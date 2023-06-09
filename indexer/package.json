@@ -1,0 +1,28 @@
+{
+  "name": "indexer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon main.ts",
+    "build": "buf generate"
+  },
+  "dependencies": {
+    "@massalabs/massa-web3": "^1.17.1",
+    "@types/node-cron": "^3.0.7",
+    "node-cron": "^3.0.2"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "1.21.0-1",
+    "@grpc/grpc-js": "^1.8.15",
+    "grpc-tools": "^1.12.4",
+    "grpc_tools_node_protoc_ts": "^5.3.3",
+    "nodemon": "^2.0.22",
+    "protoc-gen-js": "^3.21.2",
+    "ts-node": "^10.9.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

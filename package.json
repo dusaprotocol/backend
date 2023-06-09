@@ -4,7 +4,6 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "prisma db pull && prisma generate",
     "start": "nodemon server.ts",
     "reset": "prisma migrate reset --force && prisma db push",
     "seed": "ts-node ./prisma/seed.ts"
@@ -14,24 +13,14 @@
   "license": "ISC",
   "dependencies": {
     "@massalabs/massa-web3": "1.16.1",
-    "@prisma/client": "^4.13.0",
-    "@trpc/server": "^10.21.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.3",
-    "express": "^4.18.2",
-    "node-cron": "^3.0.2",
-    "ws": "^8.13.0",
-    "zod": "^3.21.4"
+    "@prisma/client": "^4.15.0",
+    "dotenv": "^16.0.3"
   },
   "type": "module",
   "devDependencies": {
-    "@types/cors": "^2.8.13",
-    "@types/express": "^4.17.17",
-    "@types/node": "^18.16.3",
-    "@types/node-cron": "^3.0.7",
-    "@types/ws": "^8.5.4",
     "nodemon": "^2.0.22",
-    "prisma": "^4.13.0",
+    "prettier": "^2.8.8",
+    "prisma": "^4.15.0",
     "ts-node": "^10.9.1",
     "tslib": "^2.5.0",
     "typescript": "^4.9.5"

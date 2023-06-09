@@ -11,7 +11,7 @@
   },
   "include": [
     "src/**/*.ts"
-  ],
+, "indexer/src/socket.ts", "indexer/src/contracts.ts"  ],
   "exclude": [
     "node_modules"
   ],

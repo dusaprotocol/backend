@@ -1,0 +1,4 @@
+version: v1
+directories:
+    - massa/massa-proto/proto/massa/api/v1
+    - massa/massa-proto/proto/third-party
