@@ -108,16 +108,19 @@ export const analyticsTask = cron.schedule(everyHour, fillAnalytics, {
   scheduled: false,
 });
 
-let slot: ISlot = await web3Client
-  .publicApi()
-  .getNodeStatus()
-  .then((r) => ({
-    period: r.last_slot.period - 5,
-    thread: 0,
-  }));
+let slot: ISlot;
 
-const processAutonomousEvents = () => {
+const processAutonomousEvents = async () => {
   console.log("running the autonomous events task for period", slot.period);
+
+  if (!slot)
+    slot = await web3Client
+      .publicApi()
+      .getNodeStatus()
+      .then((r) => ({
+        period: r.last_slot.period - 5,
+        thread: 0,
+      }));
 
   const start = slot;
   const end = { ...slot, thread: 31 };

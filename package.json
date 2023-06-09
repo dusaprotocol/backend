@@ -16,7 +16,6 @@
     "@prisma/client": "^4.15.0",
     "dotenv": "^16.0.3"
   },
-  "type": "module",
   "devDependencies": {
     "nodemon": "^2.0.22",
     "prettier": "^2.8.8",
