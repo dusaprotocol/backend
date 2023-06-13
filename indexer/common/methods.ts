@@ -28,6 +28,10 @@ export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
       const args = new Args(entries[0].final_value);
       const binStep = args.nextU32();
       return binStep;
+    })
+    .catch((err) => {
+      console.log(err);
+      return undefined;
     });
 
 // common
@@ -39,14 +43,24 @@ export const fetchPairBinSteps = async (
   web3Client
     .smartContracts()
     .readSmartContract({
-      fee: BigInt(1_000_000),
       targetAddress: factorySC,
       targetFunction: "getAvailableLBPairBinSteps",
       maxGas: BigInt(100_000_000),
       parameter: new Args().addString(token0).addString(token1).serialize(),
     })
     .then((res) => {
+      // const binStep = new Args(res.returnValue).nextU32();
+      // const NativeTypeU32 = 3;
+      // const binSteps = new Args(res.returnValue).nextNativeTypeArray(
+      //   NativeTypeU32
+      // );
+      // console.log({ binStep, binSteps });
+
       return res.info.output_events[0]?.data.split(",").map(Number);
+    })
+    .catch((err) => {
+      console.log(err);
+      return [];
     });
 
 export const fetchPairAddress = async (
@@ -57,7 +71,6 @@ export const fetchPairAddress = async (
   web3Client
     .smartContracts()
     .readSmartContract({
-      fee: BigInt(1_000_000),
       targetAddress: factorySC,
       targetFunction: "getLBPairInformation",
       parameter: new Args()
@@ -84,7 +97,10 @@ export const getTokenValue = async (
   if (tokenAddress === usdcSC) return 1;
 
   const binSteps = await fetchPairBinSteps(tokenAddress, usdcSC);
+  if (!binSteps.length) return;
+
   const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binSteps[0]);
+  console.log({ pairAddress });
   if (!pairAddress) return;
 
   const price = await getActivePrice(pairAddress, binSteps[0]);
@@ -115,4 +131,8 @@ export const getActivePrice = (
       const activeId = new Args(pairInfoData).nextU32();
       const binStep = new Args(feesData).nextU32();
       return getPriceFromId(activeId, binStep);
+    })
+    .catch((err) => {
+      console.log(err);
+      return 0;
     });

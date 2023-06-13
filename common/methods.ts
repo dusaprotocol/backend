@@ -39,7 +39,6 @@ export const fetchPairBinSteps = async (
   web3Client
     .smartContracts()
     .readSmartContract({
-      fee: BigInt(1_000_000),
       targetAddress: factorySC,
       targetFunction: "getAvailableLBPairBinSteps",
       maxGas: BigInt(100_000_000),
@@ -57,7 +56,6 @@ export const fetchPairAddress = async (
   web3Client
     .smartContracts()
     .readSmartContract({
-      fee: BigInt(1_000_000),
       targetAddress: factorySC,
       targetFunction: "getLBPairInformation",
       parameter: new Args()
