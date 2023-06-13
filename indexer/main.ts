@@ -13,7 +13,7 @@ import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/esm/interfa
 import { IFilledBlockInfo } from "@massalabs/massa-web3/dist/esm/interfaces/ISubscribedFullBlocksMessage";
 import { priceTask, analyticsTask, autonomousEvents } from "./src/crons";
 import { processEvents } from "./src/socket";
-import { web3Client } from "../common/client";
+import { web3Client } from "./common/client";
 
 const port = process.env.PORT || 33037;
 const host = process.env.HOST || "37.187.156.118";

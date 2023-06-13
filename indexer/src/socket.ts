@@ -1,15 +1,13 @@
 import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { Prisma } from "@prisma/client";
-import { web3Client } from "../../common/client";
-import { prisma } from "../../common/db";
+import { prisma } from "./../common/db";
 import {
   getBinStep,
   getCallee,
   getPriceFromId,
   getTokenValue,
-} from "../../common/methods";
-import { factorySC, usdcSC } from "../../common/contracts";
-import { getGenesisTimestamp, parseSlot } from "../../common/utils";
+} from "./../common/methods";
+import { getGenesisTimestamp, parseSlot } from "./../common/utils";
 
 type TxType = "addLiquidity" | "removeLiquidity" | "swap";
 

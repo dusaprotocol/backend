@@ -1,8 +1,8 @@
 import cron from "node-cron";
 import { ISlot } from "@massalabs/massa-web3";
-import { prisma } from "../../common/db";
-import { dcaSC } from "../../common/contracts";
-import { web3Client } from "../../common/client";
+import { prisma } from "./../common/db";
+import { dcaSC } from "./../common/contracts";
+import { web3Client } from "./../common/client";
 import { processEvents } from "./socket";
 
 const getPairAddresses = () =>
