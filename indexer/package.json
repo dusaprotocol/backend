@@ -10,7 +10,6 @@
     "postinstall": "git submodule update --init --recursive && npm run build"
   },
   "dependencies": {
-    "@massalabs/massa-web3": "^1.17.1",
     "@types/node-cron": "^3.0.7",
     "node-cron": "^3.0.2"
   },
