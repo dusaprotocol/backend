@@ -9,7 +9,11 @@ import {
 } from "./../common/methods";
 import { getGenesisTimestamp, parseSlot } from "./../common/utils";
 
-type TxType = "addLiquidity" | "removeLiquidity" | "swap";
+export const indexedMethods = [
+  "swapExactTokensForTokens",
+  "addLiquidity",
+  "removeLiquidity",
+];
 
 // EVENT PROCESSING
 
@@ -110,6 +114,7 @@ export const processEvents = (
   method: string,
   events: IEvent[]
 ) => {
+  console.log(txId, method, events);
   if (
     !events.length ||
     events[events.length - 1].data.includes("massa_execution_error")
@@ -118,8 +123,9 @@ export const processEvents = (
 
   const genesisTimestamp = getGenesisTimestamp();
   const timestamp = parseSlot(events[0].context.slot, genesisTimestamp);
-  switch (method as TxType) {
-    case "swap": {
+  switch (method) {
+    case "swap":
+    case "swapExactTokensForTokens": {
       const pairAddress = events[0].data.split(",")[1];
       const tokenIn = getCallee(events[0]);
       const tokenOut = getCallee(events[events.length - 1]);
@@ -134,7 +140,7 @@ export const processEvents = (
       break;
     }
     case "addLiquidity":
-    case "removeLiquidity":
+    case "removeLiquidity": {
       const isAdd = method === "addLiquidity";
 
       const tokenX = ""; //getCallee(events[0]);
@@ -154,6 +160,7 @@ export const processEvents = (
           ),
         isAdd
       );
+    }
   }
 };
 

@@ -9,10 +9,8 @@ import {
 } from "./build/nodejs/api_pb";
 import { TransactionsThroughputResponse } from "./build/nodejs/api_pb";
 import { EOperationStatus } from "@massalabs/massa-web3";
-import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/esm/interfaces/OperationTypes";
-import { IFilledBlockInfo } from "@massalabs/massa-web3/dist/esm/interfaces/ISubscribedFullBlocksMessage";
 import { priceTask, analyticsTask, autonomousEvents } from "./src/crons";
-import { processEvents } from "./src/socket";
+import { indexedMethods, processEvents } from "./src/socket";
 import { web3Client } from "./common/client";
 
 const port = process.env.PORT || 33037;
@@ -87,15 +85,16 @@ const subscribeFilledBlocks = async () => {
 
         if (op.callSc) {
           const method = op.callSc.targetFunc;
+          if (!indexedMethods.includes(method)) return;
 
-          // const status = await  web3Client
-          //   .smartContracts()
-          //   .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL)
-          //     if (status !== EOperationStatus.FINAL) {
-          //       console.log(txId + " failed to reached final status");
-          //       return;
-          //     }
-          //     console.log(txId + " has reached final status");
+          const status = await web3Client
+            .smartContracts()
+            .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL);
+          if (status !== EOperationStatus.FINAL) {
+            console.log(txId + " failed to reached final status");
+            return;
+          }
+          console.log(txId + " has reached final status");
 
           web3Client
             .smartContracts()

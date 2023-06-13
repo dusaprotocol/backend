@@ -56,6 +56,8 @@ export const appRouter = t.router({
           take,
         })
         .then((analytics) => {
+          if (analytics.length === 0) 
+            return [];
           const res: Volume[] = [];
 
           let acc = 0;
@@ -117,6 +119,8 @@ export const appRouter = t.router({
           take,
         })
         .then((analytics) => {
+          if (analytics.length === 0)
+            return [];
           const res: TVL[] = [];
 
           let acc = [0, 0];
