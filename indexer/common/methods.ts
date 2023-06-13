@@ -100,7 +100,6 @@ export const getTokenValue = async (
   if (!binSteps.length) return;
 
   const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binSteps[0]);
-  console.log({ pairAddress });
   if (!pairAddress) return;
 
   const price = await getActivePrice(pairAddress, binSteps[0]);

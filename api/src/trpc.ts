@@ -56,8 +56,7 @@ export const appRouter = t.router({
           take,
         })
         .then((analytics) => {
-          if (analytics.length === 0) 
-            return [];
+          if (analytics.length === 0) return [];
           const res: Volume[] = [];
 
           let acc = 0;
@@ -119,8 +118,7 @@ export const appRouter = t.router({
           take,
         })
         .then((analytics) => {
-          if (analytics.length === 0)
-            return [];
+          if (analytics.length === 0) return [];
           const res: TVL[] = [];
 
           let acc = [0, 0];
@@ -284,11 +282,11 @@ export const expressMiddleware = trpcExpress.createExpressMiddleware({
     const isQuery = type === "query";
     if (ctx?.res && allOk && isQuery) {
       console.log("setting cache");
-      // cache request for 1 day
-      const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+      // cache request for 1 hour
+      const ONE_HOUR_IN_SECONDS = 60 * 60;
       return {
         headers: {
-          "cache-control": `stale-while-revalidate=${ONE_DAY_IN_SECONDS}`,
+          "cache-control": `stale-while-revalidate=${ONE_HOUR_IN_SECONDS}`,
         },
       };
     }
