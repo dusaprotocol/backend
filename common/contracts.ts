@@ -1,6 +1,6 @@
 export const factorySC =
-    "AS12HvhDnJgJqL5gob9GZY5nGXTC1rAbCfKUicYYoiyaBQ8CUrY8F";
-export const dcaSC = "AS12ZpaLGy6EoBfi6tvRAVyiaPUYjAohvXGuTwciaPeYscdEbnMhX";
+  "AS12HvhDnJgJqL5gob9GZY5nGXTC1rAbCfKUicYYoiyaBQ8CUrY8F";
+export const dcaSC = "AS1vEajKEB1dwmyF5oVwqHSDzxxYGgFZBpipSjvuPQ2sGgPtg4H2";
 
-export const usdcSC = "AS122bbaGz4LYGuE6GUcfEuuCCtP1ncGXUc9J4GuR3WPAm7ZDQar";
-export const wmasSC = "AS12NXR6BMGUeizRPDDZQRKH7E5gPZk9BtRKa9TbD8omNzDhER5cM";
+export const usdcSC = "AS1jvuXwyP77M5ydtRKxJvp4EdtSWuSG8pohfuEDQLwqqgmvkjJ5";
+export const wmasSC = "AS12hWgxvsubDDJ3jcxjASQNT34y9GNQvdRmco9o7A47arPEVPLy1";

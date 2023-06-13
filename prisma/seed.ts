@@ -1,8 +1,8 @@
-import { Analytics, Price, Prisma, PrismaClient } from "@prisma/client";
-import { getCallee, getPriceFromId } from "../src/methods";
-import { addTvl, getActivePrice } from "./../indexer/src/socket";
-import { web3Client } from "../src/client";
-import { getGenesisTimestamp, parseSlot } from "../src/utils";
+import { Analytics, Price, PrismaClient } from "@prisma/client";
+import { web3Client } from "../common/client";
+import { getActivePrice, getCallee } from "../common/methods";
+import { getGenesisTimestamp, parseSlot } from "../common/utils";
+import { addTvl } from "../indexer/src/socket";
 
 const prisma = new PrismaClient();
 
@@ -15,21 +15,21 @@ interface Pool {
 const pools: Pool[] = [
   {
     // USDC-ETH
-    address: "AS129LnZTYzWwXhBT6tVHbVTQRHPdB4PRdaV8nzRUBLBL647i1KMZ",
+    address: "AS12B2SUnD5mqHkTC1gBfmm58F8CBqC1oxHAgEF53EV4XLK6jz4GZ",
     binStep: 10,
-    activeId: 123559,
+    activeId: 138585,
   },
   {
     // USDC-MASSA
-    address: "AS12Gnt1pVQJ4ip4DRRLmdusGj3wVjkA9NVpCKP1qs8CyzCgbWwHF",
+    address: "AS12KbcXyR5vcpVP3FrzZob866K7qud3youLVDDvcBNjgXofw8GZN",
     binStep: 20,
-    activeId: 130266,
+    activeId: 131887,
   },
   {
     // MASSA-WETH
-    address: "AS128hN9i7DRCcFTmY4LVErFoHR2omShNiQPu662JoEAbWx4CEMF1",
+    address: "AS1MBXDj3UuXyngTGGvPHeKLjBasVxCiJ7zAXqo3izeQBmpG536C",
     binStep: 15,
-    activeId: 127136,
+    activeId: 135005,
   },
 ];
 const betaLaunch = new Date(1684332000 * 1000).getTime();
@@ -174,11 +174,9 @@ async function createMissingPrices(pool: Pool) {
     .catch((err) => console.log(err));
 }
 
-async function main() {
-  // for (const pool of pools) {
-  //     generateAnalytics(pool);
-  //     generatePrices(pool);
-  // }
-}
-
-main();
+(() => {
+  for (const pool of pools) {
+    generateAnalytics(pool);
+    generatePrices(pool);
+  }
+})();
