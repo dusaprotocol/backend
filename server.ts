@@ -1,22 +1,22 @@
 import express from "express";
-import { web3Client } from "./src/client";
+// import { web3Client } from "./src/client";
 import cors from "cors";
 import { expressMiddleware } from "./src/trpc";
-import { processEvents } from "./src/socket";
-import { analyticsTask, autonomousEvents, priceTask } from "./src/crons";
-import {
-    EOperationStatus,
-    ISubscribedFullBlocksMessage,
-} from "@massalabs/massa-web3";
-import {
-    generateFullRequestName,
-    WS_RPC_REQUEST_METHOD_BASE,
-    WS_RPC_REQUEST_METHOD_NAME,
-} from "./src/WsRpcMethods";
-import { IFilledBlockInfo } from "@massalabs/massa-web3/dist/interfaces/ISubscribedFullBlocksMessage";
-import WebSocket from "ws";
-import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/interfaces/OperationTypes";
-import { prisma } from "./src/db";
+// import { processEvents } from "./src/socket";
+// import { analyticsTask, autonomousEvents, priceTask } from "./src/crons";
+// import {
+//     EOperationStatus,
+//     ISubscribedFullBlocksMessage,
+// } from "@massalabs/massa-web3";
+// import {
+//     generateFullRequestName,
+//     WS_RPC_REQUEST_METHOD_BASE,
+//     WS_RPC_REQUEST_METHOD_NAME,
+// } from "./src/WsRpcMethods";
+// import { IFilledBlockInfo } from "@massalabs/massa-web3/dist/interfaces/ISubscribedFullBlocksMessage";
+// import WebSocket from "ws";
+// import { ICallSmartContractOpType } from "@massalabs/massa-web3/dist/interfaces/OperationTypes";
+// import { prisma } from "./src/db";
 
 // Start TRPC server
 
@@ -33,7 +33,7 @@ app.get("/", (req, res) => {
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#data-feed-configuration-data
 app.get("/config", (req, res) => {
     res.send({
-        supported_resolutions: ["1H", "4H"],
+        supported_resolutions: ["60"],
         supports_group_request: false,
         supports_marks: false,
         supports_search: true,
@@ -60,16 +60,31 @@ app.get("/symbols", (req, res) => {
         format: "price",
         pricescale: 100000000,
         minmov: 1,
-        // has_intraday: true,
-        // supported_resolutions: ["1H", "4H"],
+
+        // has_intraday: false,
+        // supported_resolutions: ["60"],
     });
+});
+
+// Search
+// https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#symbol-search
+app.get("/search", (req, res) => {
+    const { query, type, exchange, limit } = req.query;
+    console.log({ query, type, exchange, limit });
+
+    res.send([]);
 });
 
 // Bars
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#bars
 app.get("/history", (req, res) => {
-    const { symbol, resolution, from, to, countback } = req.query;
-    // console.log({ symbol, resolution, from, to, countback });
+    // const { symbol, resolution, from, to, countback } = req.query;
+    const symbol = req.query.symbol as string;
+    const resolution = req.query.resolution as string;
+    const from = parseInt(req.query.from as string);
+    const to = parseInt(req.query.to as string);
+    const countback = parseInt(req.query.countback as string);
+    console.log({ symbol, resolution, from, to, countback });
 
     // const prices = prisma.price.findMany({
     //     where: {
@@ -86,10 +101,21 @@ app.get("/history", (req, res) => {
 
     res.send({
         s: "ok",
-        t: [1386493512, 1386493572, 1386493632, 1386493692],
-        c: [42.1, 43.4, 44.3, 42.8],
+        t: Array.from({ length: countback }, (_, i) => from + i * 86400),
+        c: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
+
+        // s: "error",
+        // errmsg: "unknown_symbol",
     });
 });
+
+// Server time
+// https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#server-time
+app.get("/time", (req, res) => {
+    res.send(Math.floor(Date.now() / 1000));
+});
+
+// *** TRADINGVIEW END ***
 
 app.use("/trpc", expressMiddleware);
 
