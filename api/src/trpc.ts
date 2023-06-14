@@ -1,8 +1,9 @@
 import * as trpcExpress from "@trpc/server/adapters/express";
 import { inferAsyncReturnType, initTRPC } from "@trpc/server";
 import { string, z } from "zod";
-import { prisma } from "../../common/db";
 import type { Price, Prisma } from "@prisma/client";
+import { prisma } from "../../common/db";
+import logger from "../../common/logger";
 
 type Volume = Prisma.AnalyticsGetPayload<{
   select: {
@@ -88,8 +89,8 @@ export const appRouter = t.router({
           );
           return res.concat(emptyEntries).reverse();
         })
-        .catch((e) => {
-          console.log(e);
+        .catch((err) => {
+          logger.error(err);
           return [];
         });
     }),
@@ -156,8 +157,8 @@ export const appRouter = t.router({
           );
           return res.concat(emptyEntries).reverse();
         })
-        .catch((e) => {
-          console.log(e);
+        .catch((err) => {
+          logger.error(err);
           return [];
         });
     }),
@@ -198,8 +199,8 @@ export const appRouter = t.router({
             : ((volume - volumeYesterday) / volumeYesterday) * 100;
         return { fees, volume, feesPctChange, volumePctChange };
       })
-      .catch((e) => {
-        console.log(e);
+      .catch((err) => {
+        logger.error(err);
         return {
           fees: 0,
           volume: 0,
@@ -221,8 +222,8 @@ export const appRouter = t.router({
           },
           take: 10,
         })
-        .catch((e) => {
-          console.log(e);
+        .catch((err) => {
+          logger.error(err);
           return [];
         });
     }),
@@ -264,8 +265,8 @@ export const appRouter = t.router({
           });
           return res;
         })
-        .catch((e) => {
-          console.log(e);
+        .catch((err) => {
+          logger.error(err);
           return [];
         });
     }),

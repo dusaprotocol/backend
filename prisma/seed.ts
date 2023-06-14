@@ -60,7 +60,7 @@ async function generateAnalytics(pool: Pool) {
     .createMany({
       data,
     })
-    .catch((err) => console.log(err));
+    .catch((err) => logger.error(err));
 }
 
 async function generatePrices(pool: Pool) {
@@ -90,7 +90,7 @@ async function generatePrices(pool: Pool) {
     .createMany({
       data,
     })
-    .catch((err) => console.log(err));
+    .catch((err) => logger.error(err));
 }
 
 async function trackPastTVL() {
@@ -171,7 +171,7 @@ async function createMissingPrices(pool: Pool) {
       data,
     })
     .then((res) => console.log(res))
-    .catch((err) => console.log(err));
+    .catch((err) => logger.error(err));
 }
 
 (() => {

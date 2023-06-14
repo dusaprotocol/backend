@@ -14,7 +14,8 @@
   "dependencies": {
     "@massalabs/massa-web3": "1.19.1-dev.20230612152851",
     "@prisma/client": "^4.15.0",
-    "dotenv": "^16.0.3"
+    "dotenv": "^16.0.3",
+    "winston": "^3.9.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22",

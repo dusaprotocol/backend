@@ -12,25 +12,26 @@ import { EOperationStatus } from "@massalabs/massa-web3";
 import { priceTask, analyticsTask, autonomousEvents } from "./src/crons";
 import { indexedMethods, processEvents } from "./src/socket";
 import { web3Client } from "./common/client";
+import logger from "./common/logger";
 
 const port = process.env.PORT || 33037;
 const host = process.env.HOST || "37.187.156.118";
 const url = `${host}:${port}`.replace(" ", "");
-console.log(url);
+logger.info(`Connecting to ${url}`);
 const service = new MassaServiceClient(url, credentials.createInsecure());
 
 const subscribeNewOperations = async () => {
   const stream = service.newOperations();
   return new Promise((resolve, reject) => {
     stream.on("data", (data: NewOperationsResponse) => {
-      console.log(data.toObject());
+      logger.info(data.toObject());
     });
     stream.on("error", (err) => {
-      console.log(err);
+      logger.error(err);
       reject(err);
     });
     stream.on("end", (e: any) => {
-      console.log("end");
+      logger.warn("subscribeNewOperations end", e);
       resolve(e);
     });
   });
@@ -40,14 +41,14 @@ const subscribeTransactionsThroughput = async () => {
   const stream = service.transactionsThroughput();
   return new Promise((resolve, reject) => {
     stream.on("data", (data: TransactionsThroughputResponse) => {
-      console.log(data.toObject());
+      logger.info(data.toObject());
     });
     stream.on("error", (err) => {
-      console.log(err);
+      logger.error(err);
       reject(err);
     });
     stream.on("end", (e: any) => {
-      console.log("end");
+      logger.warn("subscribeTransactionsThroughput end", e);
       resolve(e);
     });
   });
@@ -57,14 +58,14 @@ const subscribeNewSlotExecutionOutputs = async () => {
   const stream = service.newSlotExecutionOutputs();
   return new Promise((resolve, reject) => {
     stream.on("data", (data: NewSlotExecutionOutputsResponse) => {
-      console.log(data.toObject());
+      logger.info(data.toObject());
     });
     stream.on("error", (err) => {
-      console.log(err);
+      logger.error(err);
       reject(err);
     });
     stream.on("end", (e: any) => {
-      console.log("end");
+      logger.warn("subscribeNewSlotExecutionOutputs end", e);
       resolve(e);
     });
   });
@@ -77,7 +78,9 @@ const subscribeFilledBlocks = async () => {
       const block = data.getFilledBlock()?.toObject();
       const operations = block?.operationsList;
 
-      console.log(block?.header?.id, operations?.length);
+      logger.info(
+        `${operations?.length} operations in block ${block?.header?.id}`
+      );
       operations?.forEach(async (operation) => {
         const op = operation?.operation?.content?.op;
         const txId = operation?.operation?.id;
@@ -91,10 +94,10 @@ const subscribeFilledBlocks = async () => {
             .smartContracts()
             .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL);
           if (status !== EOperationStatus.FINAL) {
-            console.log(txId + " failed to reached final status");
+            logger.debug(txId + " failed to reached final status");
             return;
           }
-          console.log(txId + " has reached final status");
+          logger.debug(txId + " has reached final status");
 
           web3Client
             .smartContracts()
@@ -111,11 +114,11 @@ const subscribeFilledBlocks = async () => {
       });
     });
     stream.on("error", (err) => {
-      console.log(err);
+      logger.error(err);
       reject(err);
     });
     stream.on("end", (e: any) => {
-      console.log("end");
+      logger.warn("subscribeFilledBlocks end", e);
       resolve(e);
     });
   });
@@ -126,14 +129,14 @@ const subscribe = async <Req, Res extends { toObject: () => any }>(
 ) => {
   return new Promise((resolve, reject) => {
     stream.on("data", (data: Res) => {
-      console.log(data.toObject());
+      logger.info(data.toObject());
     });
     stream.on("error", (err) => {
-      console.log(err);
+      logger.error(err);
       reject(err);
     });
     stream.on("end", (e: any) => {
-      console.log("end");
+      logger.warn("subscribe end", e);
       resolve(e);
     });
   });

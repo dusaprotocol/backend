@@ -1,6 +1,7 @@
 import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
+import logger from "./logger";
 
 const REAL_ID_SHIFT = 2 ** 17;
 
@@ -72,7 +73,7 @@ export const fetchPairAddress = async (
       return lpAddress;
     })
     .catch((err) => {
-      console.log(err);
+      logger.error(err);
       return undefined;
     });
 
