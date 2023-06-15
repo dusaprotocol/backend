@@ -4,6 +4,7 @@ import { prisma } from "./../common/db";
 import { dcaSC } from "./../common/contracts";
 import { web3Client } from "./../common/client";
 import { processEvents } from "./socket";
+import logger from "../common/logger";
 
 const getPairAddresses = () =>
   prisma.price
@@ -15,12 +16,12 @@ const getPairAddresses = () =>
     })
     .then((res) => res.map((r) => r.address))
     .catch((e) => {
-      console.log(e);
+      logger.warn(e);
       return [];
     });
 
 const fillPrice = () => {
-  console.log("running the price task");
+  logger.info(`running the price task at ${Date.now()}`);
 
   getPairAddresses().then((addresses) => {
     addresses.forEach((address) => {
@@ -52,20 +53,20 @@ const fillPrice = () => {
                 open: price.close,
               },
             })
-            .then((p) => console.log(p))
-            .catch((e) => console.log(e));
+            .then((p) => logger.info(p))
+            .catch((e) => logger.warn(e));
         })
-        .catch((e) => console.log(e));
+        .catch((e) => logger.warn(e));
     });
   });
 };
 
 const fillAnalytics = () => {
-  console.log("running the volume & TVL task");
+  logger.info(`running the analytics task at ${Date.now()}`);
 
   getPairAddresses().then((addresses) => {
     const date = new Date();
-    date.setHours(date.getUTCHours(), 0, 0, 0);
+    date.setHours(date.getHours(), 0, 0, 0);
 
     addresses.forEach((address) => {
       prisma.analytics
@@ -91,9 +92,10 @@ const fillAnalytics = () => {
                 fees: 0,
               },
             })
-            .then((t) => console.log(t))
-            .catch((e) => console.log(e));
-        });
+            .then((t) => logger.info(t))
+            .catch((e) => logger.warn(e));
+        })
+        .catch((e) => logger.warn(e));
     });
   });
 };
@@ -111,7 +113,7 @@ export const analyticsTask = cron.schedule(everyHour, fillAnalytics, {
 let slot: ISlot;
 
 const processAutonomousEvents = async () => {
-  console.log("running the autonomous events task for period", slot.period);
+  logger.silly(`running the autonomous events task for period ${slot.period}`);
 
   if (!slot)
     slot = await web3Client
@@ -135,7 +137,7 @@ const processAutonomousEvents = async () => {
       end,
     })
     .then((events) => {
-      console.log(events.map((e) => e.data));
+      logger.silly(events.map((e) => e.data));
       processEvents("", "swap", events.slice(1));
       slot.period += 1;
     });
