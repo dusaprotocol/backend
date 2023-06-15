@@ -67,11 +67,8 @@ const subscribeNewSlotExecutionOutputs = async () => {
 
 const subscribeFilledBlocks = async () => {
   const stream = service.newFilledBlocks();
-  stream.on("data", (data) => {
-    logger.silly(data);
-    const block = (data as NewFilledBlocksResponse)
-      .getFilledBlock()
-      ?.toObject();
+  stream.on("data", (data: NewFilledBlocksResponse) => {
+    const block = data.getFilledBlock()?.toObject();
     const operations = block?.operationsList;
 
     operations?.forEach(async (operation) => {
@@ -110,19 +107,24 @@ const subscribeFilledBlocks = async () => {
     logger.error(err);
   });
   stream.on("end", (e: any) => {
-    logger.warn("subscribeFilledBlocks end: " + e);
+    logger.warn("subscribeFilledBlocks end");
+    logger.warn(e);
   });
   stream.on("close", (e: any) => {
-    logger.warn("subscribeFilledBlocks close: " + e);
+    logger.warn("subscribeFilledBlocks close");
+    logger.warn(e);
   });
   stream.on("finish", (e: any) => {
-    logger.warn("subscribeFilledBlocks finish: " + e);
+    logger.warn("subscribeFilledBlocks finish");
+    logger.warn(e);
   });
   stream.on("status", (e: any) => {
-    logger.warn("subscribeFilledBlocks status: " + e);
+    logger.warn("subscribeFilledBlocks status");
+    logger.warn(e);
   });
   stream.on("metadata", (e: any) => {
-    logger.warn("subscribeFilledBlocks metadata: " + e);
+    logger.warn("subscribeFilledBlocks metadata");
+    logger.warn(e);
   });
 };
 

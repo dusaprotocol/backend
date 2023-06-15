@@ -8,6 +8,7 @@ import {
   getTokenValue,
 } from "./../common/methods";
 import { getGenesisTimestamp, parseSlot } from "./../common/utils";
+import logger from "../common/logger";
 
 export const indexedMethods = [
   "swapExactTokensForTokens",
@@ -75,15 +76,13 @@ export const processSwap = (
           txHash,
         },
       })
-      // .then((e) => console.log(e))
-      .catch((e) => console.log(e));
+      .then((e) => logger.info(e))
+      .catch((e) => logger.warn(e));
   });
 };
 
 export const processLiquidity = (
   poolAddress: string,
-  tokenX: string,
-  tokenY: string,
   events: string[],
   isAddLiquidity: boolean
 ) => {
@@ -114,7 +113,11 @@ export const processEvents = (
   method: string,
   events: IEvent[]
 ) => {
-  console.log(txId, method, events);
+  logger.info(
+    txId,
+    method,
+    events.map((e) => e.data)
+  );
   if (
     !events.length ||
     events[events.length - 1].data.includes("massa_execution_error")
@@ -142,15 +145,10 @@ export const processEvents = (
     case "addLiquidity":
     case "removeLiquidity": {
       const isAdd = method === "addLiquidity";
-
-      const tokenX = ""; //getCallee(events[0]);
-      const tokenY = ""; // getCallee(events[1]);
       const pairAddress = events[0].data.split(",")[isAdd ? 1 : 2];
 
       processLiquidity(
         pairAddress,
-        tokenX,
-        tokenY,
         events
           .map((e) => e.data)
           .filter(
@@ -195,8 +193,8 @@ export const addVolume = (address: string, volume: number, fees: number) => {
         token1Locked: 0,
       },
     })
-    // .then((e) => console.log(e))
-    .catch((e) => console.log(e));
+    .then((e) => logger.info(e))
+    .catch((err) => logger.warn(err));
 };
 
 export const addTvl = (
@@ -232,8 +230,8 @@ export const addTvl = (
         token1Locked,
       },
     })
-    .then((e) => console.log(e))
-    .catch((e) => console.log(e));
+    .then((e) => logger.info(e))
+    .catch((err) => logger.warn(err));
 };
 
 export const addPrice = (address: string, price: number) => {
@@ -262,8 +260,8 @@ export const addPrice = (address: string, price: number) => {
               date,
             },
           })
-          // .then((e) => console.log(e))
-          .catch((e) => console.log(e));
+          .then((e) => logger.info(e))
+          .catch((err) => logger.warn(err));
         return;
       }
 
@@ -283,8 +281,8 @@ export const addPrice = (address: string, price: number) => {
           },
           data,
         })
-        // .then((e) => console.log(e))
-        .catch((e) => console.log(e));
+        .then((e) => logger.info(e))
+        .catch((err) => logger.warn(err));
     })
-    .catch((e) => console.log(e));
+    .catch((err) => logger.warn(err));
 };
