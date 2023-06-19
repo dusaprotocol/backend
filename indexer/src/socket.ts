@@ -64,6 +64,7 @@ export const processSwap = (
     });
     addPrice(poolAddress, price);
 
+    amountIn += totalFees;
     prisma.swap
       .create({
         data: {
