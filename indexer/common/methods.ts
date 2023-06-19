@@ -136,3 +136,29 @@ export const getActivePrice = (
       logger.error(err);
       return 0;
     });
+
+export const getLockedReserves = (
+  poolAddress: string
+): Promise<[number, number]> =>
+  web3Client
+    .publicApi()
+    .getDatastoreEntries([
+      {
+        address: poolAddress,
+        key: strToBytes("PAIR_INFORMATION"),
+      },
+    ])
+    .then((r): [number, number] => {
+      const pairInfoData = r[0].final_value;
+      if (!pairInfoData) return [0, 0];
+
+      const pairInformation = new Args(pairInfoData);
+      const activeId = pairInformation.nextU32();
+      const reserveX = Number(pairInformation.nextU64());
+      const reserveY = Number(pairInformation.nextU64());
+      return [reserveX, reserveY];
+    })
+    .catch((err) => {
+      logger.error(err);
+      return [0, 0];
+    });
