@@ -46,6 +46,7 @@ model Liquidity {
   poolAddress String
   amount0     BigInt
   amount1     BigInt
+  usdValue    Float    @default(0)
   lowerBound  Int
   upperBound  Int
   timestamp   DateTime

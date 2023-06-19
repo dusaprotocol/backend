@@ -86,10 +86,12 @@ export const processLiquidity = (
   txHash: string,
   timestamp: string | Date,
   poolAddress: string,
+  token0: string,
+  token1: string,
   events: string[],
   isAddLiquidity: boolean
 ) => {
-  getBinStep(poolAddress).then((binStep) => {
+  getBinStep(poolAddress).then(async (binStep) => {
     if (!binStep) return;
 
     let amountX = 0;
@@ -105,16 +107,21 @@ export const processLiquidity = (
     const amount0 = isAddLiquidity ? amountX : -amountX;
     const amount1 = isAddLiquidity ? amountY : -amountY;
     const lowerBound = Number(events[0].split(",")[1]);
-    const upperBound = Number(events[events.length].split(",")[1]);
+    const upperBound = Number(events[events.length - 1].split(",")[1]);
 
     addTvl(poolAddress, amount0, amount1);
 
+    const token0Value = await getTokenValue(token0);
+    const token1Value = await getTokenValue(token1);
+    const usdValue =
+      (token0Value ?? 0) * amount0 + (token1Value ?? 0) * amount1;
     prisma.liquidity
       .create({
         data: {
           poolAddress,
           amount0,
           amount1,
+          usdValue,
           lowerBound,
           upperBound,
           timestamp,
@@ -131,11 +138,7 @@ export const processEvents = (
   method: string,
   events: IEvent[]
 ) => {
-  logger.info(
-    txId,
-    method,
-    events.map((e) => e.data)
-  );
+  logger.info({ txId, method, data: events.map((e) => e.data) });
   if (
     !events.length ||
     events[events.length - 1].data.includes("massa_execution_error")
@@ -176,6 +179,8 @@ export const processEvents = (
         txId,
         new Date(timestamp),
         pairAddress,
+        getCallee(events[events.length - 2]),
+        getCallee(events[events.length - 1]),
         events
           .map((e) => e.data)
           .filter(
