@@ -104,6 +104,8 @@ export const processLiquidity = (
 
     const amount0 = isAddLiquidity ? amountX : -amountX;
     const amount1 = isAddLiquidity ? amountY : -amountY;
+    const lowerBound = Number(events[0].split(",")[1]);
+    const upperBound = Number(events[events.length].split(",")[1]);
 
     addTvl(poolAddress, amount0, amount1);
 
@@ -113,6 +115,8 @@ export const processLiquidity = (
           poolAddress,
           amount0,
           amount1,
+          lowerBound,
+          upperBound,
           timestamp,
           txHash,
         },

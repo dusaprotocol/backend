@@ -46,6 +46,8 @@ model Liquidity {
   poolAddress String
   amount0     BigInt
   amount1     BigInt
+  lowerBound  Int
+  upperBound  Int
   timestamp   DateTime
   txHash      String
   id          Int      @id @default(autoincrement())
