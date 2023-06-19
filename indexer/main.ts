@@ -18,13 +18,16 @@ const port = process.env.PORT || 33037;
 const host = process.env.HOST || "37.187.156.118";
 const url = `${host}:${port}`.replace(" ", "");
 logger.info(`Connecting to ${url}`);
-const service = new MassaServiceClient(
-  url,
-  credentials.createInsecure() /* {
+const service = new MassaServiceClient(url, credentials.createInsecure(), {
   "grpc.keepalive_time_ms": 120000,
   "grpc.keepalive_timeout_ms": 20000,
-} */
-);
+  "grpc.keepalive_permit_without_calls": 10,
+  "grpc.max_connection_idle_ms": 100000,
+  "grpc.max_connection_age_ms": 120000,
+  "grpc.http2.min_time_between_pings_ms": 120000,
+  "grpc.http2.min_ping_interval_without_data_ms": 120000,
+  "grpc.enable_retries": 1,
+});
 
 const subscribeNewOperations = async () => {
   const stream = service.newOperations();
@@ -105,26 +108,16 @@ const subscribeFilledBlocks = async () => {
   });
   stream.on("error", (err) => {
     logger.error(err);
+    subscribeFilledBlocks();
   });
-  stream.on("end", (e: any) => {
-    logger.warn("subscribeFilledBlocks end");
-    logger.warn(e);
+  stream.on("end", () => {
+    logger.warn(`subscribeFilledBlocks end on ${new Date().toString()}`);
   });
   stream.on("close", (e: any) => {
-    logger.warn("subscribeFilledBlocks close");
-    logger.warn(e);
-  });
-  stream.on("finish", (e: any) => {
-    logger.warn("subscribeFilledBlocks finish");
-    logger.warn(e);
+    logger.warn(`subscribeFilledBlocks close: ${e}`);
   });
   stream.on("status", (e: any) => {
-    logger.warn("subscribeFilledBlocks status");
-    logger.warn(e);
-  });
-  stream.on("metadata", (e: any) => {
-    logger.warn("subscribeFilledBlocks metadata");
-    logger.warn(e);
+    logger.warn(`subscribeFilledBlocks status: ${e}`);
   });
 };
 
