@@ -61,7 +61,7 @@ app.get("/symbols", (req, res) => {
         pricescale: 100000000,
         minmov: 1,
 
-        // has_intraday: false,
+        has_intraday: true,
         // supported_resolutions: ["60"],
     });
 });
@@ -84,7 +84,8 @@ app.get("/history", (req, res) => {
     const from = parseInt(req.query.from as string);
     const to = parseInt(req.query.to as string);
     const countback = parseInt(req.query.countback as string);
-    console.log({ symbol, resolution, from, to, countback });
+    const interval = (to - from) / countback;
+    console.log({ /* symbol, resolution, from, to, */ countback, interval });
 
     // const prices = prisma.price.findMany({
     //     where: {
@@ -101,11 +102,11 @@ app.get("/history", (req, res) => {
 
     res.send({
         s: "ok",
-        t: Array.from({ length: countback }, (_, i) => from + i * 86400),
+        t: Array.from({ length: countback }, (_, i) => from + i * interval),
         c: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
-
-        // s: "error",
-        // errmsg: "unknown_symbol",
+        o: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
+        h: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
+        l: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
     });
 });
 
