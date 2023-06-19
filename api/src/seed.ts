@@ -1,8 +1,5 @@
 import { Analytics, Price, PrismaClient } from "@prisma/client";
-import { web3Client } from "../common/client";
-import { getActivePrice, getCallee } from "../common/methods";
-import { getGenesisTimestamp, parseSlot } from "../common/utils";
-import { addTvl } from "../indexer/src/socket";
+import { getActivePrice, getCallee } from "../../common/methods";
 
 const prisma = new PrismaClient();
 
@@ -93,42 +90,6 @@ async function generatePrices(pool: Pool) {
     .catch((err) => console.error(err));
 }
 
-async function trackPastTVL() {
-  const genesisTimestamp = getGenesisTimestamp();
-
-  const events = await web3Client.smartContracts().getFilteredScOutputEvents({
-    start: null,
-    end: null,
-    emitter_address: null, //pool.address
-    original_caller_address: null,
-    original_operation_id: null,
-    is_final: null,
-  });
-  // const filtered = events.filter((e) => getCallee(e) === pool.address);
-  const filtered = events.filter(
-    (e) =>
-      e.data.startsWith("DEPOSITED_TO_BIN:") ||
-      e.data.startsWith("REMOVED_FROM_BIN:")
-  );
-  filtered.forEach((e) => {
-    if (
-      e.data.startsWith("DEPOSITED_TO_BIN:") ||
-      e.data.startsWith("REMOVED_FROM_BIN:")
-    ) {
-      const isAdd = e.data.startsWith("DEPOSITED_TO_BIN:");
-      const [_to, _binId, amountX, amountY] = e.data.split(",");
-      const date = parseSlot(e.context.slot, genesisTimestamp);
-
-      addTvl(
-        getCallee(e), //pool.address
-        isAdd ? Number(amountX) : Number(-amountX),
-        isAdd ? Number(amountY) : Number(-amountY),
-        new Date(date)
-      );
-    }
-  });
-}
-
 async function createMissingPrices(pool: Pool) {
   const data: Price[] = [];
   const lastMonthPrices = await prisma.price.findMany({
@@ -175,8 +136,28 @@ async function createMissingPrices(pool: Pool) {
 }
 
 (() => {
-  for (const pool of pools) {
-    generateAnalytics(pool);
-    generatePrices(pool);
-  }
+  // for (const pool of pools) {
+  //   generateAnalytics(pool);
+  //   generatePrices(pool);
+  // }
+
+  prisma.analytics
+    .updateMany({
+      where: {
+        token0Locked: {
+          lt: BigInt(0),
+        },
+        OR: {
+          token1Locked: {
+            lt: BigInt(0),
+          },
+        },
+      },
+      data: {
+        token0Locked: BigInt(0),
+        token1Locked: BigInt(0),
+      },
+    })
+    .then((res) => console.log(res))
+    .catch((err) => console.error(err));
 })();

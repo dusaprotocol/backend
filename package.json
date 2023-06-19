@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "prisma db pull && prisma generate",
     "reset": "prisma migrate reset --force && prisma db push",
-    "seed": "ts-node ./prisma/seed.ts"
+    "seed": "ts-node ./api/src/seed.ts"
   },
   "keywords": [],
   "author": "",

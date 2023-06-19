@@ -114,7 +114,8 @@ export const processLiquidity = (
     const token0Value = await getTokenValue(token0);
     const token1Value = await getTokenValue(token1);
     const usdValue =
-      (token0Value ?? 0) * amount0 + (token1Value ?? 0) * amount1;
+      (token0Value ?? 0) * (amount0 / 10 ** 9) +
+      (token1Value ?? 0) * (amount1 / 10 ** 9);
     prisma.liquidity
       .create({
         data: {
