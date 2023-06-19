@@ -83,6 +83,8 @@ export const processSwap = (
 };
 
 export const processLiquidity = (
+  txHash: string,
+  timestamp: string | Date,
   poolAddress: string,
   events: string[],
   isAddLiquidity: boolean
@@ -100,12 +102,23 @@ export const processLiquidity = (
       amountY += Number(_amountY);
     });
 
-    addTvl(
-      poolAddress,
-      isAddLiquidity ? amountX : -amountX,
-      isAddLiquidity ? amountY : -amountY,
-      new Date()
-    );
+    const amount0 = isAddLiquidity ? amountX : -amountX;
+    const amount1 = isAddLiquidity ? amountY : -amountY;
+
+    addTvl(poolAddress, amount0, amount1);
+
+    prisma.liquidity
+      .create({
+        data: {
+          poolAddress,
+          amount0,
+          amount1,
+          timestamp,
+          txHash,
+        },
+      })
+      .then((e) => logger.info(e))
+      .catch((e) => logger.warn(e));
   });
 };
 
@@ -129,6 +142,11 @@ export const processEvents = (
   const timestamp = parseSlot(events[0].context.slot, genesisTimestamp);
   switch (method) {
     case "swap":
+    case "swapExactTokensForMAS":
+    case "swapExactMASForTokens":
+    case "swapTokensForExactTokens":
+    case "swapTokensForExactMAS":
+    case "swapMASForExactTokens":
     case "swapExactTokensForTokens": {
       const pairAddress = events[0].data.split(",")[1];
       const tokenIn = getCallee(events[0]);
@@ -144,11 +162,15 @@ export const processEvents = (
       break;
     }
     case "addLiquidity":
+    case "addLiquidityMAS":
+    case "removeLiquidityMAS":
     case "removeLiquidity": {
       const isAdd = method === "addLiquidity";
       const pairAddress = events[0].data.split(",")[isAdd ? 1 : 2];
 
       processLiquidity(
+        txId,
+        new Date(timestamp),
         pairAddress,
         events
           .map((e) => e.data)
@@ -235,8 +257,11 @@ export const addTvl = (
     .catch((err) => logger.warn(err));
 };
 
-export const addPrice = (address: string, price: number) => {
-  const date = new Date();
+export const addPrice = (
+  address: string,
+  price: number,
+  date: Date = new Date()
+) => {
   date.setHours(date.getHours(), 0, 0, 0);
 
   prisma.price

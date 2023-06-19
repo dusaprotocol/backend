@@ -227,6 +227,24 @@ export const appRouter = t.router({
           return [];
         });
     }),
+  getRecentLiquidity: t.procedure
+    .input(z.string())
+    .query(async ({ input, ctx }) => {
+      return ctx.prisma.liquidity
+        .findMany({
+          where: {
+            poolAddress: input,
+          },
+          orderBy: {
+            timestamp: "desc",
+          },
+          take: 10,
+        })
+        .catch((err) => {
+          logger.error(err);
+          return [];
+        });
+    }),
   getPrice: t.procedure
     .input(
       z.object({
