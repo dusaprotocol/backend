@@ -6,7 +6,6 @@ import { web3Client } from "./../common/client";
 import { processEvents } from "./socket";
 import logger from "../common/logger";
 import { getActivePrice, getLockedReserves } from "../common/methods";
-import type { Price } from "@prisma/client";
 import { Args } from "@massalabs/massa-web3";
 
 const getPairAddresses = (): Promise<string[]> =>
@@ -61,55 +60,22 @@ const fillPrice = () => {
 
   getPairAddresses().then((addresses) => {
     addresses.forEach((address) => {
-      prisma.price
-        .findFirst({
-          where: {
-            address,
-          },
-          orderBy: {
-            date: "desc",
-          },
-        })
-        .then((price) => {
-          if (!price)
-            getActivePrice(address).then((p) => createPrice(address, p));
-          else createPrice(address, price.close);
-        })
-        .catch((e) => logger.warn(e));
+      getActivePrice(address).then((p) => createPrice(address, p));
     });
   });
 };
 
-const fillAnalytics = () => {
-  logger.info(`running the analytics task at ${new Date().toString()}`);
+const fillTVL = () => {
+  logger.info(`running the TVL task at ${new Date().toString()}`);
 
   getPairAddresses().then((addresses) => {
     const date = new Date();
     date.setHours(date.getHours(), 0, 0, 0);
 
     addresses.forEach((address) => {
-      prisma.analytics
-        .findFirst({
-          where: {
-            address,
-          },
-          orderBy: {
-            date: "desc",
-          },
-        })
-        .then((analytic) => {
-          if (!analytic)
-            getLockedReserves(address).then((r) =>
-              createAnalytic(address, BigInt(r[0]), BigInt(r[1]))
-            );
-          else
-            createAnalytic(
-              address,
-              analytic.token0Locked,
-              analytic.token1Locked
-            );
-        })
-        .catch((e) => logger.warn(e));
+      getLockedReserves(address).then((r) =>
+        createAnalytic(address, BigInt(r[0]), BigInt(r[1]))
+      );
     });
   });
 };
@@ -162,7 +128,7 @@ const everyPeriod = "*/16 * * * * *" as const;
 export const priceTask = cron.schedule(everyHour, fillPrice, {
   scheduled: false,
 });
-export const analyticsTask = cron.schedule(everyHour, fillAnalytics, {
+export const tvlTask = cron.schedule(everyHour, fillTVL, {
   scheduled: false,
 });
 

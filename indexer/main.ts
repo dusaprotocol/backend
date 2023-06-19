@@ -7,9 +7,8 @@ import {
   NewOperationsResponse,
   NewSlotExecutionOutputsResponse,
 } from "./build/nodejs/api_pb";
-import { TransactionsThroughputResponse } from "./build/nodejs/api_pb";
 import { EOperationStatus } from "@massalabs/massa-web3";
-import { priceTask, analyticsTask, autonomousEvents } from "./src/crons";
+import { priceTask, tvlTask, autonomousEvents } from "./src/crons";
 import { indexedMethods, processEvents } from "./src/socket";
 import { web3Client } from "./common/client";
 import logger from "./common/logger";
@@ -42,19 +41,6 @@ const subscribeNewOperations = async () => {
   });
 };
 
-const subscribeTransactionsThroughput = async () => {
-  const stream = service.transactionsThroughput();
-  stream.on("data", (data: TransactionsThroughputResponse) => {
-    logger.info(data.toObject());
-  });
-  stream.on("error", (err) => {
-    logger.error(err);
-  });
-  stream.on("end", (e: any) => {
-    logger.warn("subscribeTransactionsThroughput end: " + e);
-  });
-};
-
 const subscribeNewSlotExecutionOutputs = async () => {
   const stream = service.newSlotExecutionOutputs();
   stream.on("data", (data: NewSlotExecutionOutputsResponse) => {
@@ -69,6 +55,7 @@ const subscribeNewSlotExecutionOutputs = async () => {
 };
 
 const subscribeFilledBlocks = async () => {
+  logger.info("subscribeFilledBlocks start on " + new Date().toString());
   const stream = service.newFilledBlocks();
   stream.on("data", (data: NewFilledBlocksResponse) => {
     const block = data.getFilledBlock()?.toObject();
@@ -113,11 +100,8 @@ const subscribeFilledBlocks = async () => {
   stream.on("end", () => {
     logger.warn(`subscribeFilledBlocks end on ${new Date().toString()}`);
   });
-  stream.on("close", (e: any) => {
-    logger.warn(`subscribeFilledBlocks close: ${e}`);
-  });
   stream.on("status", (e: any) => {
-    logger.warn(`subscribeFilledBlocks status: ${e}`);
+    logger.warn(e);
   });
 };
 
@@ -144,5 +128,5 @@ subscribeFilledBlocks();
 // Start cron tasks
 
 priceTask.start();
-analyticsTask.start();
+tvlTask.start();
 autonomousEvents.start();
