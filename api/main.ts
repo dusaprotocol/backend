@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import { expressMiddleware } from "./src/trpc";
-import logger from "../indexer/common/logger";
 
 // Start TRPC server
 
@@ -9,7 +8,7 @@ const app = express();
 app.use(cors());
 
 app.get("/", (req, res) => {
-  logger.silly(req.ip);
+  console.log(req.ip);
   res.send("Hello World!");
 });
 
