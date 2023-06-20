@@ -1,4 +1,4 @@
-import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
+import { Args, IEvent, bytesToStr, strToBytes } from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
@@ -162,3 +162,31 @@ export const getLockedReserves = (
       logger.error(err);
       return [0, 0];
     });
+
+export const getPairAddressTokens = async (
+  pairAddress: string
+): Promise<[string, string] | undefined> => {
+  return await web3Client
+    .publicApi()
+    .getDatastoreEntries([
+      {
+        address: pairAddress,
+        key: strToBytes("TOKEN_X"),
+      },
+      {
+        address: pairAddress,
+        key: strToBytes("TOKEN_Y"),
+      },
+    ])
+    .then((r): [string, string] | undefined => {
+      if (r[0].candidate_value && r[1].candidate_value)
+        return [
+          bytesToStr(r[0].candidate_value),
+          bytesToStr(r[1].candidate_value),
+        ];
+    })
+    .catch((err) => {
+      logger.warn(err);
+      return undefined;
+    });
+};

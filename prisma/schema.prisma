@@ -16,6 +16,7 @@ model Analytics {
   fees         BigInt
   token0Locked BigInt
   token1Locked BigInt
+  usdLocked    Float
 
   @@id([date, address])
 }
@@ -46,7 +47,7 @@ model Liquidity {
   poolAddress String
   amount0     BigInt
   amount1     BigInt
-  usdValue    Float    @default(0)
+  usdValue    Float
   lowerBound  Int
   upperBound  Int
   timestamp   DateTime

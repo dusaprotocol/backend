@@ -46,6 +46,7 @@ async function generateAnalytics(pool: Pool) {
       date,
       token0Locked: BigInt(value),
       token1Locked: BigInt(value),
+      usdLocked: value,
       volume: BigInt(value),
       fees: BigInt(Math.round(value / 1000)),
     });

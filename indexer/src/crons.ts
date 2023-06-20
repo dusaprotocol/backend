@@ -5,7 +5,12 @@ import { dcaSC, factorySC } from "./../common/contracts";
 import { web3Client } from "./../common/client";
 import { processEvents } from "./socket";
 import logger from "../common/logger";
-import { getActivePrice, getLockedReserves } from "../common/methods";
+import {
+  getActivePrice,
+  getLockedReserves,
+  getPairAddressTokens,
+  getTokenValue,
+} from "../common/methods";
 import { Args } from "@massalabs/massa-web3";
 
 const getPairAddresses = (): Promise<string[]> =>
@@ -73,9 +78,51 @@ const fillTVL = () => {
     date.setHours(date.getHours(), 0, 0, 0);
 
     addresses.forEach((address) => {
-      getLockedReserves(address).then((r) =>
-        createAnalytic(address, BigInt(r[0]), BigInt(r[1]))
-      );
+      prisma.analytics
+        .findFirst({
+          where: {
+            address,
+          },
+          orderBy: {
+            date: "desc",
+          },
+        })
+        .then((analytic) => {
+          getPairAddressTokens(address).then(async (tokens) => {
+            if (!tokens) return;
+
+            const token0Value = await getTokenValue(tokens[0]);
+            const token1Value = await getTokenValue(tokens[1]);
+
+            if (!token0Value || !token1Value) return;
+
+            if (!analytic)
+              getLockedReserves(address).then((r) => {
+                const token0Locked = r[0];
+                const token1Locked = r[1];
+                const usdLocked =
+                  token0Locked * token0Value + token1Locked * token1Value;
+                createAnalytic(
+                  address,
+                  BigInt(token0Locked),
+                  BigInt(token1Locked),
+                  usdLocked
+                );
+              });
+            else {
+              const usdLocked =
+                Number(analytic.token0Locked / BigInt(10 ** 9)) * token0Value +
+                Number(analytic.token1Locked / BigInt(10 ** 9)) * token1Value;
+              createAnalytic(
+                address,
+                analytic.token0Locked,
+                analytic.token1Locked,
+                Number(usdLocked)
+              );
+            }
+          });
+        })
+        .catch((e) => logger.warn(e));
     });
   });
 };
@@ -102,7 +149,8 @@ const createPrice = (address: string, close: number) => {
 const createAnalytic = (
   address: string,
   token0Locked: bigint,
-  token1Locked: bigint
+  token1Locked: bigint,
+  usdLocked: number
 ) => {
   const date = new Date();
   date.setHours(date.getHours(), 0, 0, 0);
@@ -114,6 +162,7 @@ const createAnalytic = (
         date,
         token0Locked,
         token1Locked,
+        usdLocked,
         volume: BigInt(0),
         fees: BigInt(0),
       },
