@@ -95,7 +95,10 @@ const subscribeFilledBlocks = async () => {
   });
   stream.on("error", (err) => {
     logger.error(err);
-    subscribeFilledBlocks();
+    if (err.message.includes("14"))
+      // wait 1 minute if server is unavailable
+      setTimeout(subscribeFilledBlocks, 1000 * 60);
+    else subscribeFilledBlocks();
   });
   stream.on("end", () => {
     logger.warn(`subscribeFilledBlocks end on ${new Date().toString()}`);

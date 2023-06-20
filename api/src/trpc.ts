@@ -111,6 +111,7 @@ export const appRouter = t.router({
           select: {
             token0Locked: true,
             token1Locked: true,
+            usdLocked: true,
             date: true,
           },
           orderBy: {
@@ -122,40 +123,15 @@ export const appRouter = t.router({
           if (analytics.length === 0) return [];
           const res: TVL[] = [];
 
-          let acc = [0, 0];
-          let date = analytics[0].date;
           analytics.forEach((analytic, i) => {
-            const nextDay =
-              date.getDay() !== analytic.date.getDay() ||
-              i === analytics.length - 1;
-            if (nextDay) {
-              res.push({
-                date,
-                token0Locked: BigInt(acc[0]),
-                token1Locked: BigInt(acc[1]),
-              });
-              acc = [0, 0];
-              date = analytic.date;
-              return;
+            if (i % 24 === 0) {
+              console.log(i);
+              res.push(analytic);
             }
-
-            acc[0] += Number(analytic.token0Locked);
-            acc[1] += Number(analytic.token1Locked);
           });
 
-          const nbEntriesToFill = take / 24 - res.length;
-          const emptyEntries: TVL[] = Array.from(
-            { length: nbEntriesToFill },
-            (_, i) => ({
-              token0Locked: BigInt(0),
-              token1Locked: BigInt(0),
-              date: new Date(
-                res[res.length - 1].date.getTime() -
-                  1000 * 60 * 60 * 24 * (i + 1)
-              ),
-            })
-          );
-          return res.concat(emptyEntries).reverse();
+          console.log(res.length);
+          return res.reverse();
         })
         .catch((err) => {
           logger.error(err);
