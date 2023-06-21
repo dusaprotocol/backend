@@ -38,8 +38,7 @@ model Swap {
   amountIn    BigInt
   amountOut   BigInt
   timestamp   DateTime
-  txHash      String
-  id          Int      @id @default(autoincrement())
+  txHash      String   @id
 }
 
 model Liquidity {
@@ -50,6 +49,5 @@ model Liquidity {
   lowerBound  Int
   upperBound  Int
   timestamp   DateTime
-  txHash      String
-  id          Int      @id @default(autoincrement())
+  txHash      String   @id
 }

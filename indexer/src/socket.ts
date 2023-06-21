@@ -138,7 +138,7 @@ export const processEvents = (
   method: string,
   events: IEvent[]
 ) => {
-  logger.info({ txId, method, data: events.map((e) => e.data) });
+  logger.info({ txId, method });
   if (
     !events.length ||
     events[events.length - 1].data.includes("massa_execution_error")
