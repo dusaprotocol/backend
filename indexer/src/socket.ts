@@ -115,13 +115,6 @@ export const processLiquidity = (
       (token0Value ?? 0) * (amount0 / 10 ** 9) +
       (token1Value ?? 0) * (amount1 / 10 ** 9);
 
-    addTvl(
-      poolAddress,
-      amount0,
-      amount1,
-      isAddLiquidity ? usdValue : -usdValue
-    );
-
     prisma.liquidity
       .create({
         data: {
@@ -231,48 +224,6 @@ export const addVolume = (address: string, volume: number, fees: number) => {
         token0Locked: 0,
         token1Locked: 0,
         usdLocked: 0,
-      },
-    })
-    .then((e) => logger.info(e))
-    .catch((err) => logger.warn(err));
-};
-
-export const addTvl = (
-  address: string,
-  token0Locked: number,
-  token1Locked: number,
-  usdLocked: number,
-  date: Date = new Date()
-) => {
-  date.setHours(date.getHours(), 0, 0, 0);
-
-  prisma.analytics
-    .upsert({
-      where: {
-        date_address: {
-          address,
-          date,
-        },
-      },
-      update: {
-        token0Locked: {
-          increment: token0Locked,
-        },
-        token1Locked: {
-          increment: token1Locked,
-        },
-        usdLocked: {
-          increment: usdLocked,
-        },
-      },
-      create: {
-        address,
-        date,
-        volume: 0,
-        fees: 0,
-        token0Locked,
-        token1Locked,
-        usdLocked,
       },
     })
     .then((e) => logger.info(e))

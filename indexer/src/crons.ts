@@ -60,7 +60,7 @@ const getPairAddresses = (): Promise<string[]> =>
       return [];
     });
 
-const fillPrice = () => {
+export const fillPrice = () => {
   logger.info(`running the price task at ${new Date().toString()}`);
 
   getPairAddresses().then((addresses) => {
@@ -70,59 +70,33 @@ const fillPrice = () => {
   });
 };
 
-const fillTVL = () => {
+export const fillTVL = () => {
   logger.info(`running the TVL task at ${new Date().toString()}`);
 
   getPairAddresses().then((addresses) => {
-    const date = new Date();
-    date.setHours(date.getHours(), 0, 0, 0);
-
     addresses.forEach((address) => {
-      prisma.analytics
-        .findFirst({
-          where: {
+      getPairAddressTokens(address).then(async (tokens) => {
+        if (!tokens) return;
+
+        const token0Value = await getTokenValue(tokens[0]);
+        const token1Value = await getTokenValue(tokens[1]);
+
+        if (!token0Value || !token1Value) return;
+
+        getLockedReserves(address).then((r) => {
+          const token0Locked = r[0];
+          const token1Locked = r[1];
+          const usdLocked =
+            Number(token0Locked / BigInt(10 ** 9)) * token0Value +
+            Number(token1Locked / BigInt(10 ** 9)) * token1Value;
+          createAnalytic(
             address,
-          },
-          orderBy: {
-            date: "desc",
-          },
-        })
-        .then((analytic) => {
-          getPairAddressTokens(address).then(async (tokens) => {
-            if (!tokens) return;
-
-            const token0Value = await getTokenValue(tokens[0]);
-            const token1Value = await getTokenValue(tokens[1]);
-
-            if (!token0Value || !token1Value) return;
-
-            if (!analytic)
-              getLockedReserves(address).then((r) => {
-                const token0Locked = r[0];
-                const token1Locked = r[1];
-                const usdLocked =
-                  token0Locked * token0Value + token1Locked * token1Value;
-                createAnalytic(
-                  address,
-                  BigInt(token0Locked),
-                  BigInt(token1Locked),
-                  usdLocked
-                );
-              });
-            else {
-              const usdLocked =
-                Number(analytic.token0Locked / BigInt(10 ** 9)) * token0Value +
-                Number(analytic.token1Locked / BigInt(10 ** 9)) * token1Value;
-              createAnalytic(
-                address,
-                analytic.token0Locked,
-                analytic.token1Locked,
-                Number(usdLocked)
-              );
-            }
-          });
-        })
-        .catch((e) => logger.warn(e));
+            token0Locked,
+            token1Locked,
+            Math.round(usdLocked)
+          );
+        });
+      });
     });
   });
 };

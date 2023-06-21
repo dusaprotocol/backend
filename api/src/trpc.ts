@@ -16,6 +16,7 @@ type TVL = Prisma.AnalyticsGetPayload<{
   select: {
     token0Locked: true;
     token1Locked: true;
+    usdLocked: true;
     date: true;
   };
 }>;
