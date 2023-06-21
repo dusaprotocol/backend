@@ -5,7 +5,7 @@ import {
   GetVersionResponse,
   NewFilledBlocksResponse,
   NewOperationsResponse,
-  NewSlotExecutionOutputsResponse,
+  // NewSlotExecutionOutputsResponse,
 } from "./build/nodejs/api_pb";
 import { EOperationStatus } from "@massalabs/massa-web3";
 import { priceTask, tvlTask, autonomousEvents } from "./src/crons";
@@ -41,18 +41,18 @@ const subscribeNewOperations = async () => {
   });
 };
 
-const subscribeNewSlotExecutionOutputs = async () => {
-  const stream = service.newSlotExecutionOutputs();
-  stream.on("data", (data: NewSlotExecutionOutputsResponse) => {
-    logger.info(data.toObject());
-  });
-  stream.on("error", (err) => {
-    logger.error(err);
-  });
-  stream.on("end", (e: any) => {
-    logger.warn("subscribeNewSlotExecutionOutputs end: " + e);
-  });
-};
+// const subscribeNewSlotExecutionOutputs = async () => {
+//   const stream = service.newSlotExecutionOutputs();
+//   stream.on("data", (data: NewSlotExecutionOutputsResponse) => {
+//     logger.info(data.toObject());
+//   });
+//   stream.on("error", (err) => {
+//     logger.error(err);
+//   });
+//   stream.on("end", (e: any) => {
+//     logger.warn("subscribeNewSlotExecutionOutputs end: " + e);
+//   });
+// };
 
 const subscribeFilledBlocks = async () => {
   logger.info("subscribeFilledBlocks start on " + new Date().toString());
@@ -90,15 +90,16 @@ const subscribeFilledBlocks = async () => {
             original_operation_id: txId,
           })
           .then((events) => processEvents(txId, method, events));
+      } else if (op.executSc) {
       }
     });
   });
   stream.on("error", (err) => {
-    logger.error(err);
+    logger.error(err.message);
     if (err.message.includes("14"))
       // wait 1 minute if server is unavailable
       setTimeout(subscribeFilledBlocks, 1000 * 60);
-    else subscribeFilledBlocks();
+    else setTimeout(subscribeFilledBlocks, 1000 * 3);
   });
   stream.on("end", () => {
     logger.warn(`subscribeFilledBlocks end on ${new Date().toString()}`);
