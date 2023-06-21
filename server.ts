@@ -2,6 +2,7 @@ import express from "express";
 // import { web3Client } from "./src/client";
 import cors from "cors";
 import { expressMiddleware } from "./src/trpc";
+import { prisma } from "./src/db";
 // import { processEvents } from "./src/socket";
 // import { analyticsTask, autonomousEvents, priceTask } from "./src/crons";
 // import {
@@ -29,11 +30,24 @@ app.get("/", (req, res) => {
 
 // *** TRADINGVIEW ***
 
+interface BarsData {
+    t: number[];
+    o: number[];
+    c: number[];
+    h: number[];
+    l: number[];
+}
+interface BarsResponse extends BarsData {
+    s: "ok" | "no_data" | "error";
+}
+
+const supported_resolutions = ["60", "120", "240"];
+
 // Data feed configuration data
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#data-feed-configuration-data
 app.get("/config", (req, res) => {
     res.send({
-        supported_resolutions: ["60"],
+        supported_resolutions,
         supports_group_request: false,
         supports_marks: false,
         supports_search: true,
@@ -54,15 +68,16 @@ app.get("/symbols", (req, res) => {
         description: symbol,
         type: "crypto",
         session: "24x7",
-        exchange: "Massa",
-        listed_exchange: "Massa",
+        exchange: "Dusa",
+        listed_exchange: "Dusa",
         timezone: "Etc/UTC",
         format: "price",
-        pricescale: 100000000,
+        pricescale: 10 ** 9,
         minmov: 1,
-
+        has_empty_bars: true,
         has_intraday: true,
-        // supported_resolutions: ["60"],
+        intraday_multipliers: ["60"],
+        supported_resolutions,
     });
 });
 
@@ -77,7 +92,7 @@ app.get("/search", (req, res) => {
 
 // Bars
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#bars
-app.get("/history", (req, res) => {
+app.get("/history", async (req, res) => {
     // const { symbol, resolution, from, to, countback } = req.query;
     const symbol = req.query.symbol as string;
     const resolution = req.query.resolution as string;
@@ -85,28 +100,49 @@ app.get("/history", (req, res) => {
     const to = parseInt(req.query.to as string);
     const countback = parseInt(req.query.countback as string);
     const interval = (to - from) / countback;
-    console.log({ /* symbol, resolution, from, to, */ countback, interval });
+    console.log({ symbol, resolution, from, to, countback, interval });
 
-    // const prices = prisma.price.findMany({
-    //     where: {
-    //         // address: req.query.symbol,
-    //         address: "AS129LnZTYzWwXhBT6tVHbVTQRHPdB4PRdaV8nzRUBLBL647i1KMZ",
-    //         date: {
-    //             gte: new Date(parseInt(from as string) * 1000),
-    //             lte: new Date(parseInt(to as string) * 1000),
-    //         },
-    //     },
-    // });
-    // console.log(prices);
-    // res.send(prices);
+    const prices = await prisma.price.findMany({
+        where: {
+            address: symbol,
+            date: {
+                gte: new Date(from * 1000),
+                lte: new Date(to * 1000),
+            },
+        },
+        orderBy: {
+            date: "desc",
+        },
+        take: countback,
+    });
+    const len = prices.length;
+    if (len === 0) {
+        res.send({
+            s: "no_data",
+        });
+        return;
+    }
+
+    const newPrices: BarsData = {
+        t: Array.from({ length: len }, () => 0),
+        o: Array.from({ length: len }, () => 0),
+        c: Array.from({ length: len }, () => 0),
+        h: Array.from({ length: len }, () => 0),
+        l: Array.from({ length: len }, () => 0),
+    };
+    for (let i = prices.length - 1; i >= 0; i--) {
+        const price = prices[i];
+        const index = len - (i + 1); //countback - (len - i);
+        newPrices.t[index] = price.date.getTime() / 1000;
+        newPrices.o[index] = price.open;
+        newPrices.c[index] = price.close;
+        newPrices.h[index] = price.high;
+        newPrices.l[index] = price.low;
+    }
 
     res.send({
+        ...newPrices,
         s: "ok",
-        t: Array.from({ length: countback }, (_, i) => from + i * interval),
-        c: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
-        o: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
-        h: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
-        l: Array.from({ length: countback }, (_, i) => Math.random() * 10000),
     });
 });
 
