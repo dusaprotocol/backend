@@ -13,33 +13,31 @@ import { indexedMethods, processEvents } from "./src/socket";
 import { web3Client } from "./common/client";
 import logger from "./common/logger";
 
-const port = process.env.PORT || 33037;
-const host = process.env.HOST || "37.187.156.118";
-const url = `${host}:${port}`.replace(" ", "");
-logger.info(`Connecting to ${url}`);
-const service = new MassaServiceClient(url, credentials.createInsecure(), {
-  "grpc.keepalive_time_ms": 120000,
-  "grpc.keepalive_timeout_ms": 20000,
-  "grpc.keepalive_permit_without_calls": 10,
-  "grpc.max_connection_idle_ms": 100000,
-  "grpc.max_connection_age_ms": 120000,
-  "grpc.http2.min_time_between_pings_ms": 120000,
-  "grpc.http2.min_ping_interval_without_data_ms": 120000,
-  "grpc.enable_retries": 1,
-});
-
-const subscribeNewOperations = async () => {
-  const stream = service.newOperations();
-  stream.on("data", (data: NewOperationsResponse) => {
-    logger.info(data.toObject());
-  });
-  stream.on("error", (err) => {
-    logger.error(err);
-  });
-  stream.on("end", (e: any) => {
-    logger.warn("subscribeNewOperations end: " + e);
-  });
+const grpcDefaultHost = "37.187.156.118";
+const grpcPort = 33037;
+const grpcOption = {
+  // "grpc.keepalive_time_ms": 120000,
+  // "grpc.keepalive_timeout_ms": 20000,
+  // "grpc.keepalive_permit_without_calls": 10,
+  // "grpc.max_connection_idle_ms": 100000,
+  // "grpc.max_connection_age_ms": 120000,
+  // "grpc.http2.min_time_between_pings_ms": 120000,
+  // "grpc.http2.min_ping_interval_without_data_ms": 120000,
+  // "grpc.enable_retries": 1,
 };
+
+// const subscribeNewOperations = async () => {
+//   const stream = service.newOperations();
+//   stream.on("data", (data: NewOperationsResponse) => {
+//     logger.info(data.toObject());
+//   });
+//   stream.on("error", (err) => {
+//     logger.error(err);
+//   });
+//   stream.on("end", (e: any) => {
+//     logger.warn("subscribeNewOperations end: " + e);
+//   });
+// };
 
 // const subscribeNewSlotExecutionOutputs = async () => {
 //   const stream = service.newSlotExecutionOutputs();
@@ -54,9 +52,17 @@ const subscribeNewOperations = async () => {
 //   });
 // };
 
-const subscribeFilledBlocks = async () => {
-  logger.info("subscribeFilledBlocks start on " + new Date().toString());
+const subscribeFilledBlocks = (host: string) => {
+  const service = new MassaServiceClient(
+    `${host}:${grpcPort}`,
+    credentials.createInsecure(),
+    grpcOption
+  );
   const stream = service.newFilledBlocks();
+  logger.info(
+    `${host}: subscribeFilledBlocks start on ${new Date().toString()}`
+  );
+
   stream.on("data", (data: NewFilledBlocksResponse) => {
     const block = data.getFilledBlock()?.toObject();
     const operations = block?.operationsList;
@@ -94,12 +100,26 @@ const subscribeFilledBlocks = async () => {
       }
     });
   });
-  stream.on("error", (err) => {
+  stream.on("error", async (err) => {
     logger.error(err.message);
-    if (err.message.includes("14"))
+    if (err.message.includes("14")) {
+      const newIp: string = await web3Client
+        .publicApi()
+        .getNodeStatus()
+        .then((res) => {
+          const nodes = res.connected_nodes;
+          const nodeHashs = Object.keys(nodes);
+          nodeHashs.forEach((nodeHash) => {
+            const nodeInfo = nodes[nodeHash] as unknown as [string, boolean];
+            const [ip, isReachable] = nodeInfo;
+            logger.info({ nodeHash, ip, isReachable });
+            if (isReachable) return ip;
+          });
+          return grpcDefaultHost;
+        });
       // wait 1 minute if server is unavailable
-      setTimeout(subscribeFilledBlocks, 1000 * 60);
-    else setTimeout(subscribeFilledBlocks, 1000 * 3);
+      setTimeout(() => subscribeFilledBlocks(newIp), 1000 * 60);
+    } else setTimeout(() => subscribeFilledBlocks(grpcDefaultHost), 1000 * 3);
   });
   stream.on("end", () => {
     logger.warn(`subscribeFilledBlocks end on ${new Date().toString()}`);
@@ -109,25 +129,25 @@ const subscribeFilledBlocks = async () => {
   });
 };
 
-const subscribe = async <Req, Res extends { toObject: () => any }>(
-  stream: ClientDuplexStream<Req, Res>
-) => {
-  return new Promise((resolve, reject) => {
-    stream.on("data", (data: Res) => {
-      logger.info(data.toObject());
-    });
-    stream.on("error", (err) => {
-      logger.error(err);
-      reject(err);
-    });
-    stream.on("end", (e: any) => {
-      logger.warn("subscribe end", e);
-      resolve(e);
-    });
-  });
-};
+// const subscribe = async <Req, Res extends { toObject: () => any }>(
+//   stream: ClientDuplexStream<Req, Res>
+// ) => {
+//   return new Promise((resolve, reject) => {
+//     stream.on("data", (data: Res) => {
+//       logger.info(data.toObject());
+//     });
+//     stream.on("error", (err) => {
+//       logger.error(err);
+//       reject(err);
+//     });
+//     stream.on("end", (e: any) => {
+//       logger.warn("subscribe end", e);
+//       resolve(e);
+//     });
+//   });
+// };
 
-subscribeFilledBlocks();
+subscribeFilledBlocks(grpcDefaultHost);
 
 // Start cron tasks
 
