@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -16,6 +15,7 @@ model Analytics {
   fees         BigInt
   token0Locked BigInt
   token1Locked BigInt
+  usdLocked    Int
 
   @@id([date, address])
 }
@@ -37,6 +37,18 @@ model Swap {
   binId       Int
   amountIn    BigInt
   amountOut   BigInt
+  timestamp   DateTime
+  txHash      String
+  id          Int      @id @default(autoincrement())
+}
+
+model Liquidity {
+  poolAddress String
+  amount0     BigInt
+  amount1     BigInt
+  usdValue    Float
+  lowerBound  Int
+  upperBound  Int
   timestamp   DateTime
   txHash      String
   id          Int      @id @default(autoincrement())
