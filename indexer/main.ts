@@ -1,4 +1,4 @@
-import { ClientDuplexStream, credentials } from "@grpc/grpc-js";
+import { ClientDuplexStream, ClientOptions, credentials } from "@grpc/grpc-js";
 import { MassaServiceClient } from "./build/nodejs/api_grpc_pb";
 import {
   GetVersionRequest,
@@ -15,7 +15,7 @@ import logger from "./common/logger";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
-const grpcOption = {
+const grpcOptions: Partial<ClientOptions> = {
   // "grpc.keepalive_time_ms": 120000,
   // "grpc.keepalive_timeout_ms": 20000,
   // "grpc.keepalive_permit_without_calls": 10,
@@ -24,6 +24,7 @@ const grpcOption = {
   // "grpc.http2.min_time_between_pings_ms": 120000,
   // "grpc.http2.min_ping_interval_without_data_ms": 120000,
   // "grpc.enable_retries": 1,
+  // "grpc.max_reconnect_backoff_ms": 1000, // https://stackoverflow.com/questions/42256810/how-can-i-change-grpcs-reconnection-behaviour-in-the-node-js-implementation
 };
 
 // const subscribeNewOperations = async () => {
@@ -56,11 +57,11 @@ const subscribeFilledBlocks = (host: string) => {
   const service = new MassaServiceClient(
     `${host}:${grpcPort}`,
     credentials.createInsecure(),
-    grpcOption
+    grpcOptions
   );
   const stream = service.newFilledBlocks();
   logger.info(
-    `${host}: subscribeFilledBlocks start on ${new Date().toString()}`
+    `[${host}:${grpcPort}] subscribeFilledBlocks start on ${new Date().toString()}`
   );
 
   stream.on("data", (data: NewFilledBlocksResponse) => {
@@ -102,6 +103,8 @@ const subscribeFilledBlocks = (host: string) => {
   });
   stream.on("error", async (err) => {
     logger.error(err.message);
+    logger.info(err);
+    logger.info(err.name);
     if (err.message.includes("14")) {
       const newIp: string = await web3Client
         .publicApi()
