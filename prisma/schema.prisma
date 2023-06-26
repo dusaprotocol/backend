@@ -37,6 +37,7 @@ model Swap {
   binId       Int
   amountIn    BigInt
   amountOut   BigInt
+  usdValue    Float
   timestamp   DateTime
   txHash      String   @id
 }

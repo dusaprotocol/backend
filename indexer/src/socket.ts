@@ -54,6 +54,7 @@ export const processSwap = (
       amountOut += Number(_amountOut);
       totalFees += Number(_totalFees);
     });
+    amountIn += totalFees;
 
     getTokenValue(tokenIn).then((valueIn) => {
       if (!valueIn) return;
@@ -61,24 +62,24 @@ export const processSwap = (
       const volume = Math.round((amountIn / 10 ** 9) * valueIn);
       const fees = Math.round((totalFees / 10 ** 9) * valueIn * 100); // fees are stored in cents
       addVolume(poolAddress, volume, fees);
+
+      prisma.swap
+        .create({
+          data: {
+            poolAddress,
+            swapForY,
+            binId,
+            amountIn,
+            amountOut,
+            usdValue: volume,
+            timestamp,
+            txHash,
+          },
+        })
+        .then((e) => logger.info(e))
+        .catch((e) => logger.warn(e));
     });
     addPrice(poolAddress, price);
-
-    amountIn += totalFees;
-    prisma.swap
-      .create({
-        data: {
-          poolAddress,
-          swapForY,
-          binId,
-          amountIn,
-          amountOut,
-          timestamp,
-          txHash,
-        },
-      })
-      .then((e) => logger.info(e))
-      .catch((e) => logger.warn(e));
   });
 };
 
