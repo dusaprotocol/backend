@@ -7,7 +7,7 @@
     "start": "ts-node main.ts",
     "dev": "nodemon main.ts",
     "build": "buf generate",
-    "postinstall": "npm run build"
+    "postinstall": "git submodule update && npm run build"
   },
   "dependencies": {
     "@types/node-cron": "^3.0.7",
