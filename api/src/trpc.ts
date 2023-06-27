@@ -1,22 +1,24 @@
 import * as trpcExpress from "@trpc/server/adapters/express";
 import { inferAsyncReturnType, initTRPC } from "@trpc/server";
-import { string, z } from "zod";
-import type { Price, Prisma } from "@prisma/client";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 
-type Volume = Prisma.AnalyticsGetPayload<{
+type Analytics = Prisma.AnalyticsGetPayload<{
   select: {
     volume: true;
+    usdLocked: true;
     date: true;
   };
 }>;
 
-type TVL = Prisma.AnalyticsGetPayload<{
+type Price = Prisma.AnalyticsGetPayload<{
   select: {
-    token0Locked: true;
-    token1Locked: true;
-    usdLocked: true;
+    open: true;
+    close: true;
+    high: true;
+    low: true;
     date: true;
   };
 }>;
@@ -34,22 +36,28 @@ export type Context = inferAsyncReturnType<typeof createContext>;
 export const t = initTRPC.context<Context>().create();
 
 export const appRouter = t.router({
-  getVolume: t.procedure
+  getAnalytics: t.procedure
     .input(
       z.object({
         address: z.string(),
         take: z.number(),
       })
     )
+    .output(
+      z.array(
+        z.object({ volume: z.number(), usdLocked: z.number(), date: z.date() })
+      )
+    )
     .query(async ({ input, ctx }) => {
       const { address, take } = input;
       return ctx.prisma.analytics
         .findMany({
           where: {
-            address,
+            poolAddress: address,
           },
           select: {
             volume: true,
+            usdLocked: true,
             date: true,
           },
           orderBy: {
@@ -59,7 +67,7 @@ export const appRouter = t.router({
         })
         .then((analytics) => {
           if (analytics.length === 0) return [];
-          const res: Volume[] = [];
+          const res: Analytics[] = [];
 
           let acc = 0;
           let date = analytics[0].date;
@@ -68,7 +76,11 @@ export const appRouter = t.router({
               date.getDay() !== analytic.date.getDay() ||
               i === analytics.length - 1
             ) {
-              res.push({ date, volume: BigInt(acc) });
+              res.push({
+                date,
+                volume: acc,
+                usdLocked: analytic.usdLocked,
+              });
               acc = 0;
               date = analytic.date;
               return;
@@ -78,10 +90,11 @@ export const appRouter = t.router({
           });
 
           const nbEntriesToFill = take / 24 - res.length;
-          const emptyEntries = Array.from(
+          const emptyEntries: Analytics[] = Array.from(
             { length: nbEntriesToFill },
             (_, i) => ({
-              volume: BigInt(0),
+              volume: 0,
+              usdLocked: 0,
               date: new Date(
                 res[res.length - 1].date.getTime() -
                   1000 * 60 * 60 * 24 * (i + 1)
@@ -95,55 +108,11 @@ export const appRouter = t.router({
           return [];
         });
     }),
-  getTVL: t.procedure
-    .input(
-      z.object({
-        address: z.string(),
-        take: z.number(),
-      })
-    )
-    .query(async ({ input, ctx }) => {
-      const { address, take } = input;
-      return ctx.prisma.analytics
-        .findMany({
-          where: {
-            address,
-          },
-          select: {
-            token0Locked: true,
-            token1Locked: true,
-            usdLocked: true,
-            date: true,
-          },
-          orderBy: {
-            date: "desc",
-          },
-          take,
-        })
-        .then((analytics) => {
-          if (analytics.length === 0) return [];
-          const res: TVL[] = [];
-
-          analytics.forEach((analytic, i) => {
-            if (i % 24 === 0) {
-              console.log(i);
-              res.push(analytic);
-            }
-          });
-
-          console.log(res.length);
-          return res.reverse();
-        })
-        .catch((err) => {
-          logger.error(err);
-          return [];
-        });
-    }),
   get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
     return ctx.prisma.analytics
       .findMany({
         where: {
-          address: input,
+          poolAddress: input,
         },
         orderBy: {
           date: "desc",
@@ -225,17 +194,16 @@ export const appRouter = t.router({
   getPrice: t.procedure
     .input(
       z.object({
-        address: z.string(),
+        poolAddress: z.string(),
         take: z.union([z.literal(24), z.literal(168), z.literal(720)]),
       })
     )
     .query(async ({ input, ctx }) => {
-      const { address, take } = input;
-      console.log(address, take);
-      return ctx.prisma.price
+      const { poolAddress, take } = input;
+      return ctx.prisma.analytics
         .findMany({
           where: {
-            address,
+            poolAddress,
           },
           orderBy: {
             date: "desc",

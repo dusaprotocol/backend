@@ -1,4 +1,4 @@
-import { Analytics, Price, PrismaClient } from "@prisma/client";
+import { Analytics, PrismaClient } from "@prisma/client";
 import { getActivePrice, getCallee } from "../../common/methods";
 
 const prisma = new PrismaClient();
@@ -35,20 +35,27 @@ async function generateAnalytics(pool: Pool) {
   const data: Analytics[] = [];
 
   let prevValue = 5000;
-  for (let i = 0; i < 720; i++) {
+  for (let i = 0; i < 720; i++) {let close = await getActivePrice(pool.address);
+      const open = close;
+      const high = close;
+      const low = close;
     const value = 0;
     const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
     const date = new Date(Date.now() - 1000 * 60 * 60 * i);
     date.setHours(date.getHours(), 0, 0, 0);
 
     data.push({
-      address: pool.address,
+      poolAddress: pool.address,
       date,
       token0Locked: BigInt(value),
       token1Locked: BigInt(value),
       usdLocked: value,
       volume: BigInt(value),
       fees: BigInt(Math.round(value / 1000)),
+      open,
+      close,
+      high,
+      low,
     });
 
     prevValue = value;
@@ -81,15 +88,6 @@ async function generatePrices(pool: Pool) {
       high,
       low,
     });
-    close = open;
-  }
-
-  await prisma.price
-    .createMany({
-      data,
-    })
-    .catch((err) => console.error(err));
-}
 
 async function createMissingPrices(pool: Pool) {
   const data: Price[] = [];
