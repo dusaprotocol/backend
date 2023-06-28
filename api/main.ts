@@ -48,8 +48,9 @@ app.get("/time", (req, res) => {
   res.send(time);
 });
 
-app.listen(3001);
-console.log("Listening on port 3001");
+const port: number = parseInt(process.env.PORT || "3001");
+app.listen(port);
+console.log("Listening on port", port);
 
 // @ts-ignore: Unreachable code error
 BigInt.prototype.toJSON = function (): number {

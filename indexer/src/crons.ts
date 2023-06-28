@@ -103,7 +103,7 @@ export const fillTVL = () => {
 
 const createPrice = (address: string, close: number) => {
   const date = new Date();
-  date.setHours(date.getHours(), 0, 0, 0);
+  date.setHours(date.getHours(), date.getMinutes(), 0, 0);
 
   prisma.price
     .create({
@@ -127,7 +127,7 @@ const createAnalytic = (
   usdLocked: number
 ) => {
   const date = new Date();
-  date.setHours(date.getHours(), 0, 0, 0);
+  date.setHours(date.getHours(), date.getMinutes(), 0, 0);
 
   prisma.analytics
     .create({
@@ -145,13 +145,13 @@ const createAnalytic = (
     .catch((e) => logger.warn(e));
 };
 
-const everyHour = "0 0 */1 * * *" as const;
-const everyPeriod = "*/16 * * * * *" as const;
+const every5Minutes = "*/5 * * * *";
+const everyPeriod = "*/16 * * * * *";
 
-export const priceTask = cron.schedule(everyHour, fillPrice, {
+export const priceTask = cron.schedule(every5Minutes, fillPrice, {
   scheduled: false,
 });
-export const tvlTask = cron.schedule(everyHour, fillTVL, {
+export const tvlTask = cron.schedule(every5Minutes, fillTVL, {
   scheduled: false,
 });
 

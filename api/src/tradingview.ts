@@ -11,7 +11,18 @@ interface BarsResponse extends BarsData {
   s: "ok" | "no_data" | "error";
 }
 
-const supported_resolutions = ["60", "120", "240"];
+const supported_resolutions = [
+  "60",
+  "120",
+  "240",
+  "360",
+  "480",
+  "720",
+  "1D",
+  "3D",
+  "1W",
+  "1M",
+];
 
 // Data feed configuration data
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#data-feed-configuration-data
