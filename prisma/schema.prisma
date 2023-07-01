@@ -9,64 +9,47 @@ datasource db {
   relationMode      = "prisma"
 }
 
-model Token {
-  address       String @id
-  name          String
-  symbol        String
-  decimals      Int
-  poolsAsToken0 Pool[] @relation("pool0")
-  poolsAsToken1 Pool[] @relation("pool1")
-}
-
-model Pool {
-  address       String      @id
-  token0        Token       @relation(fields: [token0Address], references: [address], name: "pool0")
-  token1        Token       @relation(fields: [token1Address], references: [address], name: "pool1")
-  binStep       Int
-  token0Address String
-  token1Address String
-  analytics     Analytics[]
-  swapTxs       Swap[]
-  liquidityTxs  Liquidity[]
-}
-
 model Analytics {
-  pool         Pool     @relation(fields: [poolAddress], references: [address])
-  poolAddress  String
+  address      String
   date         DateTime
-  open         Float
-  close        Float
-  high         Float
-  low          Float
-  volume       Int
-  fees         Int
+  volume       BigInt
+  fees         BigInt
   token0Locked BigInt
   token1Locked BigInt
   usdLocked    Int
 
-  @@id([poolAddress, date])
+  @@id([date, address])
+}
+
+model Price {
+  address String
+  date    DateTime
+  open    Float
+  close   Float
+  high    Float
+  low     Float
+
+  @@id([date, address])
 }
 
 model Swap {
-  pool        Pool     @relation(fields: [poolAddress], references: [address])
   poolAddress String
   swapForY    Boolean
   binId       Int
   amountIn    BigInt
   amountOut   BigInt
-  usdValue    Float
   timestamp   DateTime
   txHash      String   @id
+  usdValue    Float
 }
 
 model Liquidity {
-  pool        Pool     @relation(fields: [poolAddress], references: [address])
   poolAddress String
   amount0     BigInt
   amount1     BigInt
-  usdValue    Float
-  lowerBound  Int
-  upperBound  Int
   timestamp   DateTime
   txHash      String   @id
+  lowerBound  Int
+  upperBound  Int
+  usdValue    Float
 }
