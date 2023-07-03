@@ -125,7 +125,7 @@ const createAnalytic = (
 const every5Minutes = "*/5 * * * *";
 const everyPeriod = "*/16 * * * * *";
 
-export const analyticsTask = cron.schedule(everyHour, fillAnalytics, {
+export const analyticsTask = cron.schedule(every5Minutes, fillAnalytics, {
   scheduled: false,
 });
 
