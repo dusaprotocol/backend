@@ -315,7 +315,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         poolAddress: z.string(),
-        take: z.union([z.literal(288), z.literal(2016)], z.literal(8640)),
+        take: z.union([z.literal(288), z.literal(2016), z.literal(8640)]),
       })
     )
     .query(async ({ input, ctx }) => {

@@ -66,7 +66,11 @@ export const processSwap = (
       prisma.swap
         .create({
           data: {
-            poolAddress,
+            pool: {
+              connect: {
+                address: poolAddress,
+              },
+            },
             swapForY,
             binId,
             amountIn,
@@ -118,7 +122,11 @@ export const processLiquidity = (
     prisma.liquidity
       .create({
         data: {
-          poolAddress,
+          pool: {
+            connect: {
+              address: poolAddress,
+            },
+          },
           amount0,
           amount1,
           usdValue,
