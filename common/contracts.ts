@@ -1,5 +1,5 @@
-export const factorySC = "AS1D4nGcXw1MYuDCkLGXjHr5BmMbzPHvAaaiG91tmS1ytp32wU9g";
-export const dcaSC = "AS1vEajKEB1dwmyF5oVwqHSDzxxYGgFZBpipSjvuPQ2sGgPtg4H2";
+export const factorySC = "AS1d2f9qRmnYtsURe2ZJQrG2vsHbUymod4w7HV7L8nsYnivi1ggy";
+export const dcaSC = "AS1z5SizqJmzyZvnyByg4QJ8gudatdLN91FiiSfPjzBtXAZWffAj";
 
-export const usdcSC = "AS1jvuXwyP77M5ydtRKxJvp4EdtSWuSG8pohfuEDQLwqqgmvkjJ5";
-export const wmasSC = "AS12hWgxvsubDDJ3jcxjASQNT34y9GNQvdRmco9o7A47arPEVPLy1";
+export const usdcSC = "AS1k67ZGtYaSPKGz2EycF7ZRtfgxkFV5q6PNH4VUySH7GMzyJYxx";
+export const wmasSC = "AS12usAQ8d9gKXqUDH54ZAAeB1fqLf8MbMA566y5XSw4ABewwMw1c";

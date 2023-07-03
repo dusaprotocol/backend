@@ -1,7 +1,8 @@
-import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
+import { Args, IEvent, bytesToStr, strToBytes } from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
+import { Token } from "@prisma/client";
 
 const REAL_ID_SHIFT = 2 ** 17;
 
@@ -115,3 +116,68 @@ export const getActivePrice = (
       const binStep = new Args(feesData).nextU32();
       return getPriceFromId(activeId, binStep);
     });
+
+export const getPairAddressTokens = async (
+  pairAddress: string
+): Promise<[string, string] | undefined> => {
+  return await web3Client
+    .publicApi()
+    .getDatastoreEntries([
+      {
+        address: pairAddress,
+        key: strToBytes("TOKEN_X"),
+      },
+      {
+        address: pairAddress,
+        key: strToBytes("TOKEN_Y"),
+      },
+    ])
+    .then((r): [string, string] | undefined => {
+      if (r[0].candidate_value && r[1].candidate_value)
+        return [
+          bytesToStr(r[0].candidate_value),
+          bytesToStr(r[1].candidate_value),
+        ];
+    })
+    .catch((err) => {
+      logger.warn(err);
+      return undefined;
+    });
+};
+
+export const fetchTokenInfo = async (
+  address: string
+): Promise<Token | undefined> => {
+  return web3Client
+    .publicApi()
+    .getDatastoreEntries([
+      {
+        address,
+        key: strToBytes("NAME"),
+      },
+      {
+        address,
+        key: strToBytes("SYMBOL"),
+      },
+      {
+        address,
+        key: strToBytes("DECIMALS"),
+      },
+    ])
+    .then((res) => {
+      if (
+        res[0].candidate_value &&
+        res[1].candidate_value &&
+        res[2].candidate_value
+      ) {
+        const token: Token = {
+          name: bytesToStr(res[0].candidate_value),
+          symbol: bytesToStr(res[1].candidate_value),
+          decimals: res[2].candidate_value[0],
+          address,
+        };
+        return token;
+      }
+    })
+    .catch(() => undefined);
+};
