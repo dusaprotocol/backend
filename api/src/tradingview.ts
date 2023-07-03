@@ -6,10 +6,11 @@ interface BarsData {
   c: number[];
   h: number[];
   l: number[];
-  // v: number[];
+  v: number[];
 }
 interface BarsResponse extends BarsData {
   s: "ok" | "no_data" | "error";
+  errmsg?: string;
 }
 
 const supported_resolutions = [
@@ -82,9 +83,9 @@ export const getBars = async (
   const interval = (to - from) / countback;
   console.log({ symbol, resolution, from, to, countback, interval });
 
-  const prices = await prisma.price.findMany({
+  const prices = await prisma.analytics.findMany({
     where: {
-      address: symbol,
+      poolAddress: symbol,
       date: {
         gte: new Date(from * 1000),
         lte: new Date(to * 1000),
@@ -95,29 +96,31 @@ export const getBars = async (
     },
     take: countback,
   });
-  const len = prices.length;
-  if (len === 0) {
+
+  const length = prices.length;
+  if (length === 0) {
     return {
       s: "no_data",
     };
   }
 
   const newPrices: BarsData = {
-    t: Array.from({ length: len }, () => 0),
-    o: Array.from({ length: len }, () => 0),
-    c: Array.from({ length: len }, () => 0),
-    h: Array.from({ length: len }, () => 0),
-    l: Array.from({ length: len }, () => 0),
-    // v: Array.from({ length: len }, () => 0),
+    t: Array.from({ length }),
+    o: Array.from({ length }),
+    c: Array.from({ length }),
+    h: Array.from({ length }),
+    l: Array.from({ length }),
+    v: Array.from({ length }),
   };
   for (let i = prices.length - 1; i >= 0; i--) {
     const price = prices[i];
-    const index = len - (i + 1); //countback - (len - i);
+    const index = length - (i + 1);
     newPrices.t[index] = price.date.getTime() / 1000;
     newPrices.o[index] = price.open;
     newPrices.c[index] = price.close;
     newPrices.h[index] = price.high;
     newPrices.l[index] = price.low;
+    newPrices.v[index] = prices[i].volume;
   }
 
   return {

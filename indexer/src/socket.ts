@@ -61,7 +61,7 @@ export const processSwap = (
 
       const volume = Math.round((amountIn / 10 ** 9) * valueIn);
       const fees = Math.round((totalFees / 10 ** 9) * valueIn * 100); // fees are stored in cents
-      addVolume(poolAddress, volume, fees);
+      updateVolumeAndPrice(poolAddress, volume, fees, price);
 
       prisma.swap
         .create({
@@ -79,7 +79,6 @@ export const processSwap = (
         .then((e) => logger.info(e))
         .catch((e) => logger.warn(e));
     });
-    addPrice(poolAddress, price);
   });
 };
 
@@ -197,15 +196,20 @@ export const processEvents = (
 
 // COMMON PRISMA ACTIONS
 
-export const addVolume = (address: string, volume: number, fees: number) => {
+export const updateVolumeAndPrice = (
+  poolAddress: string,
+  volume: number,
+  fees: number,
+  price: number
+) => {
   const date = new Date();
   date.setHours(date.getHours(), 0, 0, 0);
 
   prisma.analytics
     .upsert({
       where: {
-        date_address: {
-          address,
+        poolAddress_date: {
+          poolAddress,
           date,
         },
       },
@@ -218,13 +222,17 @@ export const addVolume = (address: string, volume: number, fees: number) => {
         },
       },
       create: {
-        address,
+        poolAddress,
         date,
         volume,
         fees,
         token0Locked: 0,
         token1Locked: 0,
         usdLocked: 0,
+        close: 0,
+        high: 0,
+        low: 0,
+        open: 0,
       },
     })
     .then((e) => logger.info(e))
@@ -232,32 +240,37 @@ export const addVolume = (address: string, volume: number, fees: number) => {
 };
 
 export const addPrice = (
-  address: string,
+  poolAddress: string,
   price: number,
   date: Date = new Date()
 ) => {
   date.setHours(date.getHours(), 0, 0, 0);
 
-  prisma.price
+  prisma.analytics
     .findUnique({
       where: {
-        date_address: {
-          address,
+        poolAddress_date: {
+          poolAddress,
           date,
         },
       },
     })
     .then((curr) => {
       if (!curr) {
-        prisma.price
+        prisma.analytics
           .create({
             data: {
-              address,
+              poolAddress,
+              date,
               open: price,
               high: price,
               low: price,
               close: price,
-              date,
+              fees: 0,
+              volume: 0,
+              token0Locked: 0,
+              token1Locked: 0,
+              usdLocked: 0,
             },
           })
           .then((e) => logger.info(e))
@@ -265,17 +278,17 @@ export const addPrice = (
         return;
       }
 
-      const data: Prisma.PriceUpdateInput = {
+      const data: Prisma.AnalyticsUpdateInput = {
         close: price,
       };
       if (price > curr.high) data.high = price;
       if (price < curr.low) data.low = price;
 
-      prisma.price
+      prisma.analytics
         .update({
           where: {
-            date_address: {
-              address,
+            poolAddress_date: {
+              poolAddress,
               date,
             },
           },

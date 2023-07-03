@@ -8,7 +8,7 @@ import {
   // NewSlotExecutionOutputsResponse,
 } from "./build/nodejs/api_pb";
 import { EOperationStatus } from "@massalabs/massa-web3";
-import { priceTask, tvlTask, autonomousEvents } from "./src/crons";
+import { analyticsTask, autonomousEvents } from "./src/crons";
 import { indexedMethods, processEvents } from "./src/socket";
 import { web3Client } from "./common/client";
 import logger from "./common/logger";
@@ -154,6 +154,5 @@ subscribeFilledBlocks(grpcDefaultHost);
 
 // Start cron tasks
 
-priceTask.start();
-tvlTask.start();
+analyticsTask.start();
 autonomousEvents.start();

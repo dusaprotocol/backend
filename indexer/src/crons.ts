@@ -14,67 +14,57 @@ import {
 import { Args } from "@massalabs/massa-web3";
 
 const getPairAddresses = (): Promise<string[]> =>
-  // prisma.price
-  //   .findMany({
-  //     select: {
-  //       address: true,
-  //     },
-  //     distinct: ["address"],
-  //   })
-  //   .then((res) => res.map((r) => r.address))
-  //   .catch((e) => {
-  //     logger.warn(e);
-  //     return [];
-  //   });
-
-  web3Client
-    .publicApi()
-    .getAddresses([factorySC])
-    .then(async (res) => {
-      const keys = res[0].final_datastore_keys
-        .map((k) => String.fromCharCode(...k))
-        .filter((k) => k.startsWith("PAIR_INFORMATION::"));
-      return web3Client
-        .publicApi()
-        .getDatastoreEntries(
-          keys.map((k) => ({ key: strToBytes(k), address: factorySC }))
-        )
-        .then((r) =>
-          r.reduce((acc, entry) => {
-            if (entry.final_value) {
-              const pairInformation = new Args(entry.final_value);
-              const binStep = pairInformation.nextU32();
-              const pairAddress = pairInformation.nextString();
-              acc.push(pairAddress);
-            }
-            return acc;
-          }, [] as string[])
-        )
-        .catch((err) => {
-          logger.warn(err);
-          return [];
-        });
+  prisma.pool
+    .findMany({
+      select: {
+        address: true,
+      },
     })
-    .catch((err) => {
-      logger.warn(err);
+    .then((res) => res.map((r) => r.address))
+    .catch((e) => {
+      logger.warn(e);
       return [];
     });
 
-export const fillPrice = () => {
-  logger.info(`running the price task at ${new Date().toString()}`);
-
-  getPairAddresses().then((addresses) => {
-    addresses.forEach((address) => {
-      getActivePrice(address).then((p) => createPrice(address, p));
-    });
+web3Client
+  .publicApi()
+  .getAddresses([factorySC])
+  .then(async (res) => {
+    const keys = res[0].final_datastore_keys
+      .map((k) => String.fromCharCode(...k))
+      .filter((k) => k.startsWith("PAIR_INFORMATION::"));
+    return web3Client
+      .publicApi()
+      .getDatastoreEntries(
+        keys.map((k) => ({ key: strToBytes(k), address: factorySC }))
+      )
+      .then((r) =>
+        r.reduce((acc, entry) => {
+          if (entry.final_value) {
+            const pairInformation = new Args(entry.final_value);
+            const binStep = pairInformation.nextU32();
+            const pairAddress = pairInformation.nextString();
+            acc.push(pairAddress);
+          }
+          return acc;
+        }, [] as string[])
+      )
+      .catch((err) => {
+        logger.warn(err);
+        return [];
+      });
+  })
+  .catch((err) => {
+    logger.warn(err);
+    return [];
   });
-};
 
-export const fillTVL = () => {
+export const fillAnalytics = () => {
   logger.info(`running the TVL task at ${new Date().toString()}`);
 
   getPairAddresses().then((addresses) => {
-    addresses.forEach((address) => {
+    addresses.forEach(async (address) => {
+      const activePrice = await getActivePrice(address);
       getPairAddressTokens(address).then(async (tokens) => {
         if (!tokens) return;
 
@@ -93,7 +83,8 @@ export const fillTVL = () => {
             address,
             token0Locked,
             token1Locked,
-            Math.round(usdLocked)
+            Math.round(usdLocked),
+            activePrice
           );
         });
       });
@@ -101,30 +92,12 @@ export const fillTVL = () => {
   });
 };
 
-const createPrice = (address: string, close: number) => {
-  const date = new Date();
-  date.setHours(date.getHours(), date.getMinutes(), 0, 0);
-
-  prisma.price
-    .create({
-      data: {
-        address,
-        date,
-        close: close,
-        high: close,
-        low: close,
-        open: close,
-      },
-    })
-    .then((p) => logger.info(p))
-    .catch((e) => logger.warn(e));
-};
-
 const createAnalytic = (
-  address: string,
+  poolAddress: string,
   token0Locked: bigint,
   token1Locked: bigint,
-  usdLocked: number
+  usdLocked: number,
+  close: number
 ) => {
   const date = new Date();
   date.setHours(date.getHours(), date.getMinutes(), 0, 0);
@@ -132,26 +105,27 @@ const createAnalytic = (
   prisma.analytics
     .create({
       data: {
-        address,
+        poolAddress,
         date,
         token0Locked,
         token1Locked,
         usdLocked,
-        volume: BigInt(0),
-        fees: BigInt(0),
+        volume: 0,
+        fees: 0,
+        close: close,
+        high: close,
+        low: close,
+        open: close,
       },
     })
     .then((p) => logger.info(p))
-    .catch((e) => logger.warn(e));
+    .catch((err) => logger.warn(err));
 };
 
 const every5Minutes = "*/5 * * * *";
 const everyPeriod = "*/16 * * * * *";
 
-export const priceTask = cron.schedule(every5Minutes, fillPrice, {
-  scheduled: false,
-});
-export const tvlTask = cron.schedule(every5Minutes, fillTVL, {
+export const analyticsTask = cron.schedule(every5Minutes, fillAnalytics, {
   scheduled: false,
 });
 
