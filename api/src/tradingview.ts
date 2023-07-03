@@ -6,12 +6,16 @@ interface BarsData {
   c: number[];
   h: number[];
   l: number[];
+  // v: number[];
 }
 interface BarsResponse extends BarsData {
   s: "ok" | "no_data" | "error";
 }
 
 const supported_resolutions = [
+  "5",
+  "15",
+  "30",
   "60",
   "120",
   "240",
@@ -55,7 +59,7 @@ export const resolveSymbol = (symbol: string) => {
     minmov: 1,
     has_empty_bars: true,
     has_intraday: true,
-    intraday_multipliers: ["60"],
+    intraday_multipliers: ["5"],
     supported_resolutions,
   };
 };
@@ -104,6 +108,7 @@ export const getBars = async (
     c: Array.from({ length: len }, () => 0),
     h: Array.from({ length: len }, () => 0),
     l: Array.from({ length: len }, () => 0),
+    // v: Array.from({ length: len }, () => 0),
   };
   for (let i = prices.length - 1; i >= 0; i--) {
     const price = prices[i];
