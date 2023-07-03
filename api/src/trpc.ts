@@ -5,6 +5,20 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 
+type Volume = Prisma.AnalyticsGetPayload<{
+  select: {
+    volume: true;
+    date: true;
+  };
+}>;
+
+type TVL = Prisma.AnalyticsGetPayload<{
+  select: {
+    usdLocked: true;
+    date: true;
+  };
+}>;
+
 type Analytics = Prisma.AnalyticsGetPayload<{
   select: {
     volume: true;
@@ -36,6 +50,111 @@ export type Context = inferAsyncReturnType<typeof createContext>;
 export const t = initTRPC.context<Context>().create();
 
 export const appRouter = t.router({
+  getVolume: t.procedure
+    .input(
+      z.object({
+        address: z.string(),
+        take: z.number(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { address, take } = input;
+      return ctx.prisma.analytics
+        .findMany({
+          where: {
+            poolAddress: address,
+          },
+          select: {
+            volume: true,
+            date: true,
+          },
+          orderBy: {
+            date: "desc",
+          },
+          take,
+        })
+        .then((analytics) => {
+          if (analytics.length === 0) return [];
+          const res: Volume[] = [];
+
+          let acc = 0;
+          let date = analytics[0].date;
+          analytics.forEach((analytic, i) => {
+            if (
+              date.getDay() !== analytic.date.getDay() ||
+              i === analytics.length - 1
+            ) {
+              res.push({ date, volume: acc });
+              acc = 0;
+              date = analytic.date;
+              return;
+            }
+
+            acc += Number(analytic.volume);
+          });
+
+          const nbEntriesToFill = take / 24 - res.length;
+          const emptyEntries: Volume[] = Array.from(
+            { length: nbEntriesToFill },
+            (_, i) => ({
+              volume: 0,
+              date: new Date(
+                res[res.length - 1].date.getTime() -
+                  1000 * 60 * 60 * 24 * (i + 1)
+              ),
+            })
+          );
+          return res.concat(emptyEntries).reverse();
+        })
+        .catch((err) => {
+          logger.error(err);
+          return [];
+        });
+    }),
+  getTVL: t.procedure
+    .input(
+      z.object({
+        address: z.string(),
+        take: z.number(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { address, take } = input;
+      return ctx.prisma.analytics
+        .findMany({
+          where: {
+            poolAddress: address,
+          },
+          select: {
+            token0Locked: true,
+            token1Locked: true,
+            usdLocked: true,
+            date: true,
+          },
+          orderBy: {
+            date: "desc",
+          },
+          take,
+        })
+        .then((analytics) => {
+          if (analytics.length === 0) return [];
+          const res: TVL[] = [];
+
+          analytics.forEach((analytic, i) => {
+            if (i % 24 === 0) {
+              console.log(i);
+              res.push(analytic);
+            }
+          });
+
+          console.log(res.length);
+          return res.reverse();
+        })
+        .catch((err) => {
+          logger.error(err);
+          return [];
+        });
+    }),
   getAnalytics: t.procedure
     .input(
       z.object({
@@ -143,6 +262,7 @@ export const appRouter = t.router({
           volumeYesterday === 0
             ? 0
             : ((volume - volumeYesterday) / volumeYesterday) * 100;
+        console.log({ fees, volume, feesPctChange, volumePctChange });
         return { fees, volume, feesPctChange, volumePctChange };
       })
       .catch((err) => {
@@ -195,7 +315,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         poolAddress: z.string(),
-        take: z.union([z.literal(288), z.literal(2016)]),
+        take: z.union([z.literal(288), z.literal(2016)], z.literal(8640)),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -216,11 +336,7 @@ export const appRouter = t.router({
           const res: Price[] = [];
           prices.reverse().forEach((price, i) => {
             const open = res[res.length - 1]?.close ?? price.open;
-            if (
-              take === 2016 &&
-              i % 6 === 0 /* ||
-              (take === 720 && i % 24 === 0) */
-            ) {
+            if (true) {
               res.push({
                 ...price,
                 open,
