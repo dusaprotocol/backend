@@ -13,7 +13,21 @@ interface BarsResponse extends BarsData {
   errmsg?: string;
 }
 
-const supported_resolutions = ["60", "120", "240"];
+const supported_resolutions = [
+  "5",
+  "15",
+  "30",
+  "60",
+  "120",
+  "240",
+  "360",
+  "480",
+  "720",
+  "1D",
+  "3D",
+  "1W",
+  "1M",
+];
 
 // Data feed configuration data
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#data-feed-configuration-data
@@ -46,7 +60,7 @@ export const resolveSymbol = (symbol: string) => {
     minmov: 1,
     has_empty_bars: true,
     has_intraday: true,
-    intraday_multipliers: ["60"],
+    intraday_multipliers: ["5"],
     supported_resolutions,
   };
 };

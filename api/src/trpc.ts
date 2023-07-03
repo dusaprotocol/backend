@@ -195,7 +195,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         poolAddress: z.string(),
-        take: z.union([z.literal(24), z.literal(168), z.literal(720)]),
+        take: z.union([z.literal(288), z.literal(2016)]),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -211,14 +211,15 @@ export const appRouter = t.router({
           take,
         })
         .then((prices) => {
-          if (take === 24) return prices.reverse();
+          if (take === 288) return prices.reverse();
 
           const res: Price[] = [];
           prices.reverse().forEach((price, i) => {
             const open = res[res.length - 1]?.close ?? price.open;
             if (
-              (take === 168 && i % 6 === 0) ||
-              (take === 720 && i % 24 === 0)
+              take === 2016 &&
+              i % 6 === 0 /* ||
+              (take === 720 && i % 24 === 0) */
             ) {
               res.push({
                 ...price,

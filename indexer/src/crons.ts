@@ -100,7 +100,7 @@ const createAnalytic = (
   close: number
 ) => {
   const date = new Date();
-  date.setHours(date.getHours(), 0, 0, 0);
+  date.setHours(date.getHours(), date.getMinutes(), 0, 0);
 
   prisma.analytics
     .create({
@@ -122,7 +122,7 @@ const createAnalytic = (
     .catch((err) => logger.warn(err));
 };
 
-const everyHour = "0 0 */1 * * *";
+const every5Minutes = "*/5 * * * *";
 const everyPeriod = "*/16 * * * * *";
 
 export const analyticsTask = cron.schedule(everyHour, fillAnalytics, {
