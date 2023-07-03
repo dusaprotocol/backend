@@ -1,46 +1,95 @@
-import { Analytics, PrismaClient } from "@prisma/client";
-import { getActivePrice, getCallee } from "../../common/methods";
+import { Analytics, Pool, PrismaClient } from "@prisma/client";
+import {
+  fetchTokenInfo,
+  getActivePrice,
+  getCallee,
+  getPairAddressTokens,
+} from "../../common/methods";
 
 const prisma = new PrismaClient();
 
-interface Pool {
-  address: string;
-  binStep: number;
-  activeId: number;
-}
-
-const pools: Pool[] = [
+type PartialPool = Pick<Pool, "address" | "binStep">;
+const pools: PartialPool[] = [
   {
     // USDC-ETH
-    address: "AS12B2SUnD5mqHkTC1gBfmm58F8CBqC1oxHAgEF53EV4XLK6jz4GZ",
+    address: "AS12GTbwMdEmHCHqtYUcnCBdjgkQKcR3LhexkwyvuHGTC8s4cmeX8",
     binStep: 10,
-    activeId: 138585,
   },
   {
     // USDC-MASSA
-    address: "AS12KbcXyR5vcpVP3FrzZob866K7qud3youLVDDvcBNjgXofw8GZN",
+    address: "AS12HJahtjWpG6Te8qoRqfWMNH1y1txWxuJgnjwFS3K7i7yRf51Qh",
     binStep: 20,
-    activeId: 131887,
   },
   {
     // MASSA-WETH
-    address: "AS1MBXDj3UuXyngTGGvPHeKLjBasVxCiJ7zAXqo3izeQBmpG536C",
+    address: "AS12gKHXSJU9vboT7L6WbzdtyyccN8tEqgxM7yz4u82mumrtjCgsd",
     binStep: 15,
-    activeId: 135005,
   },
 ];
-const betaLaunch = new Date(1684332000 * 1000).getTime();
+const betaLaunch = 1684332000 * 1000;
+
+async function createPools() {
+  pools.forEach(async (pool) => {
+    const tokenAddresses = await getPairAddressTokens(pool.address);
+    if (!tokenAddresses) return;
+
+    const [token0Address, token1Address] = tokenAddresses;
+    const token0 = await fetchTokenInfo(token0Address);
+    const token1 = await fetchTokenInfo(token1Address);
+    if (!token0 || !token1) return;
+
+    try {
+      await prisma.token.upsert({
+        where: {
+          address: token0.address,
+        },
+        create: token0,
+        update: {},
+      });
+      await prisma.token.upsert({
+        where: {
+          address: token1.address,
+        },
+        create: token1,
+        update: {},
+      });
+
+      prisma.pool
+        .create({
+          data: {
+            ...pool,
+            token0: {
+              connect: {
+                address: token0.address,
+              },
+            },
+            token1: {
+              connect: {
+                address: token1.address,
+              },
+            },
+          },
+        })
+        .then((res) => console.log(res))
+        .catch((err) => console.error(err));
+    } catch (err) {
+      console.error(err);
+    }
+  });
+}
 
 async function generateAnalytics(pool: Pool) {
   const data: Analytics[] = [];
 
   let prevValue = 5000;
-  for (let i = 0; i < 720; i++) {let close = await getActivePrice(pool.address);
-      const open = close;
-      const high = close;
-      const low = close;
+  for (let i = 0; i < 720; i++) {
+    let close = await getActivePrice(pool.address);
+    const open = close;
+    const high = close;
+    const low = close;
     const value = 0;
     const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
+
     const date = new Date(Date.now() - 1000 * 60 * 60 * i);
     date.setHours(date.getHours(), 0, 0, 0);
 
@@ -50,8 +99,8 @@ async function generateAnalytics(pool: Pool) {
       token0Locked: BigInt(value),
       token1Locked: BigInt(value),
       usdLocked: value,
-      volume: BigInt(value),
-      fees: BigInt(Math.round(value / 1000)),
+      volume: value,
+      fees: Math.round(value / 1000),
       open,
       close,
       high,
@@ -68,32 +117,11 @@ async function generateAnalytics(pool: Pool) {
     .catch((err) => console.error(err));
 }
 
-async function generatePrices(pool: Pool) {
-  const data: Price[] = [];
-
-  let close = await getActivePrice(pool.address);
-  for (let j = 0; j < 720; j++) {
-    const open = close;
-    const high = close;
-    const low = close;
-
-    const date = new Date(betaLaunch - 1000 * 60 * 60 * j);
-    date.setHours(date.getHours(), 0, 0, 0);
-
-    data.push({
-      address: pool.address,
-      date,
-      open,
-      close,
-      high,
-      low,
-    });
-
 async function createMissingPrices(pool: Pool) {
-  const data: Price[] = [];
-  const lastMonthPrices = await prisma.price.findMany({
+  const data: Analytics[] = [];
+  const lastMonthPrices = await prisma.analytics.findMany({
     where: {
-      address: pool.address,
+      poolAddress: pool.address,
       date: {
         gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
       },
@@ -114,8 +142,8 @@ async function createMissingPrices(pool: Pool) {
       console.log(missingHours, date, nextDate);
 
       for (let j = 1; j < missingHours; j++) {
-        const missingData: Price = {
-          address: pool.address,
+        const missingData: Analytics = {
+          ...lastMonthPrices[i],
           date: new Date(date.getTime() + oneHour * j),
           open: lastMonthPrices[i].close,
           close: lastMonthPrices[i].close,
@@ -126,7 +154,7 @@ async function createMissingPrices(pool: Pool) {
       }
     }
   }
-  await prisma.price
+  await prisma.analytics
     .createMany({
       data,
     })
@@ -135,28 +163,5 @@ async function createMissingPrices(pool: Pool) {
 }
 
 (() => {
-  // for (const pool of pools) {
-  //   generateAnalytics(pool);
-  //   generatePrices(pool);
-  // }
-
-  prisma.analytics
-    .updateMany({
-      where: {
-        token0Locked: {
-          lt: BigInt(0),
-        },
-        OR: {
-          token1Locked: {
-            lt: BigInt(0),
-          },
-        },
-      },
-      data: {
-        token0Locked: BigInt(0),
-        token1Locked: BigInt(0),
-      },
-    })
-    .then((res) => console.log(res))
-    .catch((err) => console.error(err));
+  createPools();
 })();
