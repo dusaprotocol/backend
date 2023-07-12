@@ -14,7 +14,7 @@ export const parseTimestamp = (
   ),
 });
 
-export const getGenesisTimestamp = () => 1686561786302;
+export const getGenesisTimestamp = () => 1686763748795;
 // web3Client
 //   .publicApi()
 //   .getNodeStatus()

@@ -12,21 +12,20 @@ type PartialPool = Pick<Pool, "address" | "binStep">;
 const pools: PartialPool[] = [
   {
     // USDC-ETH
-    address: "AS12GTbwMdEmHCHqtYUcnCBdjgkQKcR3LhexkwyvuHGTC8s4cmeX8",
+    address: "AS1aqPPZGHzZQ4cFvKFuWRwrfV3czsiwXdPazLyWLaBZLj2U9yKd",
     binStep: 10,
   },
   {
     // USDC-MASSA
-    address: "AS12HJahtjWpG6Te8qoRqfWMNH1y1txWxuJgnjwFS3K7i7yRf51Qh",
+    address: "AS1TWx6MKHwpSpRa6JAgJEPjW6MC5MgPn2fw8wxWMdPCLet6nAyQ",
     binStep: 20,
   },
   {
     // MASSA-WETH
-    address: "AS12gKHXSJU9vboT7L6WbzdtyyccN8tEqgxM7yz4u82mumrtjCgsd",
+    address: "AS12NcvXe1wrbKizMH4cfau5guvE9sZKMLZW5S4DsRdmssH2S9F51",
     binStep: 15,
   },
 ];
-const betaLaunch = 1684332000 * 1000;
 
 async function createPools() {
   pools.forEach(async (pool) => {
