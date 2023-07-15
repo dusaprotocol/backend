@@ -81,7 +81,6 @@ export const getBars = async (
   countback: number
 ) => {
   const interval = (to - from) / countback;
-  console.log({ symbol, resolution, from, to, countback, interval });
 
   const prices = await prisma.analytics.findMany({
     where: {
