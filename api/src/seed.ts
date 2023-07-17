@@ -11,18 +11,18 @@ const prisma = new PrismaClient();
 type PartialPool = Pick<Pool, "address" | "binStep">;
 const pools: PartialPool[] = [
   {
-    // USDC-ETH
-    address: "AS1aqPPZGHzZQ4cFvKFuWRwrfV3czsiwXdPazLyWLaBZLj2U9yKd",
+    // USDC-WETH
+    address: "AS12Ase3iYdHf2PVVmVP1mvzL9MNaGcZyZ8PsiAsLr5Le6iTD7zkz",
     binStep: 10,
   },
   {
     // USDC-MASSA
-    address: "AS1TWx6MKHwpSpRa6JAgJEPjW6MC5MgPn2fw8wxWMdPCLet6nAyQ",
+    address: "AS12egMWSSdmdXuWhJDgtPDiYn5enpxMUd6pTu6sss6KTeR7jJdMu",
     binStep: 20,
   },
   {
     // MASSA-WETH
-    address: "AS12NcvXe1wrbKizMH4cfau5guvE9sZKMLZW5S4DsRdmssH2S9F51",
+    address: "AS12U8eRCLDNEuiUcLqpca8RyDu4PcUZNXAVdQXinciSgHMiNDWJd",
     binStep: 15,
   },
 ];
