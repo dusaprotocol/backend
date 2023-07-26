@@ -1,5 +1,14 @@
-export const factorySC = "AS1PZbuWxJRjhqUuBqYUnfwrqRkcFxJYWAHzN3aZdSD83VSGXLHX";
-export const dcaSC = "AS12Z9vnG7kwQRi93uGnT1JaJxE74ZkWpFVkymBVwarYq5CVkoFXr";
+if (
+  !process.env.FACTORY_SC ||
+  !process.env.DCA_SC ||
+  !process.env.WMAS_SC ||
+  !process.env.USDC_SC
+) {
+  throw new Error("Missing env variables");
+}
 
-export const usdcSC = "AS1CVGAW3xC2usEm8XK1DjTeypnZJ14o65uPDh6hKAAa2T2yGRZC";
-export const wmasSC = "AS1vtFdHHbPeNr4fT1ifxWrNZ71B39VLXXMwEFRD4eB3SuZinn4J";
+export const factorySC = process.env.FACTORY_SC;
+export const dcaSC = process.env.DCA_SC;
+
+export const usdcSC = process.env.USDC_SC;
+export const wmasSC = process.env.WMAS_SC;
