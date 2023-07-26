@@ -14,9 +14,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Deploy Backend
-        run: |
-          ssh root@node.dusa.io "cd /backend && git pull && pnpm install && cd indexer && screen -S indexer -d -m && screen -r indexer && pnpm install && pkill -f 'pnpm start' && pnpm start && cd ../api && screen -S api -d -m && screen -r api && pnpm install && pkill -f 'pnpm start' && pnpm start"
+      - name: Deploy to Staging server
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          SCRIPT_AFTER: |
+            npm install -g pnpm
+            pwd
+            ls
+            cd backend
+            git pull
+            pnpm install
+            cd indexer
+            screen -S indexer -d -m
+            screen -r indexer
+            pnpm install
+            pkill -f 'pnpm start'
+            pnpm start
+            cd ../api
+            screen -S api -d -m
+            screen -r api
+            pnpm install
+            pkill -f 'pnpm start'
+            pnpm start
+            cd ../../
+            pwd
+            ls -al
+            echo $RSYNC_STDOUT
