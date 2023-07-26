@@ -1,0 +1,21 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Deploy Backend
+        run: |
+          ssh root@node.dusa.io "cd /backend && git pull && pnpm install && cd indexer && screen -S indexer -d -m && screen -r indexer && pnpm install && pkill -f 'pnpm start' && pnpm start && cd ../api && screen -S api -d -m && screen -r api && pnpm install && pkill -f 'pnpm start' && pnpm start"
