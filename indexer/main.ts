@@ -154,6 +154,10 @@ const subscribeFilledBlocks = (host: string) => {
             if (isReachable) return ip;
           });
           return grpcDefaultHost;
+        })
+        .catch((err) => {
+          logger.error(err);
+          return grpcDefaultHost;
         });
       // wait 1 minute if server is unavailable
       setTimeout(() => subscribeFilledBlocks(newIp), 1000 * 60);
