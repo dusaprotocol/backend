@@ -2,33 +2,43 @@ import { Analytics, Pool, PrismaClient } from "@prisma/client";
 import {
   fetchTokenInfo,
   getActivePrice,
+  getBinStep,
   getCallee,
   getPairAddressTokens,
 } from "../../common/methods";
+import { web3Client } from "../../common/client";
+import { factorySC } from "../../common/contracts";
+import { Args, bytesToStr, strToBytes } from "@massalabs/massa-web3";
 
 const prisma = new PrismaClient();
 
-type PartialPool = Pick<Pool, "address" | "binStep">;
-const pools: PartialPool[] = [
-  {
-    // USDC-WETH
-    address: "AS12Ase3iYdHf2PVVmVP1mvzL9MNaGcZyZ8PsiAsLr5Le6iTD7zkz",
-    binStep: 10,
-  },
-  {
-    // USDC-MASSA
-    address: "AS12egMWSSdmdXuWhJDgtPDiYn5enpxMUd6pTu6sss6KTeR7jJdMu",
-    binStep: 20,
-  },
-  {
-    // MASSA-WETH
-    address: "AS12U8eRCLDNEuiUcLqpca8RyDu4PcUZNXAVdQXinciSgHMiNDWJd",
-    binStep: 15,
-  },
-];
-
 async function createPools() {
-  pools.forEach(async (pool) => {
+  const pools: Pick<Pool, "address" | "binStep">[] = [];
+  await web3Client
+    .publicApi()
+    .getDatastoreEntries([{ address: factorySC, key: strToBytes("ALL_PAIRS") }])
+    .then(async (res) => {
+      const bs = res[0].final_value;
+      if (!bs) return;
+
+      const pairs = bytesToStr(bs).split(":");
+      for (let i = 0; i < pairs.length; i++) {
+        const pair = pairs[i];
+        if (!pair) continue;
+
+        const binStep = await getBinStep(pair);
+        if (!binStep) continue;
+
+        pools.push({
+          address: pair,
+          binStep,
+        });
+      }
+    });
+
+  for (let i = 0; i < pools.length; i++) {
+    const pool = pools[i];
+    console.log(pool.binStep);
     const tokenAddresses = await getPairAddressTokens(pool.address);
     if (!tokenAddresses) return;
 
@@ -74,7 +84,7 @@ async function createPools() {
     } catch (err) {
       console.error(err);
     }
-  });
+  }
 }
 
 async function generateAnalytics(pool: Pool) {
