@@ -28,17 +28,13 @@ jobs:
             git pull
             pnpm install
             cd indexer
-            screen -S indexer -d -m
-            screen -r indexer
             pnpm install
-            pkill -f 'pnpm start'
-            pnpm start
+            screen -X -S indexer quit
+            screen -S indexer -d -m pnpm start
             cd ../api
-            screen -S api -d -m
-            screen -r api
             pnpm install
-            pkill -f 'pnpm start'
-            pnpm start
+            screen -X -S api quit
+            screen -S api -d -m pnpm start
             cd ../../
             pwd
             ls -al
