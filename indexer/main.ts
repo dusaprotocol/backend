@@ -176,5 +176,5 @@ subscribeFilledBlocks(grpcDefaultHost);
 
 // Start cron tasks
 
-// analyticsTask.start();
-// autonomousEvents.start();
+analyticsTask.start();
+autonomousEvents.start();
