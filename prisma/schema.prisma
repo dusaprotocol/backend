@@ -9,6 +9,12 @@ datasource db {
   relationMode      = "prisma"
 }
 
+model User {
+  address      String      @unique
+  swapTxs      Swap[]
+  liquidityTxs Liquidity[]
+}
+
 model Token {
   address       String @id
   name          String
@@ -57,6 +63,8 @@ model Swap {
   usdValue    Float
   timestamp   DateTime
   txHash      String   @id
+  User        User?    @relation(fields: [userAddress], references: [address])
+  userAddress String?  @default("")
 }
 
 model Liquidity {
@@ -69,4 +77,6 @@ model Liquidity {
   upperBound  Int
   timestamp   DateTime
   txHash      String   @id
+  User        User?    @relation(fields: [userAddress], references: [address])
+  userAddress String?
 }
