@@ -1,0 +1,42 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to Staging server
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          SCRIPT_AFTER: |
+            npm install -g pnpm
+            cd backend
+            git pull
+            pnpm install
+            cd indexer
+            pnpm install
+            screen -ls
+            screen -S indexer -X quit
+            screen -ls
+            screen -S indexer -d -m pnpm start
+            screen -ls
+            cd ../api
+            pnpm install
+            screen -S api -X quit
+            screen -ls
+            screen -S api -d -m pnpm start
+            screen -ls
+            cd ../../
+            echo $RSYNC_STDOUT

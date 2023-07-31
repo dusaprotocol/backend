@@ -232,15 +232,25 @@ export const appRouter = t.router({
       .findMany({
         where: {
           poolAddress: input,
+          date: {
+            // greater than 48h ago to calculate 24h change
+            gt: new Date(Date.now() - 1000 * 60 * 60 * 48),
+          },
         },
         orderBy: {
           date: "desc",
         },
-        take: 48,
       })
       .then((analytics) => {
-        const today = analytics.slice(0, 24);
-        const yesterday = analytics.slice(24, 48);
+        const _24hago = new Date(Date.now() - 1000 * 60 * 60 * 24);
+
+        const changeIndex = analytics.findIndex(
+          (analytic) => analytic.date.getTime() < _24hago.getTime()
+        );
+        const today = analytics.slice(0, changeIndex);
+        const yesterday = analytics.slice(changeIndex);
+        console.log(changeIndex, today.length, yesterday.length);
+
         const fees = today.reduce((acc, curr) => acc + Number(curr.fees), 0);
         const feesYesterday = yesterday.reduce(
           (acc, curr) => acc + Number(curr.fees),
@@ -262,7 +272,6 @@ export const appRouter = t.router({
           volumeYesterday === 0
             ? 0
             : ((volume - volumeYesterday) / volumeYesterday) * 100;
-        console.log({ fees, volume, feesPctChange, volumePctChange });
         return { fees, volume, feesPctChange, volumePctChange };
       })
       .catch((err) => {

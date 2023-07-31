@@ -1,11 +1,12 @@
 import { ClientDuplexStream, ClientOptions, credentials } from "@grpc/grpc-js";
 import { MassaServiceClient } from "./build/nodejs/api_grpc_pb";
 import {
-  GetVersionRequest,
-  GetVersionResponse,
   NewFilledBlocksResponse,
+  NewOperationsFilter,
+  NewOperationsQuery,
+  NewOperationsRequest,
   NewOperationsResponse,
-  // NewSlotExecutionOutputsResponse,
+  OpType,
 } from "./build/nodejs/api_pb";
 import { EOperationStatus } from "@massalabs/massa-web3";
 import { analyticsTask, autonomousEvents } from "./src/crons";
@@ -15,33 +16,68 @@ import logger from "./common/logger";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
-const grpcOptions: Partial<ClientOptions> = {
-  // "grpc.keepalive_time_ms": 120000,
-  // "grpc.keepalive_timeout_ms": 20000,
-  // "grpc.keepalive_permit_without_calls": 10,
-  // "grpc.max_connection_idle_ms": 100000,
-  // "grpc.max_connection_age_ms": 120000,
-  // "grpc.http2.min_time_between_pings_ms": 120000,
-  // "grpc.http2.min_ping_interval_without_data_ms": 120000,
-  // "grpc.enable_retries": 1,
-  // "grpc.max_reconnect_backoff_ms": 1000, // https://stackoverflow.com/questions/42256810/how-can-i-change-grpcs-reconnection-behaviour-in-the-node-js-implementation
+
+const subscribeNewOperations = (host: string) => {
+  const service = new MassaServiceClient(
+    `${host}:${grpcPort}`,
+    credentials.createInsecure()
+  );
+  const stream = service.newOperations();
+
+  const query = new NewOperationsQuery();
+  const filter = new NewOperationsFilter();
+  filter.addTypes(OpType.OP_TYPE_CALL_SC);
+  query.setFilter(filter);
+  stream.write(new NewOperationsRequest().setQuery(query));
+
+  logger.info(
+    `[${host}:${grpcPort}] subscribeNewOperations start on ${new Date().toString()}`
+  );
+
+  stream.on("data", (data: NewOperationsResponse) => {
+    const op = data.getOperation()?.toObject();
+    logger.info(op);
+  });
+  stream.on("error", async (err) => {
+    logger.error(err.message);
+    logger.info(err);
+    logger.info(err.name);
+    // if (err.message.includes("14")) {
+    //   const newIp: string = await web3Client
+    //     .publicApi()
+    //     .getNodeStatus()
+    //     .then((res) => {
+    //       const nodes = res.connected_nodes;
+    //       const nodeHashs = Object.keys(nodes);
+    //       nodeHashs.forEach((nodeHash) => {
+    //         const nodeInfo = nodes[nodeHash] as unknown as [string, boolean];
+    //         const [ip, isReachable] = nodeInfo;
+    //         logger.info({ nodeHash, ip, isReachable });
+    //         if (isReachable) return ip;
+    //       });
+    //       return grpcDefaultHost;
+    //     });
+    //   // wait 1 minute if server is unavailable
+    //   setTimeout(() => subscribeFilledBlocks(newIp), 1000 * 60);
+    // } else setTimeout(() => subscribeFilledBlocks(grpcDefaultHost), 1000 * 3);
+  });
+  stream.on("end", () => {
+    logger.warn(`subscribeNewOperations end on ${new Date().toString()}`);
+  });
+  stream.on("status", (e: any) => {
+    logger.warn(e);
+  });
 };
 
-// const subscribeNewOperations = async () => {
-//   const stream = service.newOperations();
-//   stream.on("data", (data: NewOperationsResponse) => {
-//     logger.info(data.toObject());
-//   });
-//   stream.on("error", (err) => {
-//     logger.error(err);
-//   });
-//   stream.on("end", (e: any) => {
-//     logger.warn("subscribeNewOperations end: " + e);
-//   });
-// };
-
-// const subscribeNewSlotExecutionOutputs = async () => {
+// const subscribeNewSlotExecutionOutputs = async (host: string) => {
+//   const service = new MassaServiceClient(
+//     `${host}:${grpcPort}`,
+//     credentials.createInsecure()
+//   );
 //   const stream = service.newSlotExecutionOutputs();
+//   logger.info(
+//     `[${host}:${grpcPort}] subscribeNewSlotExecutionOutputs start on ${new Date().toString()}`
+//   );
 //   stream.on("data", (data: NewSlotExecutionOutputsResponse) => {
 //     logger.info(data.toObject());
 //   });
@@ -56,8 +92,7 @@ const grpcOptions: Partial<ClientOptions> = {
 const subscribeFilledBlocks = (host: string) => {
   const service = new MassaServiceClient(
     `${host}:${grpcPort}`,
-    credentials.createInsecure(),
-    grpcOptions
+    credentials.createInsecure()
   );
   const stream = service.newFilledBlocks();
   logger.info(
@@ -119,6 +154,10 @@ const subscribeFilledBlocks = (host: string) => {
             if (isReachable) return ip;
           });
           return grpcDefaultHost;
+        })
+        .catch((err) => {
+          logger.error(err);
+          return grpcDefaultHost;
         });
       // wait 1 minute if server is unavailable
       setTimeout(() => subscribeFilledBlocks(newIp), 1000 * 60);
@@ -132,24 +171,7 @@ const subscribeFilledBlocks = (host: string) => {
   });
 };
 
-// const subscribe = async <Req, Res extends { toObject: () => any }>(
-//   stream: ClientDuplexStream<Req, Res>
-// ) => {
-//   return new Promise((resolve, reject) => {
-//     stream.on("data", (data: Res) => {
-//       logger.info(data.toObject());
-//     });
-//     stream.on("error", (err) => {
-//       logger.error(err);
-//       reject(err);
-//     });
-//     stream.on("end", (e: any) => {
-//       logger.warn("subscribe end", e);
-//       resolve(e);
-//     });
-//   });
-// };
-
+// subscribeNewOperations(grpcDefaultHost);
 subscribeFilledBlocks(grpcDefaultHost);
 
 // Start cron tasks

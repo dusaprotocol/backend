@@ -20,12 +20,6 @@ const buildnet: IProvider[] = [
   },
 ];
 
-if (!process.env.WALLET_PRIVATE_KEY) {
-  throw new Error(
-    'WALLET_PRIVATE_KEY is not set. Did you create environment file ".env" ?'
-  );
-}
-
 export const web3Client: Client = new Client({
   retryStrategyOn: true,
   providers: buildnet,

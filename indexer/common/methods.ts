@@ -31,7 +31,7 @@ export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
       return binStep;
     })
     .catch((err) => {
-      logger.error(err);
+      logger.error(err.toString());
       return undefined;
     });
 
@@ -60,7 +60,7 @@ export const fetchPairBinSteps = async (
       return res.info.output_events[0]?.data.split(",").map(Number);
     })
     .catch((err) => {
-      logger.error(err);
+      logger.error(err.toString());
       return [];
     });
 
@@ -88,7 +88,7 @@ export const fetchPairAddress = async (
       return lpAddress;
     })
     .catch((err) => {
-      logger.error(err);
+      logger.error(err.toString());
       return undefined;
     });
 
@@ -133,7 +133,7 @@ export const getActivePrice = (
       return getPriceFromId(activeId, binStep);
     })
     .catch((err) => {
-      logger.error(err);
+      logger.error(err.toString());
       return 0;
     });
 
@@ -159,7 +159,7 @@ export const getLockedReserves = (
       return [reserveX, reserveY];
     })
     .catch((err) => {
-      logger.error(err);
+      logger.error(err.toString());
       return [BigInt(0), BigInt(0)];
     });
 
