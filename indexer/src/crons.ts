@@ -157,7 +157,11 @@ const processAutonomousEvents = async () => {
     })
     .then((events) => {
       logger.silly(events.map((e) => e.data));
-      processEvents("", "swap", events.slice(1));
+
+      // TODO
+      const txId = "";
+      const creatorAddress = "";
+      processEvents(txId, creatorAddress, "swap", events.slice(1));
       slot.period += 1;
     });
 };

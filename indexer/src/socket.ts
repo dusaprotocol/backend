@@ -20,6 +20,7 @@ export const indexedMethods = [
 
 export const processSwap = (
   txHash: string,
+  address: string,
   timestamp: string | Date,
   poolAddress: string,
   tokenIn: string,
@@ -71,6 +72,16 @@ export const processSwap = (
                 address: poolAddress,
               },
             },
+            user: {
+              connectOrCreate: {
+                where: {
+                  address,
+                },
+                create: {
+                  address,
+                },
+              },
+            },
             swapForY,
             binId,
             amountIn,
@@ -88,6 +99,7 @@ export const processSwap = (
 
 export const processLiquidity = (
   txHash: string,
+  address: string,
   timestamp: string | Date,
   poolAddress: string,
   token0: string,
@@ -127,6 +139,16 @@ export const processLiquidity = (
               address: poolAddress,
             },
           },
+          user: {
+            connectOrCreate: {
+              where: {
+                address,
+              },
+              create: {
+                address,
+              },
+            },
+          },
           amount0,
           amount1,
           usdValue,
@@ -141,19 +163,28 @@ export const processLiquidity = (
   });
 };
 
-export const processEvents = (
+/**
+ *
+ * @param txId - transaction hash
+ * @param address - transaction sender address
+ * @param method - transaction method
+ * @param events - transaction events
+ * @returns
+ */
+export const processEvents = async (
   txId: string,
+  address: string,
   method: string,
   events: IEvent[]
 ) => {
-  logger.info({ txId, method });
+  logger.info({ txId, address, method });
   if (
     !events.length ||
     events[events.length - 1].data.includes("massa_execution_error")
   )
     return;
 
-  const genesisTimestamp = getGenesisTimestamp();
+  const genesisTimestamp = await getGenesisTimestamp();
   const timestamp = parseSlot(events[0].context.slot, genesisTimestamp);
   switch (method) {
     case "swap":
@@ -168,6 +199,7 @@ export const processEvents = (
       const tokenOut = getCallee(events[events.length - 1]);
       processSwap(
         txId,
+        address,
         new Date(timestamp),
         pairAddress,
         tokenIn,
@@ -185,6 +217,7 @@ export const processEvents = (
 
       processLiquidity(
         txId,
+        address,
         new Date(timestamp),
         pairAddress,
         getCallee(events[events.length - 2]),

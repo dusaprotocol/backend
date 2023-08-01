@@ -63,8 +63,8 @@ model Swap {
   usdValue    Float
   timestamp   DateTime
   txHash      String   @id
-  User        User?    @relation(fields: [userAddress], references: [address])
-  userAddress String?  @default("")
+  user        User     @relation(fields: [userAddress], references: [address])
+  userAddress String
 }
 
 model Liquidity {
@@ -77,6 +77,6 @@ model Liquidity {
   upperBound  Int
   timestamp   DateTime
   txHash      String   @id
-  User        User?    @relation(fields: [userAddress], references: [address])
-  userAddress String?
+  user        User     @relation(fields: [userAddress], references: [address])
+  userAddress String
 }

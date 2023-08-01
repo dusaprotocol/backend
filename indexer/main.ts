@@ -106,6 +106,9 @@ const subscribeFilledBlocks = (host: string) => {
     operations?.forEach(async (operation) => {
       const op = operation?.operation?.content?.op;
       const txId = operation?.operation?.id;
+      const creatorAddress = operation.operation
+        ?.contentCreatorAddress as string;
+
       if (!op || !txId) return;
 
       if (op.callSc) {
@@ -131,7 +134,9 @@ const subscribeFilledBlocks = (host: string) => {
             is_final: null,
             original_operation_id: txId,
           })
-          .then((events) => processEvents(txId, method, events));
+          .then((events) =>
+            processEvents(txId, creatorAddress, method, events)
+          );
       } else if (op.executSc) {
       }
     });
