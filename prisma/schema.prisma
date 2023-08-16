@@ -26,57 +26,57 @@ model Token {
 
 model Pool {
   address       String      @id
-  token0        Token       @relation(fields: [token0Address], references: [address], name: "pool0")
-  token1        Token       @relation(fields: [token1Address], references: [address], name: "pool1")
   binStep       Int
   token0Address String
   token1Address String
+  token0        Token       @relation("pool0", fields: [token0Address], references: [address])
+  token1        Token       @relation("pool1", fields: [token1Address], references: [address])
   analytics     Analytics[]
   swapTxs       Swap[]
   liquidityTxs  Liquidity[]
 }
 
 model Analytics {
-  pool         Pool     @relation(fields: [poolAddress], references: [address])
-  poolAddress  String
   date         DateTime
-  open         Float
-  close        Float
-  high         Float
-  low          Float
   volume       Int
   fees         Int
   token0Locked BigInt
   token1Locked BigInt
   usdLocked    Int
+  close        Float
+  high         Float
+  low          Float
+  open         Float
+  poolAddress  String
+  pool         Pool     @relation(fields: [poolAddress], references: [address])
 
   @@id([poolAddress, date])
 }
 
 model Swap {
-  pool        Pool     @relation(fields: [poolAddress], references: [address])
   poolAddress String
   swapForY    Boolean
   binId       Int
   amountIn    BigInt
   amountOut   BigInt
-  usdValue    Float
   timestamp   DateTime
   txHash      String   @id
-  user        User     @relation(fields: [userAddress], references: [address])
+  usdValue    Float
   userAddress String
+  pool        Pool     @relation(fields: [poolAddress], references: [address])
+  user        User     @relation(fields: [userAddress], references: [address])
 }
 
 model Liquidity {
-  pool        Pool     @relation(fields: [poolAddress], references: [address])
   poolAddress String
   amount0     BigInt
   amount1     BigInt
-  usdValue    Float
-  lowerBound  Int
-  upperBound  Int
   timestamp   DateTime
   txHash      String   @id
-  user        User     @relation(fields: [userAddress], references: [address])
+  lowerBound  Int
+  upperBound  Int
+  usdValue    Float
   userAddress String
+  pool        Pool     @relation(fields: [poolAddress], references: [address])
+  user        User     @relation(fields: [userAddress], references: [address])
 }

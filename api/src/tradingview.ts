@@ -1,4 +1,5 @@
 import { prisma } from "../../common/db";
+import logger from "../../common/logger";
 
 interface BarsData {
   t: number[];
@@ -82,19 +83,24 @@ export const getBars = async (
 ) => {
   const interval = (to - from) / countback;
 
-  const prices = await prisma.analytics.findMany({
-    where: {
-      poolAddress: symbol,
-      date: {
-        gte: new Date(from * 1000),
-        lte: new Date(to * 1000),
+  const prices = await prisma.analytics
+    .findMany({
+      where: {
+        poolAddress: symbol,
+        date: {
+          gte: new Date(from * 1000),
+          lte: new Date(to * 1000),
+        },
       },
-    },
-    orderBy: {
-      date: "desc",
-    },
-    take: countback,
-  });
+      orderBy: {
+        date: "desc",
+      },
+      take: countback,
+    })
+    .catch((err) => {
+      logger.error("getBars error", err);
+      return [];
+    });
 
   const length = prices.length;
   if (length === 0) {
