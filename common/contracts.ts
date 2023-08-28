@@ -1,14 +1,15 @@
-if (
-  !process.env.FACTORY_SC ||
-  !process.env.DCA_SC ||
-  !process.env.WMAS_SC ||
-  !process.env.USDC_SC
-) {
-  throw new Error("Missing SC env variables");
-}
+import {
+  ChainId,
+  DCA_MANAGER_ADDRESS,
+  LB_FACTORY_ADDRESS,
+  USDC,
+  WMAS,
+} from "@dusalabs/sdk";
 
-export const factorySC = process.env.FACTORY_SC;
-export const dcaSC = process.env.DCA_SC;
+const chainId = ChainId.BUILDNET;
 
-export const usdcSC = process.env.USDC_SC;
-export const wmasSC = process.env.WMAS_SC;
+export const factorySC = LB_FACTORY_ADDRESS[chainId];
+export const dcaSC = DCA_MANAGER_ADDRESS[chainId];
+
+export const usdcSC = USDC[chainId].address;
+export const wmasSC = WMAS[chainId].address;

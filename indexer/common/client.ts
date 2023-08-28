@@ -21,7 +21,7 @@ const buildnet: IProvider[] = [
 ];
 
 export const web3Client: Client = new Client({
-  retryStrategyOn: true,
+  retryStrategyOn: false,
   providers: buildnet,
   periodOffset: 0,
 });

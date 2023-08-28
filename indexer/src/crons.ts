@@ -26,38 +26,30 @@ const getPairAddresses = (): Promise<string[]> =>
       return [];
     });
 
-web3Client
-  .publicApi()
-  .getAddresses([factorySC])
-  .then(async (res) => {
-    const keys = res[0].final_datastore_keys
-      .map((k) => String.fromCharCode(...k))
-      .filter((k) => k.startsWith("PAIR_INFORMATION::"));
-    return web3Client
-      .publicApi()
-      .getDatastoreEntries(
-        keys.map((k) => ({ key: strToBytes(k), address: factorySC }))
-      )
-      .then((r) =>
-        r.reduce((acc, entry) => {
-          if (entry.final_value) {
-            const pairInformation = new Args(entry.final_value);
-            const binStep = pairInformation.nextU32();
-            const pairAddress = pairInformation.nextString();
-            acc.push(pairAddress);
-          }
-          return acc;
-        }, [] as string[])
-      )
-      .catch((err) => {
-        logger.warn(err);
-        return [];
-      });
-  })
-  .catch((err) => {
-    logger.warn(err);
-    return [];
-  });
+// web3Client
+//   .publicApi()
+//   .getAddresses([factorySC])
+//   .then(async (res) => {
+//     const keys = res[0].final_datastore_keys
+//       .map((k) => String.fromCharCode(...k))
+//       .filter((k) => k.startsWith("PAIR_INFORMATION::"));
+//     return web3Client
+//       .publicApi()
+//       .getDatastoreEntries(
+//         keys.map((k) => ({ key: strToBytes(k), address: factorySC }))
+//       )
+//       .then((r) =>
+//         r.reduce((acc, entry) => {
+//           if (entry.final_value) {
+//             const pairInformation = new Args(entry.final_value);
+//             const binStep = pairInformation.nextU32();
+//             const pairAddress = pairInformation.nextString();
+//             acc.push(pairAddress);
+//           }
+//           return acc;
+//         }, [] as string[])
+//       );
+//   });
 
 export const fillAnalytics = () => {
   logger.info(`running the TVL task at ${new Date().toString()}`);
@@ -158,7 +150,7 @@ const processAutonomousEvents = async () => {
     .then((events) => {
       logger.silly(events.map((e) => e.data));
 
-      // TODO
+      // TODO (use GRPC newSlotExecutionOutputs?)
       const txId = "";
       const creatorAddress = "";
       processEvents(txId, creatorAddress, "swap", events.slice(1));
