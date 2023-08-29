@@ -117,8 +117,11 @@ const subscribeFilledBlocks = (host: string) => {
 
         const status = await web3Client
           .smartContracts()
-          .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL);
-        if (status !== EOperationStatus.FINAL) {
+          .awaitRequiredOperationStatus(
+            txId,
+            EOperationStatus.SPECULATIVE_SUCCESS
+          );
+        if (status !== EOperationStatus.SPECULATIVE_SUCCESS) {
           logger.debug(txId + " failed to reached final status");
           return;
         }

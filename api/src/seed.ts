@@ -1,4 +1,5 @@
-import { Analytics, Pool, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import type { Analytics, Pool } from "@prisma/client";
 import {
   fetchTokenInfo,
   getActivePrice,
