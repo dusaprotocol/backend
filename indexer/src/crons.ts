@@ -110,7 +110,7 @@ const createAnalytic = (
         open: close,
       },
     })
-    .then((p) => logger.info(p))
+    .then((p) => logger.debug(p))
     .catch((err) => logger.warn(err));
 };
 
