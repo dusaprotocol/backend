@@ -4,10 +4,10 @@ import { EOperationStatus } from "@massalabs/massa-web3";
 import { MassaServiceClient } from "./gen/ts/massa/api/v1/api.client";
 import { analyticsTask, autonomousEvents } from "./src/crons";
 import { indexedMethods, processEvents } from "./src/socket";
-import { web3Client } from "./common/client";
-import logger from "./common/logger";
+import { web3Client } from "../common/client";
+import logger from "../common/logger";
 import { NewOperationsRequest, OpType } from "./gen/ts/massa/api/v1/api";
-import { routerSC } from "./common/contracts";
+import { routerSC } from "../common/contracts";
 import { decodeSwapTx } from "./src/decoder";
 
 const grpcDefaultHost = "37.187.156.118";
@@ -118,7 +118,10 @@ const subscribeFilledBlocks = async (host: string) => {
   );
 
   for await (let message of stream.responses) {
-    console.log(message.filledBlock);
+    console.log(
+      message.filledBlock?.header?.id,
+      message.filledBlock?.operations
+    );
   }
   // stream.on("data", (data: NewFilledBlocksResponse) => {
   //   const block = data.getFilledBlock()?.toObject();
@@ -201,7 +204,7 @@ const subscribeFilledBlocks = async (host: string) => {
 };
 
 subscribeNewOperations(grpcDefaultHost);
-// subscribeFilledBlocks(grpcDefaultHost);
+subscribeFilledBlocks(grpcDefaultHost);
 
 // Start cron tasks
 

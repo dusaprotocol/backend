@@ -87,35 +87,57 @@ export const getTokenValue = async (
   const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binSteps[0]);
   if (!pairAddress) return;
 
-  const price = await getActivePrice(pairAddress, binSteps[0]);
+  const pairInfo = await getPairInformation(pairAddress);
+  if (!pairInfo) return;
+
+  const price = getPriceFromId(pairInfo.activeId, binSteps[0]);
   return tokenAddress < usdcSC ? price : 1 / price;
 };
 
-export const getActivePrice = (
-  poolAddress: string,
-  binStep?: number
-): Promise<number> =>
-  web3Client
+interface PairInformation {
+  activeId: number;
+  reserveX: bigint;
+  reserveY: bigint;
+  feesX: {
+    total: bigint;
+    protocol: bigint;
+  };
+  feesY: {
+    total: bigint;
+    protocol: bigint;
+  };
+}
+
+export const getPairInformation = (
+  address: string
+): Promise<PairInformation | undefined> => {
+  return web3Client
     .publicApi()
     .getDatastoreEntries([
       {
-        address: poolAddress,
+        address,
         key: strToBytes("PAIR_INFORMATION"),
-      },
-      {
-        address: poolAddress,
-        key: strToBytes("FEES_PARAMETERS"),
       },
     ])
     .then((r) => {
       const pairInfoData = r[0].final_value;
-      const feesData = r[1].final_value;
-      if (!pairInfoData || !feesData) return 0;
+      if (!pairInfoData) return;
 
-      const activeId = new Args(pairInfoData).nextU32();
-      const binStep = new Args(feesData).nextU32();
-      return getPriceFromId(activeId, binStep);
+      const args = new Args(pairInfoData);
+      const activeId = args.nextU32();
+      const reserveX = args.nextU64();
+      const reserveY = args.nextU64();
+      const feesX = {
+        total: args.nextU64(),
+        protocol: args.nextU64(),
+      };
+      const feesY = {
+        total: args.nextU64(),
+        protocol: args.nextU64(),
+      };
+      return { activeId, reserveX, reserveY, feesX, feesY };
     });
+};
 
 export const getPairAddressTokens = async (
   pairAddress: string

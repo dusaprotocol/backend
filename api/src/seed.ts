@@ -2,10 +2,11 @@ import { PrismaClient } from "@prisma/client";
 import type { Analytics, Pool } from "@prisma/client";
 import {
   fetchTokenInfo,
-  getActivePrice,
+  getPairInformation,
   getBinStep,
   getCallee,
   getPairAddressTokens,
+  getPriceFromId,
 } from "../../common/methods";
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
@@ -93,7 +94,10 @@ async function generateAnalytics(pool: Pool) {
 
   let prevValue = 5000;
   for (let i = 0; i < 720; i++) {
-    let close = await getActivePrice(pool.address);
+    let pairInfo = await getPairInformation(pool.address);
+    if (!pairInfo) return;
+
+    let close = getPriceFromId(pairInfo.activeId, pool.binStep);
     const open = close;
     const high = close;
     const low = close;

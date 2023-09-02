@@ -1,6 +1,6 @@
 import { Args, ArrayTypes } from "@massalabs/massa-web3";
 import { Address, ChainId, Token, TokenAmount } from "@dusalabs/sdk";
-import { fetchTokenInfo } from "../common/methods";
+import { fetchTokenInfo } from "../../common/methods";
 
 export const decodeSwapTx = async (
   method: string,
