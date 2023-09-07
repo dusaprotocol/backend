@@ -10,6 +10,7 @@ import { NewOperationsRequest, OpType } from "./gen/ts/massa/api/v1/api";
 import { routerSC } from "../common/contracts";
 import { decodeSwapTx } from "./src/decoder";
 import { Operation } from "./gen/ts/massa/model/v1/operation";
+import { fetchEvents } from "../common/utils";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
@@ -108,7 +109,7 @@ async function processOperation(
 ) {
   if (!operation || !caller) return;
 
-  const opType = operation?.op?.type;
+  const opType = operation.op?.type;
   if (opType?.oneofKind !== "callSc") return;
 
   const targetAddress = opType.callSc.targetAddr;
@@ -121,22 +122,18 @@ async function processOperation(
 
   const status = await web3Client
     .smartContracts()
-    .awaitRequiredOperationStatus(txId, EOperationStatus.SPECULATIVE_SUCCESS);
+    .awaitRequiredOperationStatus(txId, EOperationStatus.SPECULATIVE_SUCCESS)
+    .catch((err) => {
+      logger.error(err);
+      return EOperationStatus.NOT_FOUND;
+    });
   if (status !== EOperationStatus.SPECULATIVE_SUCCESS) {
     logger.debug(txId + " failed to reached final status");
     return;
   }
   logger.debug(txId + " has reached final status");
 
-  web3Client
-    .smartContracts()
-    .getFilteredScOutputEvents({
-      start: null,
-      end: null,
-      emitter_address: null,
-      original_caller_address: null,
-      is_final: null,
-      original_operation_id: txId,
-    })
-    .then((events) => processEvents(txId, caller, targetFunc, events));
+  fetchEvents({
+    original_operation_id: txId,
+  }).then((events) => processEvents(txId, caller, targetFunc, events));
 }

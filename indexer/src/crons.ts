@@ -13,6 +13,7 @@ import {
 } from "../../common/methods";
 import { Args } from "@massalabs/massa-web3";
 import { Pool } from "@prisma/client";
+import { fetchEvents } from "../../common/utils";
 
 const getPools = (): Promise<Pool[]> =>
   prisma.pool.findMany().catch((e) => {
@@ -132,25 +133,15 @@ const processAutonomousEvents = async () => {
 
   const start = slot;
   const end = { ...slot, thread: 31 };
-  web3Client
-    .smartContracts()
-    .getFilteredScOutputEvents({
-      emitter_address: dcaSC,
-      is_final: null,
-      original_caller_address: null,
-      original_operation_id: null,
-      start,
-      end,
-    })
-    .then((events) => {
-      logger.silly(events.map((e) => e.data));
+  fetchEvents({ emitter_address: dcaSC, start, end }).then((events) => {
+    logger.silly(events.map((e) => e.data));
 
-      // TODO (use GRPC newSlotExecutionOutputs?)
-      const txId = "";
-      const creatorAddress = "";
-      processEvents(txId, creatorAddress, "swap", events.slice(1));
-      slot.period += 1;
-    });
+    // TODO (use GRPC newSlotExecutionOutputs?)
+    const txId = "";
+    const creatorAddress = "";
+    processEvents(txId, creatorAddress, "swap", events.slice(1));
+    slot.period += 1;
+  });
 };
 
 export const autonomousEvents = cron.schedule(
