@@ -6,47 +6,51 @@ export const decodeSwapTx = async (
   method: string,
   params: Uint8Array | undefined
 ) => {
-  const args = new Args(params);
-  switch (method) {
-    case "swapExactTokensForTokens": {
-      const amountIn = args.nextU64();
-      const amountOutMin = args.nextU64();
-      const binSteps = args.nextArray(ArrayTypes.U64) as bigint[];
-      const path = args.nextSerializableObjectArray(Address);
-      const to = args.nextString();
-      const deadline = args.nextU64();
-      await toLog(
-        method,
-        amountIn,
-        amountOutMin,
-        binSteps,
-        path,
-        to,
-        deadline
-      ).then(console.log);
-      break;
+  try {
+    const args = new Args(params);
+    switch (method) {
+      case "swapExactTokensForTokens": {
+        const amountIn = args.nextU64();
+        const amountOutMin = args.nextU64();
+        const binSteps = args.nextArray(ArrayTypes.U64) as bigint[];
+        const path = args.nextSerializableObjectArray(Address);
+        const to = args.nextString();
+        const deadline = args.nextU64();
+        await toLog(
+          method,
+          amountIn,
+          amountOutMin,
+          binSteps,
+          path,
+          to,
+          deadline
+        ).then(console.log);
+        break;
+      }
+      case "swapTokensForExactTokens": {
+        const amountOut = args.nextU64();
+        const amountInMax = args.nextU64();
+        const binSteps: bigint[] = args.nextArray(ArrayTypes.U64) as bigint[];
+        const path = args.nextSerializableObjectArray(Address);
+        const to = args.nextString();
+        const deadline = args.nextU64();
+        await toLog(
+          method,
+          amountInMax,
+          amountOut,
+          binSteps,
+          path,
+          to,
+          deadline
+        ).then(console.log);
+        break;
+      }
+      default: {
+        console.log("unknown method");
+      }
     }
-    case "swapTokensForExactTokens": {
-      const amountOut = args.nextU64();
-      const amountInMax = args.nextU64();
-      const binSteps: bigint[] = args.nextArray(ArrayTypes.U64) as bigint[];
-      const path = args.nextSerializableObjectArray(Address);
-      const to = args.nextString();
-      const deadline = args.nextU64();
-      await toLog(
-        method,
-        amountInMax,
-        amountOut,
-        binSteps,
-        path,
-        to,
-        deadline
-      ).then(console.log);
-      break;
-    }
-    default: {
-      console.log("unknown method");
-    }
+  } catch (e) {
+    console.log(e);
   }
 };
 

@@ -46,7 +46,7 @@ const getPools = (): Promise<Pool[]> =>
 //   });
 
 export const fillAnalytics = () => {
-  logger.info(`running the TVL task at ${new Date().toString()}`);
+  logger.silly(`running the analytics task at ${new Date().toString()}`);
 
   getPools().then((pools) => {
     pools.forEach(async (pool) => {
