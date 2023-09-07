@@ -1,25 +1,27 @@
 {
   "name": "indexer",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
     "start": "ts-node main.ts",
     "dev": "nodemon main.ts",
     "build": "buf generate",
-    "postinstall": "git submodule update && npm run build"
+    "postinstall": "git submodule update --init --recursive && npm run build"
   },
   "dependencies": {
-    "@types/node-cron": "^3.0.7",
+    "@bufbuild/buf": "1.26.1",
+    "@grpc/grpc-js": "^1.9.2",
+    "@protobuf-ts/grpc-transport": "^2.9.1",
+    "@protobuf-ts/plugin": "^2.9.1",
+    "@protobuf-ts/runtime": "^2.9.1",
+    "@protobuf-ts/runtime-rpc": "^2.9.1",
     "node-cron": "^3.0.2"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.21.0-1",
-    "@grpc/grpc-js": "^1.8.15",
-    "grpc-tools": "^1.12.4",
-    "grpc_tools_node_protoc_ts": "^5.3.3",
+    "@types/node-cron": "^3.0.7",
     "nodemon": "^2.0.22",
-    "protoc-gen-js": "^3.21.2",
     "ts-node": "^10.9.1"
   },
   "keywords": [],

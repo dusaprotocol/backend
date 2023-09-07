@@ -2,15 +2,5 @@ version: v1
 managed:
   enabled: true
 plugins:
-  - name: js
-    out: build/nodejs
-    opt: import_style=commonjs,binary
-
-  - name: grpc
-    out: build/nodejs
-    opt: grpc_js
-    path: grpc_tools_node_protoc_plugin
-  
-  - name: ts
-    out: build/nodejs
-    opt: grpc_js
+  - plugin: buf.build/community/timostamm-protobuf-ts:v2.9.1
+    out: gen/ts

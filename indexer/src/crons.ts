@@ -1,30 +1,24 @@
 import cron from "node-cron";
 import { ISlot, strToBytes } from "@massalabs/massa-web3";
-import { prisma } from "./../common/db";
-import { dcaSC, factorySC } from "./../common/contracts";
-import { web3Client } from "./../common/client";
+import { prisma } from "../../common/db";
+import { dcaSC, factorySC } from "../../common/contracts";
+import { web3Client } from "../../common/client";
 import { processEvents } from "./socket";
-import logger from "../common/logger";
+import logger from "../../common/logger";
 import {
-  getActivePrice,
-  getLockedReserves,
+  getPairInformation,
   getPairAddressTokens,
   getTokenValue,
-} from "../common/methods";
+  getPriceFromId,
+} from "../../common/methods";
 import { Args } from "@massalabs/massa-web3";
+import { Pool } from "@prisma/client";
 
-const getPairAddresses = (): Promise<string[]> =>
-  prisma.pool
-    .findMany({
-      select: {
-        address: true,
-      },
-    })
-    .then((res) => res.map((r) => r.address))
-    .catch((e) => {
-      logger.warn(e);
-      return [];
-    });
+const getPools = (): Promise<Pool[]> =>
+  prisma.pool.findMany().catch((e) => {
+    logger.warn(e);
+    return [];
+  });
 
 // web3Client
 //   .publicApi()
@@ -52,12 +46,15 @@ const getPairAddresses = (): Promise<string[]> =>
 //   });
 
 export const fillAnalytics = () => {
-  logger.info(`running the TVL task at ${new Date().toString()}`);
+  logger.silly(`running the analytics task at ${new Date().toString()}`);
 
-  getPairAddresses().then((addresses) => {
-    addresses.forEach(async (address) => {
-      const activePrice = await getActivePrice(address);
-      getPairAddressTokens(address).then(async (tokens) => {
+  getPools().then((pools) => {
+    pools.forEach(async (pool) => {
+      const pairInfo = await getPairInformation(pool.address);
+      if (!pairInfo) return;
+
+      const activePrice = getPriceFromId(pairInfo.activeId, pool.binStep);
+      getPairAddressTokens(pool.address).then(async (tokens) => {
         if (!tokens) return;
 
         const token0Value = await getTokenValue(tokens[0]);
@@ -65,20 +62,18 @@ export const fillAnalytics = () => {
 
         if (!token0Value || !token1Value) return;
 
-        getLockedReserves(address).then((r) => {
-          const token0Locked = r[0];
-          const token1Locked = r[1];
-          const usdLocked =
-            Number(token0Locked / BigInt(10 ** 9)) * token0Value +
-            Number(token1Locked / BigInt(10 ** 9)) * token1Value;
-          createAnalytic(
-            address,
-            token0Locked,
-            token1Locked,
-            Math.round(usdLocked),
-            activePrice
-          );
-        });
+        const token0Locked = pairInfo.reserveX;
+        const token1Locked = pairInfo.reserveY;
+        const usdLocked =
+          Number(token0Locked / BigInt(10 ** 9)) * token0Value +
+          Number(token1Locked / BigInt(10 ** 9)) * token1Value;
+        createAnalytic(
+          pool.address,
+          token0Locked,
+          token1Locked,
+          Math.round(usdLocked),
+          activePrice
+        );
       });
     });
   });
@@ -110,7 +105,7 @@ const createAnalytic = (
         open: close,
       },
     })
-    .then((p) => logger.info(p))
+    .then((p) => logger.debug(p))
     .catch((err) => logger.warn(err));
 };
 

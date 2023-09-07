@@ -1,14 +1,14 @@
 import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { Prisma } from "@prisma/client";
-import { prisma } from "./../common/db";
+import { prisma } from "../../common/db";
 import {
   getBinStep,
   getCallee,
   getPriceFromId,
   getTokenValue,
-} from "./../common/methods";
-import { getGenesisTimestamp, parseSlot } from "./../common/utils";
-import logger from "../common/logger";
+} from "../../common/methods";
+import { getGenesisTimestamp, parseSlot } from "../../common/utils";
+import logger from "../../common/logger";
 
 export const indexedMethods = [
   "swapExactTokensForTokens",
