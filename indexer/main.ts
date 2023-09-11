@@ -92,8 +92,12 @@ const subscribeFilledBlocks = async (host: string) => {
 
 // Start gRPC subscriptions
 
-// subscribeNewSlotExecutionOutputs(grpcDefaultHost);
-subscribeFilledBlocks(grpcDefaultHost);
+try {
+  // subscribeNewSlotExecutionOutputs(grpcDefaultHost);
+  subscribeFilledBlocks(grpcDefaultHost);
+} catch (err) {
+  logger.error(err);
+}
 
 // Start cron tasks
 
