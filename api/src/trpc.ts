@@ -142,12 +142,10 @@ export const appRouter = t.router({
 
           analytics.forEach((analytic, i) => {
             if (i % 24 === 0) {
-              console.log(i);
               res.push(analytic);
             }
           });
 
-          console.log(res.length);
           return res.reverse();
         })
         .catch((err) => {
@@ -249,7 +247,6 @@ export const appRouter = t.router({
         );
         const today = analytics.slice(0, changeIndex);
         const yesterday = analytics.slice(changeIndex);
-        console.log(changeIndex, today.length, yesterday.length);
 
         const fees = today.reduce((acc, curr) => acc + Number(curr.fees), 0);
         const feesYesterday = yesterday.reduce(
@@ -340,19 +337,39 @@ export const appRouter = t.router({
           take,
         })
         .then((prices) => {
-          if (take === 288) return prices.reverse();
-
           const res: Price[] = [];
-          prices.reverse().forEach((price, i) => {
-            const open = res[res.length - 1]?.close ?? price.open;
-            if (true) {
+
+          // if take is 288 (1 day), we want 24 points per day
+          // if take is 2016 (7 days), we want 4 points per day
+          // if take is 8640 (30 days), we want 1 point per day
+          const nbPointsPerDay = take / 24;
+
+          let date = prices[0].date;
+          prices.forEach((price, i) => {
+            if (
+              // date.getDay() !== price.date.getDay() ||
+              // i === prices.length - 1
+
+              i % nbPointsPerDay ===
+              0
+            ) {
               res.push({
                 ...price,
-                open,
+                close: res.length > 0 ? res[res.length - 1].close : price.close,
+                high: Math.max(
+                  ...prices.slice(i, i - nbPointsPerDay).map((p) => p.high)
+                ),
+                low: Math.min(
+                  ...prices.slice(i, i - nbPointsPerDay).map((p) => p.low)
+                ),
+                date,
               });
+              date = price.date;
+              return;
             }
           });
-          return res;
+
+          return res.reverse();
         })
         .catch((err) => {
           logger.error(err);
