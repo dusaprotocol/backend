@@ -3,14 +3,16 @@ import { GrpcTransport } from "@protobuf-ts/grpc-transport";
 import { EOperationStatus } from "@massalabs/massa-web3";
 import { MassaServiceClient } from "./gen/ts/massa/api/v1/api.client";
 import { analyticsTask, autonomousEvents } from "./src/crons";
-import { indexedMethods, processEvents } from "./src/socket";
+import { processLiquidity, processSwap } from "./src/socket";
 import { web3Client } from "../common/client";
 import logger from "../common/logger";
 import { NewOperationsRequest, OpType } from "./gen/ts/massa/api/v1/api";
 import { routerSC } from "../common/contracts";
-import { decodeSwapTx } from "./src/decoder";
+import { decodeLiquidityTx, decodeSwapTx } from "./src/decoder";
 import { Operation } from "./gen/ts/massa/model/v1/operation";
-import { fetchEvents } from "../common/utils";
+import { fetchEvents, getGenesisTimestamp, parseSlot } from "../common/utils";
+import { fetchPairAddress } from "../common/methods";
+import { SWAP_ROUTER_METHODS, LIQUIDITY_ROUTER_METHODS } from "@dusalabs/sdk";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
@@ -95,7 +97,8 @@ const subscribeFilledBlocks = async (host: string) => {
 try {
   // subscribeNewSlotExecutionOutputs(grpcDefaultHost);
   subscribeFilledBlocks(grpcDefaultHost);
-} catch (err) {
+} catch (err: any) {
+  logger.error(err.message);
   logger.error(err);
 }
 
@@ -117,12 +120,8 @@ async function processOperation(
   if (opType?.oneofKind !== "callSc") return;
 
   const targetAddress = opType.callSc.targetAddr;
-  const targetFunc = opType.callSc.targetFunc;
-  if (targetAddress !== routerSC || !targetFunc) return;
-
-  console.log({ targetAddress, targetFunc, caller });
-  const params = opType.callSc.param;
-  decodeSwapTx(targetFunc, params);
+  const method = opType.callSc.targetFunc;
+  if (targetAddress !== routerSC || !method) return;
 
   const status = await web3Client
     .smartContracts()
@@ -136,8 +135,67 @@ async function processOperation(
     return;
   }
   logger.debug(txId + " has reached final status");
-
-  fetchEvents({
+  const events = await fetchEvents({
     original_operation_id: txId,
-  }).then((events) => processEvents(txId, caller, targetFunc, events));
+  });
+  if (
+    !events.length ||
+    events[events.length - 1].data.includes("massa_execution_error")
+  )
+    return;
+
+  const genesisTimestamp = await getGenesisTimestamp();
+  const timestamp = new Date(
+    parseSlot(events[0].context.slot, genesisTimestamp)
+  );
+  const args = opType.callSc.param;
+
+  if (SWAP_ROUTER_METHODS.includes(method as any)) {
+    const swapParams = await decodeSwapTx(method, args);
+    if (!swapParams) return;
+
+    for (let i = 0; i < swapParams.path.length - 1; i++) {
+      const tokenIn = swapParams.path[i].str;
+      const tokenOut = swapParams.path[i + 1].str;
+      const binStep = Number(swapParams.binSteps[i]);
+      const pairAddress = await fetchPairAddress(tokenIn, tokenOut, binStep);
+      if (!pairAddress) return;
+
+      processSwap(
+        txId,
+        caller,
+        timestamp,
+        pairAddress,
+        tokenIn,
+        tokenOut,
+        binStep,
+        events.filter((e) => e.data.startsWith("SWAP:")),
+        swapParams
+      );
+    }
+  } else if (LIQUIDITY_ROUTER_METHODS.includes(method as any)) {
+    const isAdd = method.startsWith("add");
+    const liquidityParams = await decodeLiquidityTx(isAdd, args);
+    if (!liquidityParams) return;
+
+    const { token0, token1, binStep } = liquidityParams;
+    const pairAddress = await fetchPairAddress(token0, token1, binStep);
+    if (!pairAddress) return;
+
+    processLiquidity(
+      txId,
+      caller,
+      timestamp,
+      pairAddress,
+      token0,
+      token1,
+      // binStep,
+      events.filter(
+        (e) =>
+          e.data.startsWith("DEPOSITED_TO_BIN:") ||
+          e.data.startsWith("WITHDRAWN_FROM_BIN:")
+      ),
+      isAdd
+    );
+  }
 }

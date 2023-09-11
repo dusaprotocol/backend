@@ -9,129 +9,56 @@ import {
 } from "../../common/methods";
 import { getGenesisTimestamp, parseSlot } from "../../common/utils";
 import logger from "../../common/logger";
-
-export const indexedMethods = [
-  "swapExactTokensForTokens",
-  "addLiquidity",
-  "removeLiquidity",
-];
+import { SwapParams } from "./decoder";
 
 // EVENT PROCESSING
 
 export const processSwap = (
   txHash: string,
-  address: string,
+  userAddress: string,
   timestamp: string | Date,
   poolAddress: string,
   tokenIn: string,
   tokenOut: string,
-  swapEvents: string[]
+  binStep: number,
+  swapEvents: IEvent[],
+  swapParams: SwapParams
 ) => {
-  getBinStep(poolAddress).then((binStep) => {
-    if (!binStep) return;
+  let binId = 0;
+  let price = 0;
+  let swapForY = false;
+  let amountIn = 0;
+  let amountOut = 0;
+  let totalFees = 0;
 
-    let binId = 0;
-    let price = 0;
-    let swapForY = false;
-    let amountIn = 0;
-    let amountOut = 0;
-    let totalFees = 0;
+  swapEvents.forEach((event) => {
+    const [
+      to,
+      _binId,
+      _swapForY,
+      _amountIn,
+      _amountOut,
+      volatilityAccumulated,
+      _totalFees,
+    ] = event.data.split(",");
 
-    swapEvents.forEach((event) => {
-      const [
-        to,
-        _binId,
-        _swapForY,
-        _amountIn,
-        _amountOut,
-        volatilityAccumulated,
-        _totalFees,
-      ] = event.split(",");
-
-      binId = Number(_binId);
-      price = getPriceFromId(binId, binStep);
-      swapForY = _swapForY === "true";
-      amountIn += Number(_amountIn);
-      amountOut += Number(_amountOut);
-      totalFees += Number(_totalFees);
-    });
-    amountIn += totalFees;
-
-    getTokenValue(tokenIn).then((valueIn) => {
-      if (!valueIn) return;
-
-      const volume = Math.round((amountIn / 10 ** 9) * valueIn);
-      const fees = Math.round((totalFees / 10 ** 9) * valueIn * 100); // fees are stored in cents
-      updateVolumeAndPrice(poolAddress, volume, fees, price);
-
-      prisma.swap
-        .create({
-          data: {
-            pool: {
-              connect: {
-                address: poolAddress,
-              },
-            },
-            user: {
-              connectOrCreate: {
-                where: {
-                  address,
-                },
-                create: {
-                  address,
-                },
-              },
-            },
-            swapForY,
-            binId,
-            amountIn,
-            amountOut,
-            usdValue: volume,
-            timestamp,
-            txHash,
-          },
-        })
-        .then((e) => logger.info(e))
-        .catch((e) => logger.warn(e));
-    });
+    binId = Number(_binId);
+    price = getPriceFromId(binId, binStep);
+    swapForY = _swapForY === "true";
+    amountIn += Number(_amountIn);
+    amountOut += Number(_amountOut);
+    totalFees += Number(_totalFees);
   });
-};
+  amountIn += totalFees;
 
-export const processLiquidity = (
-  txHash: string,
-  address: string,
-  timestamp: string | Date,
-  poolAddress: string,
-  token0: string,
-  token1: string,
-  events: string[],
-  isAddLiquidity: boolean
-) => {
-  getBinStep(poolAddress).then(async (binStep) => {
-    if (!binStep) return;
+  getTokenValue(tokenIn).then((valueIn) => {
+    if (!valueIn) return;
 
-    let amountX = 0;
-    let amountY = 0;
+    const volume = Math.round((amountIn / 10 ** 9) * valueIn);
+    const fees = Math.round((totalFees / 10 ** 9) * valueIn * 100); // fees are stored in cents
+    updateVolumeAndPrice(poolAddress, volume, fees, price);
 
-    events.forEach((event) => {
-      const [to, _binId, _amountX, _amountY] = event.split(",");
-
-      amountX += Number(_amountX);
-      amountY += Number(_amountY);
-    });
-
-    const amount0 = isAddLiquidity ? amountX : -amountX;
-    const amount1 = isAddLiquidity ? amountY : -amountY;
-    const lowerBound = Number(events[0].split(",")[1]);
-    const upperBound = Number(events[events.length - 1].split(",")[1]);
-
-    const token0Value = await getTokenValue(token0);
-    const token1Value = await getTokenValue(token1);
-    const usdValue =
-      (token0Value ?? 0) * (amount0 / 10 ** 9) +
-      (token1Value ?? 0) * (amount1 / 10 ** 9);
-
-    prisma.liquidity
+    prisma.swap
       .create({
         data: {
           pool: {
@@ -142,18 +69,18 @@ export const processLiquidity = (
           user: {
             connectOrCreate: {
               where: {
-                address,
+                address: userAddress,
               },
               create: {
-                address,
+                address: userAddress,
               },
             },
           },
-          amount0,
-          amount1,
-          usdValue,
-          lowerBound,
-          upperBound,
+          swapForY,
+          binId,
+          amountIn,
+          amountOut,
+          usdValue: volume,
           timestamp,
           txHash,
         },
@@ -163,76 +90,66 @@ export const processLiquidity = (
   });
 };
 
-/**
- *
- * @param txId - transaction hash
- * @param address - transaction sender address
- * @param method - transaction method
- * @param events - transaction events
- * @returns
- */
-export const processEvents = async (
-  txId: string,
-  address: string,
-  method: string,
-  events: IEvent[]
+export const processLiquidity = async (
+  txHash: string,
+  userAddress: string,
+  timestamp: string | Date,
+  poolAddress: string,
+  token0: string,
+  token1: string,
+  liqEvents: IEvent[],
+  isAddLiquidity: boolean
 ) => {
-  logger.info({ txId, address, method });
-  if (
-    !events.length ||
-    events[events.length - 1].data.includes("massa_execution_error")
-  )
-    return;
+  let amountX = 0;
+  let amountY = 0;
 
-  const genesisTimestamp = await getGenesisTimestamp();
-  const timestamp = parseSlot(events[0].context.slot, genesisTimestamp);
-  switch (method) {
-    case "swap":
-    case "swapExactTokensForMAS":
-    case "swapExactMASForTokens":
-    case "swapTokensForExactTokens":
-    case "swapTokensForExactMAS":
-    case "swapMASForExactTokens":
-    case "swapExactTokensForTokens": {
-      const pairAddress = events[0].data.split(",")[1];
-      const tokenIn = getCallee(events[0]);
-      const tokenOut = getCallee(events[events.length - 1]);
-      processSwap(
-        txId,
-        address,
-        new Date(timestamp),
-        pairAddress,
-        tokenIn,
-        tokenOut,
-        events.map((e) => e.data).filter((e) => e.startsWith("SWAP:"))
-      );
-      break;
-    }
-    case "addLiquidity":
-    case "addLiquidityMAS":
-    case "removeLiquidityMAS":
-    case "removeLiquidity": {
-      const isAdd = method === "addLiquidity";
-      const pairAddress = events[0].data.split(",")[isAdd ? 1 : 2];
+  liqEvents.forEach((event) => {
+    const [to, _binId, _amountX, _amountY] = event.data.split(",");
 
-      processLiquidity(
-        txId,
-        address,
-        new Date(timestamp),
-        pairAddress,
-        getCallee(events[events.length - 2]),
-        getCallee(events[events.length - 1]),
-        events
-          .map((e) => e.data)
-          .filter(
-            (e) =>
-              e.startsWith("DEPOSITED_TO_BIN:") ||
-              e.startsWith("WITHDRAWN_FROM_BIN:")
-          ),
-        isAdd
-      );
-    }
-  }
+    amountX += Number(_amountX);
+    amountY += Number(_amountY);
+  });
+
+  const amount0 = isAddLiquidity ? amountX : -amountX;
+  const amount1 = isAddLiquidity ? amountY : -amountY;
+  const lowerBound = Number(liqEvents[0].data.split(",")[1]);
+  const upperBound = Number(liqEvents[liqEvents.length - 1].data.split(",")[1]);
+
+  const token0Value = await getTokenValue(token0);
+  const token1Value = await getTokenValue(token1);
+  const usdValue =
+    (token0Value ?? 0) * (amount0 / 10 ** 9) +
+    (token1Value ?? 0) * (amount1 / 10 ** 9);
+
+  prisma.liquidity
+    .create({
+      data: {
+        pool: {
+          connect: {
+            address: poolAddress,
+          },
+        },
+        user: {
+          connectOrCreate: {
+            where: {
+              address: userAddress,
+            },
+            create: {
+              address: userAddress,
+            },
+          },
+        },
+        amount0,
+        amount1,
+        usdValue,
+        lowerBound,
+        upperBound,
+        timestamp,
+        txHash,
+      },
+    })
+    .then((e) => logger.info(e))
+    .catch((e) => logger.warn(e));
 };
 
 // COMMON PRISMA ACTIONS
@@ -270,10 +187,10 @@ export const updateVolumeAndPrice = (
         token0Locked: 0,
         token1Locked: 0,
         usdLocked: 0,
-        close: 0,
-        high: 0,
-        low: 0,
-        open: 0,
+        close: price,
+        high: price,
+        low: price,
+        open: price,
       },
     })
     .then((e) => logger.info(e))

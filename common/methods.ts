@@ -108,14 +108,14 @@ interface PairInformation {
   };
 }
 
-export const getPairInformation = (
-  address: string
+export const getPairInformation = async (
+  pairAddress: string
 ): Promise<PairInformation | undefined> => {
   return web3Client
     .publicApi()
     .getDatastoreEntries([
       {
-        address,
+        address: pairAddress,
         key: strToBytes("PAIR_INFORMATION"),
       },
     ])
@@ -168,21 +168,21 @@ export const getPairAddressTokens = async (
 };
 
 export const fetchTokenInfo = async (
-  address: string
+  tokenAddress: string
 ): Promise<Token | undefined> => {
   return web3Client
     .publicApi()
     .getDatastoreEntries([
       {
-        address,
+        address: tokenAddress,
         key: strToBytes("NAME"),
       },
       {
-        address,
+        address: tokenAddress,
         key: strToBytes("SYMBOL"),
       },
       {
-        address,
+        address: tokenAddress,
         key: strToBytes("DECIMALS"),
       },
     ])
@@ -196,7 +196,7 @@ export const fetchTokenInfo = async (
           name: bytesToStr(res[0].candidate_value),
           symbol: bytesToStr(res[1].candidate_value),
           decimals: res[2].candidate_value[0],
-          address,
+          address: tokenAddress,
         };
         return token;
       }

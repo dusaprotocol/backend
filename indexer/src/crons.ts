@@ -3,7 +3,7 @@ import { ISlot, strToBytes } from "@massalabs/massa-web3";
 import { prisma } from "../../common/db";
 import { dcaSC, factorySC } from "../../common/contracts";
 import { web3Client } from "../../common/client";
-import { processEvents } from "./socket";
+// import { processEvents } from "./socket";
 import logger from "../../common/logger";
 import {
   getPairInformation,
@@ -133,15 +133,17 @@ const processAutonomousEvents = async () => {
 
   const start = slot;
   const end = { ...slot, thread: 31 };
-  fetchEvents({ emitter_address: dcaSC, start, end }).then((events) => {
-    logger.silly(events.map((e) => e.data));
 
-    // TODO (use GRPC newSlotExecutionOutputs?)
-    const txId = "";
-    const creatorAddress = "";
-    processEvents(txId, creatorAddress, "swap", events.slice(1));
-    slot.period += 1;
-  });
+  // TODO (use GRPC newSlotExecutionOutputs?)
+
+  // fetchEvents({ emitter_address: dcaSC, start, end }).then((events) => {
+  //   logger.silly(events.map((e) => e.data));
+
+  //   const txId = "";
+  //   const creatorAddress = "";
+  //   processEvents(txId, creatorAddress, "swap", events.slice(1));
+  //   slot.period += 1;
+  // });
 };
 
 export const autonomousEvents = cron.schedule(

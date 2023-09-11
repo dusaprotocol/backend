@@ -1,13 +1,9 @@
 lockfileVersion: '6.0'
 
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-
 dependencies:
   '@dusalabs/sdk':
-    specifier: ^0.2.15
-    version: 0.2.15(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4)
+    specifier: ^0.2.16
+    version: 0.2.16(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4)
   '@massalabs/massa-web3':
     specifier: 1.24.2
     version: 1.24.2(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4)
@@ -401,8 +397,8 @@ packages:
     engines: {node: '>=10.0.0'}
     dev: false
 
-  /@dusalabs/sdk@0.2.15(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4):
-    resolution: {integrity: sha512-CZ0btQYIbbYSRuBJlf7yqgpaps+tSM0u5FGhyu+LkVfyvNy2PXxnNTTAeQEmApLDyJPeh0LH/xZnWJHGmIEi6g==}
+  /@dusalabs/sdk@0.2.16(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4):
+    resolution: {integrity: sha512-Ix7UcVsNNPEtN5Prcr8lUUzxDw62CSZw6QGlWGmqDKeGE/7hDfwg9qJOrgoUCqb2bV16ns/vWjvFKNFGfBLWiw==}
     engines: {node: '>=10'}
     dependencies:
       '@massalabs/massa-web3': 1.24.2(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4)
@@ -4761,3 +4757,7 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: false
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
