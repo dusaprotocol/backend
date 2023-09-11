@@ -11,6 +11,7 @@ import {
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
 import { Args, bytesToStr, strToBytes } from "@massalabs/massa-web3";
+import { ONE_DAY, TIME_BETWEEN_TICKS } from "../../common/utils/date";
 
 const prisma = new PrismaClient();
 
@@ -104,7 +105,7 @@ async function generateAnalytics(pool: Pool) {
     const value = 0;
     const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
 
-    const date = new Date(Date.now() - 1000 * 60 * 60 * i);
+    const date = new Date(Date.now() - TIME_BETWEEN_TICKS * i);
     date.setHours(date.getHours(), 0, 0, 0);
 
     data.push({
@@ -137,7 +138,7 @@ async function createMissingPrices(pool: Pool) {
     where: {
       poolAddress: pool.address,
       date: {
-        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+        gte: new Date(Date.now() - ONE_DAY * 30),
       },
     },
     orderBy: {
@@ -150,15 +151,14 @@ async function createMissingPrices(pool: Pool) {
     const date = new Date(lastMonthPrices[i].date);
     const nextDate = new Date(lastMonthPrices[i + 1].date);
     const elapsed = nextDate.getTime() - date.getTime();
-    const oneHour = 1000 * 60 * 60;
-    if (elapsed !== oneHour) {
-      const missingHours = Math.floor(elapsed / oneHour);
+    if (elapsed !== TIME_BETWEEN_TICKS) {
+      const missingHours = Math.floor(elapsed / TIME_BETWEEN_TICKS);
       console.log(missingHours, date, nextDate);
 
       for (let j = 1; j < missingHours; j++) {
         const missingData: Analytics = {
           ...lastMonthPrices[i],
-          date: new Date(date.getTime() + oneHour * j),
+          date: new Date(date.getTime() + TIME_BETWEEN_TICKS * j),
           open: lastMonthPrices[i].close,
           close: lastMonthPrices[i].close,
           high: lastMonthPrices[i].close,

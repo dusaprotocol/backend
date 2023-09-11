@@ -7,15 +7,23 @@ export const parseSlot = (slot: ISlot, genesisTimestamp: number): number =>
 export const parseTimestamp = (
   timestamp: number,
   genesisTimestamp: number
-): ISlot => ({
-  period: Math.floor((timestamp - genesisTimestamp) / 16 / 1000),
-  thread: Math.floor(
-    (((timestamp - genesisTimestamp) % (16 * 1000)) / 1000) * 2
-  ),
-});
+): ISlot => {
+  const elapsedInMs = timestamp - genesisTimestamp;
+
+  return {
+    period: Math.floor(elapsedInMs / THREAD_DURATION),
+    thread: Math.floor(((elapsedInMs % THREAD_DURATION) / 1000) * 2),
+  };
+};
 
 export const getGenesisTimestamp = () =>
   web3Client
     .publicApi()
     .getNodeStatus()
     .then((status) => status.config.genesis_timestamp);
+
+// CONSTANTS (in ms)
+export const ONE_DAY = 24 * 60 * 60 * 1000;
+export const ONE_HOUR = 60 * 60 * 1000;
+export const TIME_BETWEEN_TICKS = 5 * 60 * 1000;
+export const THREAD_DURATION = 16_000;

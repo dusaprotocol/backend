@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
+import { ONE_DAY, ONE_HOUR } from "../../common/utils/date";
 
 type Volume = Prisma.AnalyticsGetPayload<{
   select: {
@@ -99,8 +100,7 @@ export const appRouter = t.router({
             (_, i) => ({
               volume: 0,
               date: new Date(
-                res[res.length - 1].date.getTime() -
-                  1000 * 60 * 60 * 24 * (i + 1)
+                res[res.length - 1].date.getTime() - ONE_DAY * (i + 1)
               ),
             })
           );
@@ -213,8 +213,7 @@ export const appRouter = t.router({
               volume: 0,
               usdLocked: 0,
               date: new Date(
-                res[res.length - 1].date.getTime() -
-                  1000 * 60 * 60 * 24 * (i + 1)
+                res[res.length - 1].date.getTime() - ONE_DAY * (i + 1)
               ),
             })
           );
@@ -232,7 +231,7 @@ export const appRouter = t.router({
           poolAddress: input,
           date: {
             // greater than 48h ago to calculate 24h change
-            gt: new Date(Date.now() - 1000 * 60 * 60 * 48),
+            gt: new Date(Date.now() - ONE_DAY * 2),
           },
         },
         orderBy: {
@@ -240,7 +239,7 @@ export const appRouter = t.router({
         },
       })
       .then((analytics) => {
-        const _24hago = new Date(Date.now() - 1000 * 60 * 60 * 24);
+        const _24hago = new Date(Date.now() - ONE_DAY);
 
         const changeIndex = analytics.findIndex(
           (analytic) => analytic.date.getTime() < _24hago.getTime()
@@ -389,11 +388,9 @@ export const expressMiddleware = trpcExpress.createExpressMiddleware({
     const isQuery = type === "query";
     if (ctx?.res && allOk && isQuery) {
       console.log("setting cache");
-      // cache request for 1 hour
-      const ONE_HOUR_IN_SECONDS = 60 * 60;
       return {
         headers: {
-          "cache-control": `stale-while-revalidate=${ONE_HOUR_IN_SECONDS}`,
+          "cache-control": `stale-while-revalidate=${ONE_HOUR / 1000}`,
         },
       };
     }
