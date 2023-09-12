@@ -134,7 +134,7 @@ async function generateAnalytics(pool: Pool) {
 
 async function createMissingPrices(pool: Pool) {
   const data: Analytics[] = [];
-  const lastMonthPrices = await prisma.analytics.findMany({
+  const prices = await prisma.analytics.findMany({
     where: {
       poolAddress: pool.address,
       date: {
@@ -145,11 +145,11 @@ async function createMissingPrices(pool: Pool) {
       date: "asc",
     },
   });
-  for (let i = 0; i < lastMonthPrices.length; i++) {
-    if (i === lastMonthPrices.length - 1) break;
+  for (let i = 0; i < prices.length; i++) {
+    if (i === prices.length - 1) break;
 
-    const date = new Date(lastMonthPrices[i].date);
-    const nextDate = new Date(lastMonthPrices[i + 1].date);
+    const date = new Date(prices[i].date);
+    const nextDate = new Date(prices[i + 1].date);
     const elapsed = nextDate.getTime() - date.getTime();
     if (elapsed !== TIME_BETWEEN_TICKS) {
       const missingHours = Math.floor(elapsed / TIME_BETWEEN_TICKS);
@@ -157,12 +157,12 @@ async function createMissingPrices(pool: Pool) {
 
       for (let j = 1; j < missingHours; j++) {
         const missingData: Analytics = {
-          ...lastMonthPrices[i],
+          ...prices[i],
           date: new Date(date.getTime() + TIME_BETWEEN_TICKS * j),
-          open: lastMonthPrices[i].close,
-          close: lastMonthPrices[i].close,
-          high: lastMonthPrices[i].close,
-          low: lastMonthPrices[i].close,
+          open: prices[i].close,
+          close: prices[i].close,
+          high: prices[i].close,
+          low: prices[i].close,
         };
         data.push(missingData);
       }
@@ -177,5 +177,11 @@ async function createMissingPrices(pool: Pool) {
 }
 
 (() => {
+  // prisma.pool.findMany().then((pools) => {
+  //   pools.forEach((pool) => {
+  //     createMissingPrices(pool);
+  //   });
+  // });
+
   createPools();
 })();
