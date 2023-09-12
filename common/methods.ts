@@ -74,9 +74,11 @@ export const fetchPairAddress = async (
       return lpAddress;
     })
     .catch((err) => {
-      logger.error(err.message);
-      logger.info("error when fetching pair address");
-      logger.error(err);
+      const errorSplit = err.message.split("error: ");
+      const errMsg = errorSplit[errorSplit.length - 1].split(" at")[0];
+      logger.info(
+        ["fetchingPairAddress", errMsg, { token0, token1, binStep }].join(" ")
+      );
       return undefined;
     });
 

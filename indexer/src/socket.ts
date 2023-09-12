@@ -7,7 +7,7 @@ import {
   getPriceFromId,
   getTokenValue,
 } from "../../common/methods";
-import { getGenesisTimestamp, parseSlot } from "../../common/utils";
+import { getClosestTick } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams } from "./decoder";
 
@@ -154,57 +154,16 @@ export const processLiquidity = async (
 
 // COMMON PRISMA ACTIONS
 
-export const updateVolumeAndPrice = (
+export const updateVolumeAndPrice = async (
   poolAddress: string,
   volume: number,
   fees: number,
   price: number
 ) => {
-  const date = new Date();
-  date.setHours(date.getHours(), 0, 0, 0);
+  const date = getClosestTick(Date.now());
 
-  prisma.analytics
-    .upsert({
-      where: {
-        poolAddress_date: {
-          poolAddress,
-          date,
-        },
-      },
-      update: {
-        volume: {
-          increment: volume,
-        },
-        fees: {
-          increment: fees,
-        },
-      },
-      create: {
-        poolAddress,
-        date,
-        volume,
-        fees,
-        token0Locked: 0,
-        token1Locked: 0,
-        usdLocked: 0,
-        close: price,
-        high: price,
-        low: price,
-        open: price,
-      },
-    })
-    .then((e) => logger.info(e))
-    .catch((err) => logger.warn(err));
-};
-
-export const addPrice = (
-  poolAddress: string,
-  price: number,
-  date: Date = new Date()
-) => {
-  date.setHours(date.getHours(), 0, 0, 0);
-
-  prisma.analytics
+  // update price
+  const curr = await prisma.analytics
     .findUnique({
       where: {
         poolAddress_date: {
@@ -213,47 +172,41 @@ export const addPrice = (
         },
       },
     })
-    .then((curr) => {
-      if (!curr) {
-        prisma.analytics
-          .create({
-            data: {
-              poolAddress,
-              date,
-              open: price,
-              high: price,
-              low: price,
-              close: price,
-              fees: 0,
-              volume: 0,
-              token0Locked: 0,
-              token1Locked: 0,
-              usdLocked: 0,
-            },
-          })
-          .then((e) => logger.info(e))
-          .catch((err) => logger.warn(err));
-        return;
-      }
+    .catch((err) => {
+      logger.warn(err);
+      return;
+    });
+  if (!curr) {
+    logger.warn(
+      "No analytics entry found for pool " + poolAddress + " at date " + date
+    );
+    return;
+  }
 
-      const data: Prisma.AnalyticsUpdateInput = {
-        close: price,
-      };
-      if (price > curr.high) data.high = price;
-      if (price < curr.low) data.low = price;
+  const data: Prisma.AnalyticsUpdateInput = {
+    close: price,
+  };
+  if (price > curr.high) data.high = price;
+  if (price < curr.low) data.low = price;
 
-      prisma.analytics
-        .update({
-          where: {
-            poolAddress_date: {
-              poolAddress,
-              date,
-            },
-          },
-          data,
-        })
-        .then((e) => logger.info(e))
-        .catch((err) => logger.warn(err));
+  prisma.analytics
+    .update({
+      where: {
+        poolAddress_date: {
+          poolAddress,
+          date,
+        },
+      },
+      data: {
+        volume: {
+          increment: volume,
+        },
+        fees: {
+          increment: fees,
+        },
+        ...data,
+      },
     })
+    .then((e) => logger.info(e))
     .catch((err) => logger.warn(err));
 };

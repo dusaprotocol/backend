@@ -11,9 +11,8 @@ import {
   getTokenValue,
   getPriceFromId,
 } from "../../common/methods";
-import { Args } from "@massalabs/massa-web3";
 import { Pool } from "@prisma/client";
-import { EVERY_PERIOD, EVERY_TICK, fetchEvents } from "../../common/utils";
+import { EVERY_PERIOD, EVERY_TICK, getClosestTick } from "../../common/utils";
 
 const getPools = (): Promise<Pool[]> =>
   prisma.pool.findMany().catch((e) => {
@@ -87,8 +86,7 @@ const createAnalytic = (
   usdLocked: number,
   close: number
 ) => {
-  const date = new Date();
-  date.setHours(date.getHours(), date.getMinutes(), 0, 0);
+  const date = getClosestTick(Date.now());
 
   prisma.analytics
     .create({

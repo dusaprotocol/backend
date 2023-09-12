@@ -11,7 +11,11 @@ import {
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
 import { Args, bytesToStr, strToBytes } from "@massalabs/massa-web3";
-import { ONE_DAY, TIME_BETWEEN_TICKS } from "../../common/utils/date";
+import {
+  ONE_DAY,
+  TICKS_PER_DAY,
+  TIME_BETWEEN_TICKS,
+} from "../../common/utils/date";
 
 const prisma = new PrismaClient();
 
@@ -94,7 +98,7 @@ async function generateAnalytics(pool: Pool) {
   const data: Analytics[] = [];
 
   let prevValue = 5000;
-  for (let i = 0; i < 720; i++) {
+  for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
     let pairInfo = await getPairInformation(pool.address);
     if (!pairInfo) return;
 
@@ -105,8 +109,7 @@ async function generateAnalytics(pool: Pool) {
     const value = 0;
     const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
 
-    const date = new Date(Date.now() - TIME_BETWEEN_TICKS * i);
-    date.setHours(date.getHours(), 0, 0, 0);
+    const date = new Date(Date.now() - ONE_DAY * 30 + TIME_BETWEEN_TICKS * i);
 
     data.push({
       poolAddress: pool.address,
