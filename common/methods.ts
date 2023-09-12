@@ -3,14 +3,12 @@ import { web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
 import { Token } from "@prisma/client";
+import { Bin, PairV2 } from "@dusalabs/sdk";
 
 const REAL_ID_SHIFT = 2 ** 17;
 
-export const getPriceFromId = (id: number, binStep: number): number =>
-  (1 + binStep / 10000) ** (id - REAL_ID_SHIFT);
-
-export const getIdFromPrice = (price: number, binStep: number): number =>
-  Math.round(Math.log(price) / Math.log(1 + binStep / 10000) + REAL_ID_SHIFT);
+export const getPriceFromId = Bin.getPriceFromId;
+export const getIdFromPrice = Bin.getIdFromPrice;
 
 export const getCallee = (event: IEvent): string =>
   event.context.call_stack[event.context.call_stack.length - 1];
@@ -31,8 +29,6 @@ export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
       const binStep = args.nextU32();
       return binStep;
     });
-
-// common
 
 export const fetchPairBinSteps = async (
   token0: string,
@@ -77,14 +73,7 @@ export const fetchPairAddress = async (
       const errorSplit = err.message.split("error: ");
       const errMsg = errorSplit[errorSplit.length - 1].split(" at")[0];
       logger.info(
-        [
-          "fetchingPairAddress",
-          errMsg,
-          factorySC,
-          token0,
-          token1,
-          binStep,
-        ].join(" ")
+        ["fetchingPairAddress", errMsg, token0, token1, binStep].join(" ")
       );
       return undefined;
     });
@@ -98,56 +87,11 @@ export const getTokenValue = async (
   const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binSteps[0]);
   if (!pairAddress) return;
 
-  const pairInfo = await getPairInformation(pairAddress);
+  const pairInfo = await PairV2.getLBPairReservesAndId(pairAddress, web3Client);
   if (!pairInfo) return;
 
   const price = getPriceFromId(pairInfo.activeId, binSteps[0]);
   return tokenAddress < usdcSC ? price : 1 / price;
-};
-
-interface PairInformation {
-  activeId: number;
-  reserveX: bigint;
-  reserveY: bigint;
-  feesX: {
-    total: bigint;
-    protocol: bigint;
-  };
-  feesY: {
-    total: bigint;
-    protocol: bigint;
-  };
-}
-
-export const getPairInformation = async (
-  pairAddress: string
-): Promise<PairInformation | undefined> => {
-  return web3Client
-    .publicApi()
-    .getDatastoreEntries([
-      {
-        address: pairAddress,
-        key: strToBytes("PAIR_INFORMATION"),
-      },
-    ])
-    .then((r) => {
-      const pairInfoData = r[0].final_value;
-      if (!pairInfoData) return;
-
-      const args = new Args(pairInfoData);
-      const activeId = args.nextU32();
-      const reserveX = args.nextU64();
-      const reserveY = args.nextU64();
-      const feesX = {
-        total: args.nextU64(),
-        protocol: args.nextU64(),
-      };
-      const feesY = {
-        total: args.nextU64(),
-        protocol: args.nextU64(),
-      };
-      return { activeId, reserveX, reserveY, feesX, feesY };
-    });
 };
 
 export const getPairAddressTokens = async (

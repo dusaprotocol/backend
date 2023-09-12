@@ -11,7 +11,7 @@ import { routerSC } from "../common/contracts";
 import { decodeLiquidityTx, decodeSwapTx } from "./src/decoder";
 import { Operation } from "./gen/ts/massa/model/v1/operation";
 import { fetchEvents, getGenesisTimestamp, parseSlot } from "../common/utils";
-import { fetchPairAddress } from "../common/methods";
+import { fetchPairAddress, getCallee } from "../common/methods";
 import { SWAP_ROUTER_METHODS, LIQUIDITY_ROUTER_METHODS } from "@dusalabs/sdk";
 
 const grpcDefaultHost = "37.187.156.118";
@@ -198,7 +198,9 @@ async function processSwapOperation(
           tokenIn,
           tokenOut,
           binStep,
-          events.filter((e) => e.data.startsWith("SWAP:")),
+          events.filter(
+            (e) => getCallee(e) === pairAddress && e.data.startsWith("SWAP:")
+          ),
           swapParams
         );
       }

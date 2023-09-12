@@ -2,9 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import type { Analytics, Pool } from "@prisma/client";
 import {
   fetchTokenInfo,
-  getPairInformation,
   getBinStep,
-  getCallee,
   getPairAddressTokens,
   getPriceFromId,
 } from "../../common/methods";
@@ -16,6 +14,7 @@ import {
   TICKS_PER_DAY,
   TIME_BETWEEN_TICKS,
 } from "../../common/utils/date";
+import { PairV2 } from "@dusalabs/sdk";
 
 const prisma = new PrismaClient();
 
@@ -98,7 +97,10 @@ async function generateAnalytics(pool: Pool) {
 
   let prevValue = 5000;
   for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
-    let pairInfo = await getPairInformation(pool.address);
+    let pairInfo = await PairV2.getLBPairReservesAndId(
+      pool.address,
+      web3Client
+    );
     if (!pairInfo) return;
 
     let close = getPriceFromId(pairInfo.activeId, pool.binStep);

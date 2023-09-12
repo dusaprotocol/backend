@@ -1,12 +1,7 @@
 import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
-import {
-  getBinStep,
-  getCallee,
-  getPriceFromId,
-  getTokenValue,
-} from "../../common/methods";
+import { getPriceFromId, getTokenValue } from "../../common/methods";
 import { getClosestTick } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams } from "./decoder";
