@@ -117,24 +117,13 @@ const toLog = async (params: SwapParams) => {
   const tokenIn = await fetchTokenInfo(tokenInAddress);
   const tokenOut = await fetchTokenInfo(tokenOutAddress);
   if (!tokenIn || !tokenOut) return;
+
   const parsedAmountIn = new TokenAmount(
-    new Token(
-      CHAIN_ID,
-      tokenInAddress,
-      tokenIn.decimals
-      // tokenIn.symbol,
-      // tokenIn.name
-    ),
+    new Token(CHAIN_ID, tokenInAddress, tokenIn.decimals),
     params.amountIn
   );
   const parsedAmountOut = new TokenAmount(
-    new Token(
-      CHAIN_ID,
-      tokenOutAddress,
-      tokenOut.decimals
-      // tokenOut.symbol,
-      // tokenOut.name
-    ),
+    new Token(CHAIN_ID, tokenOutAddress, tokenOut.decimals),
     params.amountOut
   );
 

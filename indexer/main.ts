@@ -1,6 +1,6 @@
 import { ChannelCredentials } from "@grpc/grpc-js";
 import { GrpcTransport } from "@protobuf-ts/grpc-transport";
-import { EOperationStatus } from "@massalabs/massa-web3";
+import { EOperationStatus, IEvent } from "@massalabs/massa-web3";
 import { MassaServiceClient } from "./gen/ts/massa/api/v1/api.client";
 import { analyticsTask, autonomousEvents } from "./src/crons";
 import { processLiquidity, processSwap } from "./src/socket";
@@ -115,90 +115,125 @@ async function processOperation(
   caller: string | undefined,
   txId: string
 ) {
-  if (!operation || !caller) return;
-
-  const opType = operation.op?.type;
-  if (opType?.oneofKind !== "callSc") return;
-
-  const targetAddress = opType.callSc.targetAddr;
-  const method = opType.callSc.targetFunc;
-  if (targetAddress !== routerSC || !method) return;
-
-  const status = await web3Client
-    .smartContracts()
-    .awaitRequiredOperationStatus(txId, EOperationStatus.SPECULATIVE_SUCCESS)
-    .catch((err) => {
-      logger.error(err);
-      logger.info("error when awaiting operation status");
-      logger.error(err.message);
-      return EOperationStatus.NOT_FOUND;
-    });
-  if (status !== EOperationStatus.SPECULATIVE_SUCCESS) {
-    logger.debug(txId + " failed to reached final status");
+  if (!operation || !caller) {
     return;
   }
-  logger.debug(txId + " has reached final status");
-  const events = await fetchEvents({
-    original_operation_id: txId,
-  });
-  if (
-    !events.length ||
-    events[events.length - 1].data.includes("massa_execution_error")
-  )
+
+  const opType = operation.op?.type;
+  if (opType?.oneofKind !== "callSc" || opType.callSc.targetAddr !== routerSC) {
     return;
+  }
 
+  try {
+    const { targetFunc, param } = opType.callSc;
+    const status = await awaitOperationStatus(txId);
+    const events = await fetchEvents({ original_operation_id: txId });
+    const timestamp = await getTimestamp(events);
+
+    if (SWAP_ROUTER_METHODS.includes(targetFunc as any)) {
+      await processSwapOperation(
+        param,
+        targetFunc,
+        txId,
+        caller,
+        timestamp,
+        events
+      );
+    } else if (LIQUIDITY_ROUTER_METHODS.includes(targetFunc as any)) {
+      await processLiquidityOperation(
+        param,
+        targetFunc,
+        txId,
+        caller,
+        timestamp,
+        events
+      );
+    } else {
+      throw new Error("Unknown router method:" + targetFunc);
+    }
+  } catch (err: any) {
+    logger.error(err);
+    logger.info("Error when processing operation");
+    logger.error(err.message);
+  }
+}
+
+async function awaitOperationStatus(txId: string) {
+  web3Client
+    .smartContracts()
+    .awaitRequiredOperationStatus(txId, EOperationStatus.SPECULATIVE_SUCCESS)
+    .then((status) => {
+      if (status !== EOperationStatus.SPECULATIVE_SUCCESS) {
+        throw new Error("Operation status is not SPECULATIVE_SUCCESS");
+      }
+    });
+}
+
+async function getTimestamp(events: IEvent[]) {
   const genesisTimestamp = await getGenesisTimestamp();
-  const timestamp = new Date(
-    parseSlot(events[0].context.slot, genesisTimestamp)
-  );
-  const args = opType.callSc.param;
+  return new Date(parseSlot(events[0].context.slot, genesisTimestamp));
+}
 
-  if (SWAP_ROUTER_METHODS.includes(method as any)) {
-    const swapParams = await decodeSwapTx(method, args);
-    if (!swapParams) return;
-
+async function processSwapOperation(
+  args: Uint8Array,
+  method: string,
+  txId: string,
+  caller: string,
+  timestamp: Date,
+  events: IEvent[]
+) {
+  const swapParams = await decodeSwapTx(method, args);
+  if (swapParams) {
     for (let i = 0; i < swapParams.path.length - 1; i++) {
       const tokenIn = swapParams.path[i].str;
       const tokenOut = swapParams.path[i + 1].str;
       const binStep = Number(swapParams.binSteps[i]);
       const pairAddress = await fetchPairAddress(tokenIn, tokenOut, binStep);
-      if (!pairAddress) return;
+      if (pairAddress) {
+        processSwap(
+          txId,
+          caller,
+          timestamp,
+          pairAddress,
+          tokenIn,
+          tokenOut,
+          binStep,
+          events.filter((e) => e.data.startsWith("SWAP:")),
+          swapParams
+        );
+      }
+    }
+  }
+}
 
-      processSwap(
+async function processLiquidityOperation(
+  args: Uint8Array,
+  method: string,
+  txId: string,
+  caller: string,
+  timestamp: Date,
+  events: IEvent[]
+) {
+  const isAdd = method.startsWith("add");
+  const liquidityParams = await decodeLiquidityTx(isAdd, args);
+  if (liquidityParams) {
+    const { token0, token1, binStep } = liquidityParams;
+    const pairAddress = await fetchPairAddress(token0, token1, binStep);
+    if (pairAddress) {
+      processLiquidity(
         txId,
         caller,
         timestamp,
         pairAddress,
-        tokenIn,
-        tokenOut,
-        binStep,
-        events.filter((e) => e.data.startsWith("SWAP:")),
-        swapParams
+        token0,
+        token1,
+        events.filter(
+          (e) =>
+            e.data.startsWith("DEPOSITED_TO_BIN:") ||
+            e.data.startsWith("WITHDRAWN_FROM_BIN:")
+        ),
+        isAdd
       );
     }
-  } else if (LIQUIDITY_ROUTER_METHODS.includes(method as any)) {
-    const isAdd = method.startsWith("add");
-    const liquidityParams = await decodeLiquidityTx(isAdd, args);
-    if (!liquidityParams) return;
-
-    const { token0, token1, binStep } = liquidityParams;
-    const pairAddress = await fetchPairAddress(token0, token1, binStep);
-    if (!pairAddress) return;
-
-    processLiquidity(
-      txId,
-      caller,
-      timestamp,
-      pairAddress,
-      token0,
-      token1,
-      // binStep,
-      events.filter(
-        (e) =>
-          e.data.startsWith("DEPOSITED_TO_BIN:") ||
-          e.data.startsWith("WITHDRAWN_FROM_BIN:")
-      ),
-      isAdd
-    );
   }
 }

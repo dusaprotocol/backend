@@ -45,7 +45,6 @@ async function createPools() {
 
   for (let i = 0; i < pools.length; i++) {
     const pool = pools[i];
-    console.log(pool.binStep);
     const tokenAddresses = await getPairAddressTokens(pool.address);
     if (!tokenAddresses) return;
 

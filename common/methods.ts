@@ -77,7 +77,14 @@ export const fetchPairAddress = async (
       const errorSplit = err.message.split("error: ");
       const errMsg = errorSplit[errorSplit.length - 1].split(" at")[0];
       logger.info(
-        ["fetchingPairAddress", errMsg, { token0, token1, binStep }].join(" ")
+        [
+          "fetchingPairAddress",
+          errMsg,
+          factorySC,
+          token0,
+          token1,
+          binStep,
+        ].join(" ")
       );
       return undefined;
     });
