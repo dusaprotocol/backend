@@ -11,8 +11,8 @@ export const parseTimestamp = (
   const elapsedInMs = timestamp - genesisTimestamp;
 
   return {
-    period: Math.floor(elapsedInMs / THREAD_DURATION),
-    thread: Math.floor(((elapsedInMs % THREAD_DURATION) / 1000) * 2),
+    period: Math.floor(elapsedInMs / PERIOD_DURATION),
+    thread: Math.floor(((elapsedInMs % PERIOD_DURATION) / 1000) * 2),
   };
 };
 
@@ -26,4 +26,7 @@ export const getGenesisTimestamp = () =>
 export const ONE_DAY = 24 * 60 * 60 * 1000;
 export const ONE_HOUR = 60 * 60 * 1000;
 export const TIME_BETWEEN_TICKS = 5 * 60 * 1000;
-export const THREAD_DURATION = 16_000;
+export const PERIOD_DURATION = 16_000;
+
+export const EVERY_TICK = "*/5 * * * *" as const;
+export const EVERY_PERIOD = "*/16 * * * * *" as const;

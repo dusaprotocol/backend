@@ -74,6 +74,8 @@ export const fetchPairAddress = async (
       return lpAddress;
     })
     .catch((err) => {
+      logger.error(err.message);
+      logger.info("error when fetching pair address");
       logger.error(err);
       return undefined;
     });

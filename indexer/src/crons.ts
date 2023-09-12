@@ -13,7 +13,7 @@ import {
 } from "../../common/methods";
 import { Args } from "@massalabs/massa-web3";
 import { Pool } from "@prisma/client";
-import { fetchEvents } from "../../common/utils";
+import { EVERY_PERIOD, EVERY_TICK, fetchEvents } from "../../common/utils";
 
 const getPools = (): Promise<Pool[]> =>
   prisma.pool.findMany().catch((e) => {
@@ -110,10 +110,7 @@ const createAnalytic = (
     .catch((err) => logger.warn(err));
 };
 
-const every5Minutes = "*/5 * * * *";
-const everyPeriod = "*/16 * * * * *";
-
-export const analyticsTask = cron.schedule(every5Minutes, fillAnalytics, {
+export const analyticsTask = cron.schedule(EVERY_TICK, fillAnalytics, {
   scheduled: false,
 });
 
@@ -147,7 +144,7 @@ const processAutonomousEvents = async () => {
 };
 
 export const autonomousEvents = cron.schedule(
-  everyPeriod,
+  EVERY_PERIOD,
   processAutonomousEvents,
   {
     scheduled: false,

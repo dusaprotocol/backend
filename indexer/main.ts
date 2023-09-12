@@ -99,6 +99,7 @@ try {
   subscribeFilledBlocks(grpcDefaultHost);
 } catch (err: any) {
   logger.error(err.message);
+  logger.info("error when subscribing to gRPC");
   logger.error(err);
 }
 
@@ -128,6 +129,8 @@ async function processOperation(
     .awaitRequiredOperationStatus(txId, EOperationStatus.SPECULATIVE_SUCCESS)
     .catch((err) => {
       logger.error(err);
+      logger.info("error when awaiting operation status");
+      logger.error(err.message);
       return EOperationStatus.NOT_FOUND;
     });
   if (status !== EOperationStatus.SPECULATIVE_SUCCESS) {
