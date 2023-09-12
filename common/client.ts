@@ -1,27 +1,29 @@
 import * as dotenv from "dotenv";
 import {
   Client,
-  ClientFactory,
+  DefaultProviderUrls,
   IProvider,
   ProviderType,
-  WalletClient,
 } from "@massalabs/massa-web3";
+import { ChainId } from "@dusalabs/sdk";
 
 dotenv.config();
 
-const buildnet: IProvider[] = [
+const url = DefaultProviderUrls.BUILDNET;
+const providers: IProvider[] = [
   {
-    url: "https://buildnet.massa.net/api/v2",
+    url,
     type: ProviderType.PUBLIC,
   },
   {
-    url: "https://buildnet.massa.net/api/v2",
+    url,
     type: ProviderType.PRIVATE,
   },
 ];
 
+export const CHAIN_ID = ChainId.BUILDNET;
+
 export const web3Client: Client = new Client({
   retryStrategyOn: false,
-  providers: buildnet,
-  periodOffset: 0,
+  providers,
 });

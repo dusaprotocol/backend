@@ -15,6 +15,7 @@ import { SwapParams } from "./decoder";
 
 export const processSwap = (
   txHash: string,
+  indexInSlot: number,
   userAddress: string,
   timestamp: string | Date,
   poolAddress: string,
@@ -83,6 +84,7 @@ export const processSwap = (
           usdValue: volume,
           timestamp,
           txHash,
+          indexInSlot,
         },
       })
       .then((e) => logger.info(e))
@@ -146,6 +148,7 @@ export const processLiquidity = async (
         upperBound,
         timestamp,
         txHash,
+        indexInSlot: 0,
       },
     })
     .then((e) => logger.info(e))

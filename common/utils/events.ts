@@ -15,11 +15,12 @@ export const fetchEvents = async (
       is_final: filter.is_final || null,
     })
     .then((events) => {
-      if (
-        !events.length ||
-        events[events.length - 1].data.includes("massa_execution_error")
-      ) {
+      console.log(filter.original_operation_id);
+      if (!events.length) {
         throw new Error("No events found");
+      }
+      if (events[events.length - 1].data.includes("massa_execution_error")) {
+        throw new Error("Tx went wrong");
       }
       return events;
     });

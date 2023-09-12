@@ -9,6 +9,7 @@ import {
   TokenAmount,
 } from "@dusalabs/sdk";
 import { fetchTokenInfo } from "../../common/methods";
+import { CHAIN_ID } from "../../common/client";
 
 export interface SwapParams {
   amountIn: bigint;
@@ -111,7 +112,6 @@ export const decodeLiquidityTx = async (
 };
 
 const toLog = async (params: SwapParams) => {
-  const CHAIN_ID = ChainId.BUILDNET;
   const tokenInAddress = params.path[0].str;
   const tokenOutAddress = params.path[params.path.length - 1].str;
   const tokenIn = await fetchTokenInfo(tokenInAddress);

@@ -152,20 +152,19 @@ async function processOperation(
       throw new Error("Unknown router method:" + targetFunc);
     }
   } catch (err: any) {
-    logger.error(err);
-    logger.info("Error when processing operation");
     logger.error(err.message);
   }
 }
 
 async function awaitOperationStatus(txId: string) {
-  web3Client
+  return web3Client
     .smartContracts()
-    .awaitRequiredOperationStatus(txId, EOperationStatus.SPECULATIVE_SUCCESS)
+    .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL_SUCCESS)
     .then((status) => {
-      if (status !== EOperationStatus.SPECULATIVE_SUCCESS) {
-        throw new Error("Operation status is not SPECULATIVE_SUCCESS");
+      if (status !== EOperationStatus.FINAL_SUCCESS) {
+        throw new Error("Operation status is not FINAL_SUCCESS");
       }
+      return status;
     });
 }
 
@@ -192,6 +191,7 @@ async function processSwapOperation(
       if (pairAddress) {
         processSwap(
           txId,
+          i,
           caller,
           timestamp,
           pairAddress,
@@ -237,3 +237,8 @@ async function processLiquidityOperation(
     }
   }
 }
+
+// @ts-ignore: Unreachable code error
+BigInt.prototype.toJSON = function (): number {
+  return Number(this);
+};
