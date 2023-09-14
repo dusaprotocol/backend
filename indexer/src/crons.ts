@@ -6,13 +6,13 @@ import { web3Client } from "../../common/client";
 // import { processEvents } from "./socket";
 import logger from "../../common/logger";
 import {
-  getPairInformation,
   getPairAddressTokens,
   getTokenValue,
   getPriceFromId,
 } from "../../common/methods";
 import { Pool } from "@prisma/client";
 import { EVERY_PERIOD, EVERY_TICK, getClosestTick } from "../../common/utils";
+import { PairV2 } from "@dusalabs/sdk";
 
 const getPools = (): Promise<Pool[]> =>
   prisma.pool.findMany().catch((e) => {
@@ -20,62 +20,43 @@ const getPools = (): Promise<Pool[]> =>
     return [];
   });
 
-// web3Client
-//   .publicApi()
-//   .getAddresses([factorySC])
-//   .then(async (res) => {
-//     const keys = res[0].final_datastore_keys
-//       .map((k) => String.fromCharCode(...k))
-//       .filter((k) => k.startsWith("PAIR_INFORMATION::"));
-//     return web3Client
-//       .publicApi()
-//       .getDatastoreEntries(
-//         keys.map((k) => ({ key: strToBytes(k), address: factorySC }))
-//       )
-//       .then((r) =>
-//         r.reduce((acc, entry) => {
-//           if (entry.final_value) {
-//             const pairInformation = new Args(entry.final_value);
-//             const binStep = pairInformation.nextU32();
-//             const pairAddress = pairInformation.nextString();
-//             acc.push(pairAddress);
-//           }
-//           return acc;
-//         }, [] as string[])
-//       );
-//   });
-
 export const fillAnalytics = () => {
   logger.silly(`running the analytics task at ${new Date().toString()}`);
 
   getPools().then((pools) => {
     pools.forEach(async (pool) => {
-      const pairInfo = await getPairInformation(pool.address);
-      if (!pairInfo) return;
-
-      const activePrice = getPriceFromId(pairInfo.activeId, pool.binStep);
-      getPairAddressTokens(pool.address).then(async (tokens) => {
-        if (!tokens) return;
-
-        const token0Value = await getTokenValue(tokens[0]);
-        const token1Value = await getTokenValue(tokens[1]);
-
-        if (!token0Value || !token1Value) return;
-
-        const token0Locked = pairInfo.reserveX;
-        const token1Locked = pairInfo.reserveY;
-        const usdLocked =
-          Number(token0Locked / BigInt(10 ** 9)) * token0Value +
-          Number(token1Locked / BigInt(10 ** 9)) * token1Value;
-        createAnalytic(
-          pool.address,
-          token0Locked,
-          token1Locked,
-          Math.round(usdLocked),
-          activePrice
-        );
-      });
+      fetchNewAnalytics(pool.address, pool.binStep);
     });
+  });
+};
+
+const fetchNewAnalytics = async (poolAddress: string, binStep: number) => {
+  const pairInfo = await PairV2.getLBPairReservesAndId(poolAddress, web3Client);
+  if (!pairInfo) return;
+
+  const activePrice = getPriceFromId(pairInfo.activeId, binStep);
+  getPairAddressTokens(poolAddress).then(async (tokens) => {
+    if (!tokens) return;
+
+    const token0Value = await getTokenValue(tokens[0]);
+    const token1Value = await getTokenValue(tokens[1]);
+
+    if (!token0Value || !token1Value) return;
+
+    const token0Locked = pairInfo.reserveX;
+    const token1Locked = pairInfo.reserveY;
+    const usdLocked =
+      Number(token0Locked / BigInt(10 ** 9)) * token0Value +
+      Number(token1Locked / BigInt(10 ** 9)) * token1Value;
+    createAnalytic(
+      poolAddress,
+      token0Locked,
+      token1Locked,
+      Math.round(usdLocked),
+      0,
+      0,
+      activePrice
+    );
   });
 };
 
@@ -84,7 +65,12 @@ const createAnalytic = (
   token0Locked: bigint,
   token1Locked: bigint,
   usdLocked: number,
-  close: number
+  volume: number,
+  fees: number,
+  close: number,
+  open = close,
+  high = close,
+  low = close
 ) => {
   const date = getClosestTick(Date.now());
 
@@ -96,12 +82,12 @@ const createAnalytic = (
         token0Locked,
         token1Locked,
         usdLocked,
-        volume: 0,
-        fees: 0,
-        close: close,
-        high: close,
-        low: close,
-        open: close,
+        volume,
+        fees,
+        close,
+        high,
+        low,
+        open,
       },
     })
     .then((p) => logger.debug(p))

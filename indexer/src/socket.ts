@@ -2,7 +2,7 @@ import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import { getPriceFromId, getTokenValue } from "../../common/methods";
-import { getClosestTick } from "../../common/utils";
+import { TIME_BETWEEN_TICKS, getClosestTick } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams } from "./decoder";
 
@@ -159,8 +159,8 @@ export const updateVolumeAndPrice = async (
   price: number
 ) => {
   const date = getClosestTick(Date.now());
+  const previousDate = getClosestTick(Date.now() - TIME_BETWEEN_TICKS);
 
-  // update price
   const curr = await prisma.analytics
     .findUnique({
       where: {
@@ -168,6 +168,16 @@ export const updateVolumeAndPrice = async (
           poolAddress,
           date,
         },
+        OR: [
+          {
+            poolAddress,
+            AND: [
+              {
+                date: previousDate,
+              },
+            ],
+          },
+        ],
       },
     })
     .catch((err) => {
