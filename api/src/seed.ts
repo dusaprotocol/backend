@@ -181,11 +181,5 @@ async function createMissingPrices(pool: Pool) {
 }
 
 (() => {
-  // prisma.pool.findMany().then((pools) => {
-  //   pools.forEach((pool) => {
-  //     createMissingPrices(pool);
-  //   });
-  // });
-
   createPools();
 })();

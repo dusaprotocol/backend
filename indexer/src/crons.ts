@@ -40,7 +40,6 @@ const fetchNewAnalytics = async (poolAddress: string, binStep: number) => {
 
     const token0Value = await getTokenValue(tokens[0]);
     const token1Value = await getTokenValue(tokens[1]);
-
     if (!token0Value || !token1Value) return;
 
     const token0Locked = pairInfo.reserveX;
@@ -48,13 +47,12 @@ const fetchNewAnalytics = async (poolAddress: string, binStep: number) => {
     const usdLocked =
       Number(token0Locked / BigInt(10 ** 9)) * token0Value +
       Number(token1Locked / BigInt(10 ** 9)) * token1Value;
+
     createAnalytic(
       poolAddress,
       token0Locked,
       token1Locked,
       Math.round(usdLocked),
-      0,
-      0,
       activePrice
     );
   });
@@ -65,8 +63,6 @@ const createAnalytic = (
   token0Locked: bigint,
   token1Locked: bigint,
   usdLocked: number,
-  volume: number,
-  fees: number,
   close: number,
   open = close,
   high = close,
@@ -82,8 +78,8 @@ const createAnalytic = (
         token0Locked,
         token1Locked,
         usdLocked,
-        volume,
-        fees,
+        volume: 0,
+        fees: 0,
         close,
         high,
         low,

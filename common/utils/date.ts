@@ -2,9 +2,10 @@ import { ISlot } from "@massalabs/massa-web3";
 import { web3Client } from "../client";
 
 // Constants (in ms)
-export const ONE_DAY = 24 * 60 * 60 * 1000;
-export const ONE_HOUR = 60 * 60 * 1000;
-export const TIME_BETWEEN_TICKS = 5 * 60 * 1000;
+export const ONE_MINUTE = 60 * 1000;
+export const ONE_HOUR = 60 * ONE_MINUTE;
+export const ONE_DAY = 24 * ONE_HOUR;
+export const TIME_BETWEEN_TICKS = 5 * ONE_MINUTE;
 export const TICKS_PER_DAY = ONE_DAY / TIME_BETWEEN_TICKS;
 export const PERIOD_DURATION = 16_000;
 

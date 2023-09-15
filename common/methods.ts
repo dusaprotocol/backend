@@ -1,4 +1,11 @@
-import { Args, IEvent, bytesToStr, strToBytes } from "@massalabs/massa-web3";
+import {
+  Args,
+  ArrayTypes,
+  IEvent,
+  bytesToArray,
+  bytesToStr,
+  strToBytes,
+} from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
@@ -43,7 +50,7 @@ export const fetchPairBinSteps = async (
       parameter: new Args().addString(token0).addString(token1).serialize(),
     })
     .then((res) => {
-      return res.info.output_events[0]?.data.split(",").map(Number);
+      return bytesToArray<number>(res.returnValue, ArrayTypes.U32);
     });
 
 export const fetchPairAddress = async (
@@ -84,6 +91,8 @@ export const getTokenValue = async (
   if (tokenAddress === usdcSC) return 1;
 
   const binSteps = await fetchPairBinSteps(tokenAddress, usdcSC);
+  if (!binSteps) return;
+
   const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binSteps[0]);
   if (!pairAddress) return;
 
