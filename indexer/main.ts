@@ -6,13 +6,19 @@ import { analyticsTask, autonomousEvents } from "./src/crons";
 import { processLiquidity, processSwap } from "./src/socket";
 import { web3Client } from "../common/client";
 import logger from "../common/logger";
-import { NewOperationsRequest, OpType } from "./gen/ts/massa/api/v1/api";
-import { routerSC } from "../common/contracts";
+import { NewSlotExecutionOutputsRequest } from "./gen/ts/massa/api/v1/api";
+import { dcaSC, routerSC } from "../common/contracts";
 import { decodeLiquidityTx, decodeSwapTx } from "./src/decoder";
 import { Operation } from "./gen/ts/massa/model/v1/operation";
-import { fetchEvents, getGenesisTimestamp, parseSlot } from "../common/utils";
+import {
+  ONE_MINUTE,
+  fetchEvents,
+  getGenesisTimestamp,
+  parseSlot,
+} from "../common/utils";
 import { fetchPairAddress, getCallee } from "../common/methods";
 import { SWAP_ROUTER_METHODS, LIQUIDITY_ROUTER_METHODS } from "@dusalabs/sdk";
+import { ExecutionOutputStatus } from "./gen/ts/massa/model/v1/execution";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
@@ -25,12 +31,36 @@ const subscribeNewSlotExecutionOutputs = async (host: string) => {
   });
   const service = new MassaServiceClient(transport);
   const stream = service.newSlotExecutionOutputs();
+  const req: NewSlotExecutionOutputsRequest = {
+    id: "1",
+    query: {
+      filter: {
+        status: [
+          // ExecutionOutputStatus.CANDIDATE,
+          ExecutionOutputStatus.FINAL,
+          // ExecutionOutputStatus.UNSPECIFIED,
+        ],
+      },
+    },
+  };
+  stream.requests.send(req);
+
   logger.info(
-    `[${host}:${grpcPort}] subscribeNewSlotExecutionOutputs start on ${new Date().toString()}`
+    `[${baseUrl}] subscribeNewSlotExecutionOutputs start on ${new Date().toString()}`
   );
 
-  for await (let message of stream.responses) {
-    console.log(message.output);
+  try {
+    for await (let message of stream.responses) {
+      message.output?.executionOutput?.events.forEach((event) => {
+        if (event.context?.callStack.includes(dcaSC)) console.log(event.data);
+      });
+    }
+  } catch (err: any) {
+    logger.error(err.message);
+    setTimeout(
+      () => subscribeNewSlotExecutionOutputs(grpcDefaultHost),
+      ONE_MINUTE
+    );
   }
 };
 
@@ -43,20 +73,22 @@ const subscribeFilledBlocks = async (host: string) => {
   const service = new MassaServiceClient(transport);
   const stream = service.newFilledBlocks();
   logger.info(
-    `[${host}:${grpcPort}] subscribeFilledBlocks start on ${new Date().toString()}`
+    `[${baseUrl}] subscribeFilledBlocks start on ${new Date().toString()}`
   );
 
-  for await (let message of stream.responses) {
-    // console.log(message.filledBlock?.header?.id);
-    message.filledBlock?.operations.forEach((op) => {
-      const txId = op.operationId;
-      const caller = op.operation?.contentCreatorAddress;
-      processOperation(op.operation?.content, caller, txId);
-    });
+  try {
+    for await (let message of stream.responses) {
+      message.filledBlock?.operations.forEach((op) => {
+        const txId = op.operationId;
+        const caller = op.operation?.contentCreatorAddress;
+        processOperation(op.operation?.content, caller, txId);
+      });
+    }
+  } catch (err: any) {
+    logger.error(err.message);
+    setTimeout(() => subscribeFilledBlocks(grpcDefaultHost), ONE_MINUTE);
   }
 
-  //   });
-  // });
   // stream.on("error", async (err) => {
   //   logger.error(err.message);
   //   logger.info(err);
@@ -83,12 +115,6 @@ const subscribeFilledBlocks = async (host: string) => {
   //     // wait 1 minute if server is unavailable
   //     setTimeout(() => subscribeFilledBlocks(newIp), 1000 * 60);
   //   } else setTimeout(() => subscribeFilledBlocks(grpcDefaultHost), 1000 * 3);
-  // });
-  // stream.on("end", () => {
-  //   logger.warn(`subscribeFilledBlocks end on ${new Date().toString()}`);
-  // });
-  // stream.on("status", (e: any) => {
-  //   logger.warn(e);
   // });
 };
 
@@ -188,22 +214,22 @@ async function processSwapOperation(
       const tokenOut = swapParams.path[i + 1].str;
       const binStep = Number(swapParams.binSteps[i]);
       const pairAddress = await fetchPairAddress(tokenIn, tokenOut, binStep);
-      if (pairAddress) {
-        processSwap(
-          txId,
-          i,
-          caller,
-          timestamp,
-          pairAddress,
-          tokenIn,
-          tokenOut,
-          binStep,
-          events.filter(
-            (e) => getCallee(e) === pairAddress && e.data.startsWith("SWAP:")
-          ),
-          swapParams
-        );
-      }
+      if (!pairAddress) return;
+
+      processSwap(
+        txId,
+        i,
+        caller,
+        timestamp,
+        pairAddress,
+        tokenIn,
+        tokenOut,
+        binStep,
+        events.filter(
+          (e) => getCallee(e) === pairAddress && e.data.startsWith("SWAP:")
+        ),
+        swapParams
+      );
     }
   }
 }
