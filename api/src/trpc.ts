@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
-import { ONE_DAY, ONE_HOUR } from "../../common/utils/date";
+import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
 
 type Volume = Prisma.AnalyticsGetPayload<{
   select: {
@@ -320,7 +320,11 @@ export const appRouter = t.router({
     .input(
       z.object({
         poolAddress: z.string(),
-        take: z.union([z.literal(288), z.literal(2016), z.literal(8640)]),
+        take: z.union([
+          z.literal(1 * TICKS_PER_DAY),
+          z.literal(7 * TICKS_PER_DAY),
+          z.literal(30 * TICKS_PER_DAY),
+        ]),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -338,29 +342,25 @@ export const appRouter = t.router({
         .then((prices) => {
           const res: Price[] = [];
 
-          // if take is 288 (1 day), we want 24 points per day
-          // if take is 2016 (7 days), we want 4 points per day
-          // if take is 8640 (30 days), we want 1 point per day
-          const nbPointsPerDay = take / 24;
+          // if take is 1 day, we want 24 points per day (24 total)
+          // if take is 7 days, we want 4 points per day (28 total)
+          // if take is 30 days, we want 1 point per day (30 total)
+          const threshold =
+            take === 1 * TICKS_PER_DAY
+              ? TICKS_PER_DAY / 24
+              : take === 7 * TICKS_PER_DAY
+              ? (7 * TICKS_PER_DAY) / 28
+              : (30 * TICKS_PER_DAY) / 30;
 
           let date = prices[0].date;
           prices.forEach((price, i) => {
-            if (
-              // date.getDay() !== price.date.getDay() ||
-              // i === prices.length - 1
-
-              i % nbPointsPerDay ===
-              0
-            ) {
+            if (i % threshold === threshold - 1) {
+              const slice = prices.slice(i + 1 - threshold, i + 1);
               res.push({
                 ...price,
-                close: res.length > 0 ? res[res.length - 1].close : price.close,
-                high: Math.max(
-                  ...prices.slice(i, i - nbPointsPerDay).map((p) => p.high)
-                ),
-                low: Math.min(
-                  ...prices.slice(i, i - nbPointsPerDay).map((p) => p.low)
-                ),
+                close: res.length > 0 ? res[res.length - 1].open : price.open,
+                high: Math.max(...slice.map((p) => p.high)),
+                low: Math.min(...slice.map((p) => p.low)),
                 date,
               });
               date = price.date;
