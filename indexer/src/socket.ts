@@ -1,7 +1,11 @@
 import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
-import { getPriceFromId, getTokenValue } from "../../common/methods";
+import {
+  fetchTokenInfo,
+  getPriceFromId,
+  getTokenValue,
+} from "../../common/methods";
 import { TIME_BETWEEN_TICKS, getClosestTick } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams } from "./decoder";
@@ -23,9 +27,9 @@ export const processSwap = (
   let binId = 0;
   let price = 0;
   let swapForY = false;
-  let amountIn = 0;
-  let amountOut = 0;
-  let totalFees = 0;
+  let amountIn = 0n;
+  let amountOut = 0n;
+  let totalFees = 0n;
 
   swapEvents.forEach((event) => {
     const [
@@ -41,17 +45,26 @@ export const processSwap = (
     binId = Number(_binId);
     price = getPriceFromId(binId, binStep);
     swapForY = _swapForY === "true";
-    amountIn += Number(_amountIn);
-    amountOut += Number(_amountOut);
-    totalFees += Number(_totalFees);
+    amountIn += BigInt(_amountIn);
+    amountOut += BigInt(_amountOut);
+    totalFees += BigInt(_totalFees);
   });
   amountIn += totalFees;
 
-  getTokenValue(tokenIn).then((valueIn) => {
+  getTokenValue(tokenIn).then(async (valueIn) => {
     if (!valueIn) return;
 
-    const volume = Math.round((amountIn / 10 ** 9) * valueIn);
-    const fees = Math.round((totalFees / 10 ** 9) * valueIn * 100); // fees are stored in cents
+    const tokenInDecimals = await fetchTokenInfo(tokenIn).then(
+      (e) => e && e.decimals
+    );
+    if (!tokenInDecimals) return;
+
+    const volume = Math.round(
+      Number(amountIn / BigInt(10 ** tokenInDecimals)) * valueIn
+    );
+    const fees = Math.round(
+      Number(totalFees / BigInt(10 ** tokenInDecimals)) * valueIn * 100
+    ); // fees are stored in cents
     updateVolumeAndPrice(poolAddress, volume, fees, price);
 
     prisma.swap
@@ -112,11 +125,18 @@ export const processLiquidity = async (
   const lowerBound = Number(liqEvents[0].data.split(",")[1]);
   const upperBound = Number(liqEvents[liqEvents.length - 1].data.split(",")[1]);
 
+  const token0Decimals = await fetchTokenInfo(token0).then((e) =>
+    e ? e.decimals : 0
+  );
+  const token1Decimals = await fetchTokenInfo(token1).then((e) =>
+    e ? e.decimals : 0
+  );
+
   const token0Value = await getTokenValue(token0);
   const token1Value = await getTokenValue(token1);
   const usdValue =
-    (token0Value ?? 0) * (amount0 / 10 ** 9) +
-    (token1Value ?? 0) * (amount1 / 10 ** 9);
+    (token0Value ?? 0) * (amount0 / 10 ** token0Decimals) +
+    (token1Value ?? 0) * (amount1 / 10 ** token1Decimals);
 
   prisma.liquidity
     .create({
@@ -160,25 +180,36 @@ export const updateVolumeAndPrice = async (
 ) => {
   const date = getClosestTick(Date.now());
   const previousDate = getClosestTick(Date.now() - TIME_BETWEEN_TICKS);
+  const last = await prisma.analytics.findFirst({
+    where: {
+      poolAddress,
+    },
+    orderBy: {
+      date: "desc",
+    },
+  });
 
   const curr = await prisma.analytics
-    .findUnique({
+    .findMany({
       where: {
-        poolAddress_date: {
-          poolAddress,
-          date,
-        },
-        OR: [
-          {
-            poolAddress,
-            AND: [
-              {
-                date: previousDate,
-              },
-            ],
-          },
-        ],
+        poolAddress,
+        date: date.toISOString(),
+        // OR: [
+        //   {
+        //     poolAddress,
+        //     AND: [
+        //       {
+        //         date: previousDate.toISOString(),
+        //       },
+        //     ],
+        //   },
+        // ],
       },
+    })
+    .then((e) => {
+      console.log(e);
+      const res = e.length ? e[0] : undefined;
+      return res;
     })
     .catch((err) => {
       logger.warn(err);
@@ -188,6 +219,7 @@ export const updateVolumeAndPrice = async (
     logger.warn(
       "No analytics entry found for pool " + poolAddress + " at date " + date
     );
+    logger.warn(JSON.stringify(last));
     return;
   }
 

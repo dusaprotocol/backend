@@ -64,11 +64,7 @@ export const decodeSwapTx = async (
   }
 };
 
-// type DecodedLiquidity = AddLiquidityParameters | RemoveLiquidityParameters
-type DecodedLiquidity = Pick<
-  AddLiquidityParameters,
-  "token0" | "token1" | "binStep"
->;
+type DecodedLiquidity = AddLiquidityParameters | RemoveLiquidityParameters;
 
 export const decodeLiquidityTx = async (
   isAdd: boolean,
@@ -85,13 +81,30 @@ export const decodeLiquidityTx = async (
       const amount1 = args.nextU64();
       const amount0Min = args.nextU64();
       const amount1Min = args.nextU64();
-      const activeIdDesired = args.nextU64();
-      const idSlippage = args.nextU64();
+      const activeIdDesired = Number(args.nextU64());
+      const idSlippage = Number(args.nextU64());
       const deltaIds = args.nextArray<number>(ArrayTypes.I64);
-      const distribution0 = args.nextArray<number>(ArrayTypes.U64);
-      const distribution1 = args.nextArray<number>(ArrayTypes.U64);
+      const distribution0 = args.nextArray<bigint>(ArrayTypes.U64);
+      const distribution1 = args.nextArray<bigint>(ArrayTypes.U64);
       const to = args.nextString();
       const deadline = Number(args.nextU64());
+
+      return {
+        token0,
+        token1,
+        binStep,
+        amount0,
+        amount1,
+        amount0Min,
+        amount1Min,
+        activeIdDesired,
+        idSlippage,
+        deltaIds,
+        distributionX: distribution0,
+        distributionY: distribution1,
+        to,
+        deadline,
+      };
     } else {
       const amount0Min = args.nextU64();
       const amount1Min = args.nextU64();
@@ -104,6 +117,12 @@ export const decodeLiquidityTx = async (
         token0,
         token1,
         binStep,
+        amount0Min,
+        amount1Min,
+        ids,
+        amounts,
+        to,
+        deadline,
       };
     }
   } catch (e) {

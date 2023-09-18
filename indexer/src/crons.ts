@@ -1,17 +1,15 @@
 import cron from "node-cron";
-import { ISlot, strToBytes } from "@massalabs/massa-web3";
 import { prisma } from "../../common/db";
-import { dcaSC, factorySC } from "../../common/contracts";
 import { web3Client } from "../../common/client";
-// import { processEvents } from "./socket";
 import logger from "../../common/logger";
 import {
   getPairAddressTokens,
   getTokenValue,
   getPriceFromId,
+  fetchTokenInfo,
 } from "../../common/methods";
 import { Pool } from "@prisma/client";
-import { EVERY_PERIOD, EVERY_TICK, getClosestTick } from "../../common/utils";
+import { EVERY_TICK, getClosestTick } from "../../common/utils";
 import { PairV2 } from "@dusalabs/sdk";
 
 const getPools = (): Promise<Pool[]> =>
@@ -38,6 +36,14 @@ const fetchNewAnalytics = async (poolAddress: string, binStep: number) => {
   getPairAddressTokens(poolAddress).then(async (tokens) => {
     if (!tokens) return;
 
+    const token0Decimals = await fetchTokenInfo(tokens[0]).then(
+      (e) => e && e.decimals
+    );
+    const token1Decimals = await fetchTokenInfo(tokens[1]).then(
+      (e) => e && e.decimals
+    );
+    if (!token0Decimals || !token1Decimals) return;
+
     const token0Value = await getTokenValue(tokens[0]);
     const token1Value = await getTokenValue(tokens[1]);
     if (!token0Value || !token1Value) return;
@@ -45,8 +51,8 @@ const fetchNewAnalytics = async (poolAddress: string, binStep: number) => {
     const token0Locked = pairInfo.reserveX;
     const token1Locked = pairInfo.reserveY;
     const usdLocked =
-      Number(token0Locked / BigInt(10 ** 9)) * token0Value +
-      Number(token1Locked / BigInt(10 ** 9)) * token1Value;
+      Number(token0Locked / BigInt(10 ** token0Decimals)) * token0Value +
+      Number(token1Locked / BigInt(10 ** token1Decimals)) * token1Value;
 
     createAnalytic(
       poolAddress,
@@ -90,43 +96,4 @@ const createAnalytic = (
     .catch((err) => logger.warn(err));
 };
 
-export const analyticsTask = cron.schedule(EVERY_TICK, fillAnalytics, {
-  scheduled: false,
-});
-
-let slot: ISlot;
-
-const processAutonomousEvents = async () => {
-  logger.silly(`running the autonomous events task for period ${slot.period}`);
-
-  if (!slot)
-    slot = await web3Client
-      .publicApi()
-      .getNodeStatus()
-      .then((r) => ({
-        period: r.last_slot.period - 5,
-        thread: 0,
-      }));
-
-  const start = slot;
-  const end = { ...slot, thread: 31 };
-
-  // TODO (use GRPC newSlotExecutionOutputs?)
-
-  // fetchEvents({ emitter_address: dcaSC, start, end }).then((events) => {
-  //   logger.silly(events.map((e) => e.data));
-
-  //   const txId = "";
-  //   const creatorAddress = "";
-  //   processEvents(txId, creatorAddress, "swap", events.slice(1));
-  //   slot.period += 1;
-  // });
-};
-
-export const autonomousEvents = cron.schedule(
-  EVERY_PERIOD,
-  processAutonomousEvents,
-  {
-    scheduled: false,
-  }
-);
+if (cron.validate(EVERY_TICK)) cron.schedule(EVERY_TICK, fillAnalytics);

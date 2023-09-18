@@ -15,7 +15,6 @@ export const fetchEvents = async (
       is_final: filter.is_final || null,
     })
     .then((events) => {
-      console.log(filter.original_operation_id);
       if (!events.length) {
         throw new Error("No events found");
       }

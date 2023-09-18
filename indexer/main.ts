@@ -2,11 +2,15 @@ import { ChannelCredentials } from "@grpc/grpc-js";
 import { GrpcTransport } from "@protobuf-ts/grpc-transport";
 import { EOperationStatus, IEvent } from "@massalabs/massa-web3";
 import { MassaServiceClient } from "./gen/ts/massa/api/v1/api.client";
-import { analyticsTask, autonomousEvents } from "./src/crons";
 import { processLiquidity, processSwap } from "./src/socket";
 import { web3Client } from "../common/client";
 import logger from "../common/logger";
-import { NewSlotExecutionOutputsRequest } from "./gen/ts/massa/api/v1/api";
+import {
+  NewOperationsQuery,
+  NewOperationsRequest,
+  NewSlotExecutionOutputsRequest,
+  OpType,
+} from "./gen/ts/massa/api/v1/api";
 import { dcaSC, routerSC } from "../common/contracts";
 import { decodeLiquidityTx, decodeSwapTx } from "./src/decoder";
 import { Operation } from "./gen/ts/massa/model/v1/operation";
@@ -23,7 +27,9 @@ import { ExecutionOutputStatus } from "./gen/ts/massa/model/v1/execution";
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
 
-const subscribeNewSlotExecutionOutputs = async (host: string) => {
+const subscribeNewSlotExecutionOutputs = async (
+  host: string = grpcDefaultHost
+) => {
   const baseUrl = `${host}:${grpcPort}`;
   const transport = new GrpcTransport({
     host: baseUrl,
@@ -35,11 +41,7 @@ const subscribeNewSlotExecutionOutputs = async (host: string) => {
     id: "1",
     query: {
       filter: {
-        status: [
-          // ExecutionOutputStatus.CANDIDATE,
-          ExecutionOutputStatus.FINAL,
-          // ExecutionOutputStatus.UNSPECIFIED,
-        ],
+        status: [ExecutionOutputStatus.FINAL],
       },
     },
   };
@@ -51,9 +53,22 @@ const subscribeNewSlotExecutionOutputs = async (host: string) => {
 
   try {
     for await (let message of stream.responses) {
-      message.output?.executionOutput?.events.forEach((event) => {
-        if (event.context?.callStack.includes(dcaSC)) console.log(event.data);
+      console.log(message.output?.executionOutput?.slot);
+      const events = message.output?.executionOutput?.events;
+      if (!events) return;
+
+      console.log("--------------------");
+      events.forEach((event) => {
+        if (!event.context) return;
+
+        console.log(event.context.callStack, event.data);
+        if (event.context.callStack.includes(dcaSC)) {
+          const swapEvents = events.filter((e) => e.data.startsWith("SWAP:"));
+          console.log(event.data);
+          // processSwap(event.context.originOperationId, event.context.indexInSlot, )
+        }
       });
+      console.log("--------------------");
     }
   } catch (err: any) {
     logger.error(err.message);
@@ -64,94 +79,68 @@ const subscribeNewSlotExecutionOutputs = async (host: string) => {
   }
 };
 
-const subscribeFilledBlocks = async (host: string) => {
+const subscribeNewOperations = async (host: string = grpcDefaultHost) => {
   const baseUrl = `${host}:${grpcPort}`;
   const transport = new GrpcTransport({
     host: baseUrl,
     channelCredentials: ChannelCredentials.createInsecure(),
   });
   const service = new MassaServiceClient(transport);
-  const stream = service.newFilledBlocks();
+  const stream = service.newOperations();
+  const req: NewOperationsRequest = {
+    id: "1",
+    query: {
+      filter: {
+        types: [OpType.CALL_SC],
+      },
+    },
+  };
+  stream.requests.send(req);
+
   logger.info(
-    `[${baseUrl}] subscribeFilledBlocks start on ${new Date().toString()}`
+    `[${baseUrl}] subscribeNewOperations start on ${new Date().toString()}`
   );
 
   try {
     for await (let message of stream.responses) {
-      message.filledBlock?.operations.forEach((op) => {
-        const txId = op.operationId;
-        const caller = op.operation?.contentCreatorAddress;
-        processOperation(op.operation?.content, caller, txId);
-      });
+      const txId = message.operation?.id;
+      const caller = message.operation?.contentCreatorAddress;
+      const content = message.operation?.content;
+      if (!txId || !caller || !content) return;
+      processOperation(content, caller, txId);
     }
   } catch (err: any) {
     logger.error(err.message);
-    setTimeout(() => subscribeFilledBlocks(grpcDefaultHost), ONE_MINUTE);
+    setTimeout(() => subscribeNewOperations(grpcDefaultHost), ONE_MINUTE);
   }
-
-  // stream.on("error", async (err) => {
-  //   logger.error(err.message);
-  //   logger.info(err);
-  //   logger.info(err.name);
-  //   if (err.message.includes("14")) {
-  //     const newIp: string = await web3Client
-  //       .publicApi()
-  //       .getNodeStatus()
-  //       .then((res) => {
-  //         const nodes = res.connected_nodes;
-  //         const nodeHashs = Object.keys(nodes);
-  //         nodeHashs.forEach((nodeHash) => {
-  //           const nodeInfo = nodes[nodeHash] as unknown as [string, boolean];
-  //           const [ip, isReachable] = nodeInfo;
-  //           logger.info({ nodeHash, ip, isReachable });
-  //           if (isReachable) return ip;
-  //         });
-  //         return grpcDefaultHost;
-  //       })
-  //       .catch((err) => {
-  //         logger.error(err);
-  //         return grpcDefaultHost;
-  //       });
-  //     // wait 1 minute if server is unavailable
-  //     setTimeout(() => subscribeFilledBlocks(newIp), 1000 * 60);
-  //   } else setTimeout(() => subscribeFilledBlocks(grpcDefaultHost), 1000 * 3);
-  // });
 };
 
 // Start gRPC subscriptions
 
-try {
-  // subscribeNewSlotExecutionOutputs(grpcDefaultHost);
-  subscribeFilledBlocks(grpcDefaultHost);
-} catch (err: any) {
-  logger.error(err.message);
-  logger.info("error when subscribing to gRPC");
-  logger.error(err);
-}
-
-// Start cron tasks
-
-analyticsTask.start();
-autonomousEvents.start();
+// subscribeNewSlotExecutionOutputs();
+subscribeNewOperations();
 
 // HELPERS
 
 async function processOperation(
-  operation: Operation | undefined,
-  caller: string | undefined,
+  operation: Operation,
+  caller: string,
   txId: string
 ) {
-  if (!operation || !caller) {
-    return;
+  const opType = operation.op?.type;
+  if (opType?.oneofKind !== "callSc") return;
+
+  const { targetAddr, targetFunc, param } = opType.callSc;
+  if (targetAddr === dcaSC) {
+    if (targetFunc === "dca") {
+    } else if (targetFunc === "stopDca") {
+    } else if (targetFunc === "updateDCA") {
+    } else return;
   }
 
-  const opType = operation.op?.type;
-  if (opType?.oneofKind !== "callSc" || opType.callSc.targetAddr !== routerSC) {
-    return;
-  }
+  if (targetAddr !== routerSC) return;
 
   try {
-    const { targetFunc, param } = opType.callSc;
     const status = await awaitOperationStatus(txId);
     const events = await fetchEvents({ original_operation_id: txId });
     const timestamp = await getTimestamp(events);
@@ -264,6 +253,10 @@ async function processLiquidityOperation(
       );
     }
   }
+}
+
+async function processDCA(user: string) {
+  // prisma.dCA.update({ where: { userAddress: user }, data: {} });
 }
 
 // @ts-ignore: Unreachable code error
