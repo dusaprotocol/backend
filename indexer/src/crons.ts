@@ -28,7 +28,10 @@ export const fillAnalytics = () => {
   });
 };
 
-const fetchNewAnalytics = async (poolAddress: string, binStep: number) => {
+export const fetchNewAnalytics = async (
+  poolAddress: string,
+  binStep: number
+) => {
   const pairInfo = await PairV2.getLBPairReservesAndId(poolAddress, web3Client);
   if (!pairInfo) return;
 

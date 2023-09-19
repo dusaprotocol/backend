@@ -1,6 +1,15 @@
-# Dusa DEX backend
+# Dusa backend
 
-## TODO
-- cache res from DB
-- split pieces of code correctly & test them individually
-- handle SC executions (swap/add/remove from within a SC)
+## Running
+
+Install dependencies
+
+```sh
+pnpm install
+```
+
+Run unit tests (WIP)
+
+```sh
+pnpm test
+```

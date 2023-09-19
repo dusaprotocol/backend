@@ -6,9 +6,10 @@ import {
   getPriceFromId,
   getTokenValue,
 } from "../../common/methods";
-import { TIME_BETWEEN_TICKS, getClosestTick } from "../../common/utils";
+import { getClosestTick } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams } from "./decoder";
+import { fetchNewAnalytics } from "./crons";
 
 // EVENT PROCESSING
 
@@ -65,7 +66,7 @@ export const processSwap = (
     const fees = Math.round(
       Number(totalFees / BigInt(10 ** tokenInDecimals)) * valueIn * 100
     ); // fees are stored in cents
-    updateVolumeAndPrice(poolAddress, volume, fees, price);
+    updateVolumeAndPrice(poolAddress, binStep, volume, fees, price);
 
     prisma.swap
       .create({
@@ -172,40 +173,20 @@ export const processLiquidity = async (
 
 export const updateVolumeAndPrice = async (
   poolAddress: string,
+  binStep: number,
   volume: number,
   fees: number,
   price: number
 ) => {
   const date = getClosestTick(Date.now());
-  const previousDate = getClosestTick(Date.now() - TIME_BETWEEN_TICKS);
-  const last = await prisma.analytics.findFirst({
-    where: {
-      poolAddress,
-    },
-    orderBy: {
-      date: "desc",
-    },
-  });
-
   const curr = await prisma.analytics
     .findMany({
       where: {
         poolAddress,
         date: date.toISOString(),
-        // OR: [
-        //   {
-        //     poolAddress,
-        //     AND: [
-        //       {
-        //         date: previousDate.toISOString(),
-        //       },
-        //     ],
-        //   },
-        // ],
       },
     })
     .then((e) => {
-      console.log(e);
       const res = e.length ? e[0] : undefined;
       return res;
     })
@@ -215,9 +196,12 @@ export const updateVolumeAndPrice = async (
     });
   if (!curr) {
     logger.warn(
-      "No analytics entry found for pool " + poolAddress + " at date " + date
+      "No analytics entry found for pool " +
+        poolAddress +
+        " at date " +
+        date.toISOString()
     );
-    logger.warn(JSON.stringify(last));
+    fetchNewAnalytics(poolAddress, binStep);
     return;
   }
 
