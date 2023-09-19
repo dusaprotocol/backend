@@ -23,6 +23,7 @@ import {
 import { fetchPairAddress, getCallee } from "../common/methods";
 import { SWAP_ROUTER_METHODS, LIQUIDITY_ROUTER_METHODS } from "@dusalabs/sdk";
 import { ExecutionOutputStatus } from "./gen/ts/massa/model/v1/execution";
+import { analyticsCron } from "./src/crons";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
@@ -119,6 +120,10 @@ const subscribeNewOperations = async (host: string = grpcDefaultHost) => {
 
 // subscribeNewSlotExecutionOutputs();
 subscribeNewOperations();
+
+// Start cron jobs
+
+analyticsCron.start();
 
 // HELPERS
 

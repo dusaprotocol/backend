@@ -96,4 +96,7 @@ const createAnalytic = (
     .catch((err) => logger.warn(err));
 };
 
-if (cron.validate(EVERY_TICK)) cron.schedule(EVERY_TICK, fillAnalytics);
+if (!cron.validate(EVERY_TICK)) throw new Error("Invalid cron expression");
+export const analyticsCron = cron.schedule(EVERY_TICK, fillAnalytics, {
+  scheduled: false,
+});

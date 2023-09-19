@@ -95,7 +95,6 @@ export const processSwap = (
           indexInSlot,
         },
       })
-      .then((e) => logger.info(e))
       .catch((e) => logger.warn(e));
   });
 };
@@ -166,7 +165,6 @@ export const processLiquidity = async (
         indexInSlot: 0,
       },
     })
-    .then((e) => logger.info(e))
     .catch((e) => logger.warn(e));
 };
 
@@ -247,6 +245,5 @@ export const updateVolumeAndPrice = async (
         ...data,
       },
     })
-    .then((e) => logger.info(e))
     .catch((err) => logger.warn(err));
 };
