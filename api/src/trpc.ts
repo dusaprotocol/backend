@@ -281,17 +281,23 @@ export const appRouter = t.router({
       });
   }),
   getRecentSwaps: t.procedure
-    .input(z.string())
+    .input(
+      z.object({
+        poolAddress: z.string(),
+        take: z.number(),
+      })
+    )
     .query(async ({ input, ctx }) => {
+      const { poolAddress, take } = input;
       return ctx.prisma.swap
         .findMany({
           where: {
-            poolAddress: input,
+            poolAddress,
           },
           orderBy: {
             timestamp: "desc",
           },
-          take: 10,
+          take,
         })
         .catch((err) => {
           logger.error(err);
@@ -299,17 +305,23 @@ export const appRouter = t.router({
         });
     }),
   getRecentLiquidity: t.procedure
-    .input(z.string())
+    .input(
+      z.object({
+        poolAddress: z.string(),
+        take: z.number(),
+      })
+    )
     .query(async ({ input, ctx }) => {
+      const { poolAddress, take } = input;
       return ctx.prisma.liquidity
         .findMany({
           where: {
-            poolAddress: input,
+            poolAddress,
           },
           orderBy: {
             timestamp: "desc",
           },
-          take: 10,
+          take,
         })
         .catch((err) => {
           logger.error(err);
