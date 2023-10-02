@@ -13,12 +13,8 @@ type Volume = Prisma.AnalyticsGetPayload<{
   };
 }>;
 
-type TVL = Prisma.AnalyticsGetPayload<{
-  select: {
-    usdLocked: true;
-    date: true;
-  };
-}>;
+const zodTVL = z.object({ avgUsdLocked: z.number(), dateFormatted: z.date() });
+type TVL = z.infer<typeof zodTVL>;
 
 type Analytics = Prisma.AnalyticsGetPayload<{
   select: {
@@ -91,7 +87,7 @@ export const appRouter = t.router({
               return;
             }
 
-            acc += Number(analytic.volume);
+            acc += analytic.volume;
           });
 
           const nbEntriesToFill = take / 24 - res.length;
@@ -106,7 +102,7 @@ export const appRouter = t.router({
           );
           return res.concat(emptyEntries).reverse();
         })
-        .catch((err) => {
+        .catch((err): Volume[] => {
           logger.error(err);
           return [];
         });
@@ -118,108 +114,21 @@ export const appRouter = t.router({
         take: z.number(),
       })
     )
+    .output(z.array(zodTVL))
     .query(async ({ input, ctx }) => {
       const { address, take } = input;
-      return ctx.prisma.analytics
-        .findMany({
-          where: {
-            poolAddress: address,
-          },
-          select: {
-            token0Locked: true,
-            token1Locked: true,
-            usdLocked: true,
-            date: true,
-          },
-          orderBy: {
-            date: "desc",
-          },
-          take,
+      return ctx.prisma.$queryRaw<TVL[]>`
+        SELECT DATE(date) as dateFormatted, ROUND(AVG(usdLocked), 0) as avgUsdLocked
+        FROM Analytics
+        WHERE poolAddress = ${address}
+        GROUP BY dateFormatted, poolAddress
+        ORDER BY dateFormatted DESC;
+      `
+        .then((tvl) => {
+          console.log(tvl);
+          return tvl;
         })
-        .then((analytics) => {
-          if (analytics.length === 0) return [];
-          const res: TVL[] = [];
-
-          analytics.forEach((analytic, i) => {
-            if (i % 24 === 0) {
-              res.push(analytic);
-            }
-          });
-
-          return res.reverse();
-        })
-        .catch((err) => {
-          logger.error(err);
-          return [];
-        });
-    }),
-  getAnalytics: t.procedure
-    .input(
-      z.object({
-        address: z.string(),
-        take: z.number(),
-      })
-    )
-    .output(
-      z.array(
-        z.object({ volume: z.number(), usdLocked: z.number(), date: z.date() })
-      )
-    )
-    .query(async ({ input, ctx }) => {
-      const { address, take } = input;
-      return ctx.prisma.analytics
-        .findMany({
-          where: {
-            poolAddress: address,
-          },
-          select: {
-            volume: true,
-            usdLocked: true,
-            date: true,
-          },
-          orderBy: {
-            date: "desc",
-          },
-          take,
-        })
-        .then((analytics) => {
-          if (analytics.length === 0) return [];
-          const res: Analytics[] = [];
-
-          let acc = 0;
-          let date = analytics[0].date;
-          analytics.forEach((analytic, i) => {
-            if (
-              date.getDay() !== analytic.date.getDay() ||
-              i === analytics.length - 1
-            ) {
-              res.push({
-                date,
-                volume: acc,
-                usdLocked: analytic.usdLocked,
-              });
-              acc = 0;
-              date = analytic.date;
-              return;
-            }
-
-            acc += Number(analytic.volume);
-          });
-
-          const nbEntriesToFill = take / 24 - res.length;
-          const emptyEntries: Analytics[] = Array.from(
-            { length: nbEntriesToFill },
-            (_, i) => ({
-              volume: 0,
-              usdLocked: 0,
-              date: new Date(
-                res[res.length - 1].date.getTime() - ONE_DAY * (i + 1)
-              ),
-            })
-          );
-          return res.concat(emptyEntries).reverse();
-        })
-        .catch((err) => {
+        .catch((err): TVL[] => {
           logger.error(err);
           return [];
         });
@@ -384,10 +293,10 @@ export const expressMiddleware = trpcExpress.createExpressMiddleware({
     const { ctx, paths, errors, type } = opts;
     // checking that no procedures errored
     const allOk = errors.length === 0;
+
     // checking we're doing a query request
     const isQuery = type === "query";
     if (ctx?.res && allOk && isQuery) {
-      console.log("setting cache");
       return {
         headers: {
           "cache-control": `stale-while-revalidate=${ONE_HOUR / 1000}`,

@@ -62,10 +62,11 @@ const subscribeNewSlotExecutionOutputs = async (
       events.forEach((event) => {
         if (!event.context) return;
 
-        console.log(event.context.callStack, event.data);
+        // console.log(event.context.callStack, event.data);
         if (event.context.callStack.includes(dcaSC)) {
           const swapEvents = events.filter((e) => e.data.startsWith("SWAP:"));
           console.log(event.data);
+          message.output?.executionOutput?.stateChanges?.asyncPoolChanges;
           // processSwap(event.context.originOperationId, event.context.indexInSlot, )
         }
       });
@@ -118,8 +119,8 @@ const subscribeNewOperations = async (host: string = grpcDefaultHost) => {
 
 // Start gRPC subscriptions
 
-// subscribeNewSlotExecutionOutputs();
-subscribeNewOperations();
+subscribeNewSlotExecutionOutputs();
+// subscribeNewOperations();
 
 // Start cron jobs
 

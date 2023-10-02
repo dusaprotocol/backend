@@ -11,14 +11,19 @@ import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
 import { Token } from "@prisma/client";
 import { Bin, PairV2 } from "@dusalabs/sdk";
-
-const REAL_ID_SHIFT = 2 ** 17;
+import { ScExecutionEvent } from "../indexer/gen/ts/massa/model/v1/execution";
 
 export const getPriceFromId = Bin.getPriceFromId;
 export const getIdFromPrice = Bin.getIdFromPrice;
 
-export const getCallee = (event: IEvent): string =>
-  event.context.call_stack[event.context.call_stack.length - 1];
+export const getCallee = (
+  event: IEvent | Required<ScExecutionEvent>
+): string => {
+  if ("callStack" in event.context) {
+    return event.context.callStack[event.context.callStack.length - 1];
+  }
+  return event.context.call_stack[event.context.call_stack.length - 1];
+};
 
 export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
   web3Client
@@ -51,6 +56,10 @@ export const fetchPairBinSteps = async (
     })
     .then((res) => {
       return bytesToArray<number>(res.returnValue, ArrayTypes.U32);
+    })
+    .catch((err) => {
+      logger.warn(err);
+      return [];
     });
 
 export const fetchPairAddress = async (

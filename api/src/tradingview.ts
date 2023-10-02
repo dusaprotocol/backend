@@ -125,7 +125,7 @@ export const getBars = async (
     newPrices.c[index] = price.close;
     newPrices.h[index] = price.high;
     newPrices.l[index] = price.low;
-    newPrices.v[index] = prices[i].volume;
+    newPrices.v[index] = price.volume;
   }
 
   return {

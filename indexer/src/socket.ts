@@ -6,10 +6,12 @@ import {
   getPriceFromId,
   getTokenValue,
 } from "../../common/methods";
-import { getClosestTick } from "../../common/utils";
+import { getClosestTick, multiplyWithFloat } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams } from "./decoder";
 import { fetchNewAnalytics } from "./crons";
+import { Token, TokenAmount } from "@dusalabs/sdk";
+import { CHAIN_ID } from "../../common/client";
 
 // EVENT PROCESSING
 
@@ -23,7 +25,7 @@ export const processSwap = (
   tokenOut: string,
   binStep: number,
   swapEvents: IEvent[],
-  swapParams: SwapParams
+  swapParams?: SwapParams
 ) => {
   let binId = 0;
   let price = 0;
@@ -60,12 +62,10 @@ export const processSwap = (
     );
     if (!tokenInDecimals) return;
 
-    const volume = Math.round(
-      Number(amountIn / BigInt(10 ** tokenInDecimals)) * valueIn
-    );
-    const fees = Math.round(
-      Number(totalFees / BigInt(10 ** tokenInDecimals)) * valueIn * 100
-    ); // fees are stored in cents
+    const token = new Token(CHAIN_ID, tokenIn, tokenInDecimals);
+    const volume = multiplyWithFloat(new TokenAmount(token, amountIn), valueIn);
+    const fees = multiplyWithFloat(new TokenAmount(token, totalFees), valueIn);
+    // fees are stored in cents
     updateVolumeAndPrice(poolAddress, binStep, volume, fees, price);
 
     prisma.swap
