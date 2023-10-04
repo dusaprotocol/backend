@@ -23,20 +23,4 @@ jobs:
           SCRIPT_AFTER: |
             npm install -g pnpm
             cd backend
-            git pull
-            pnpm install
-            cd indexer
-            pnpm install
-            screen -ls
-            screen -S indexer -X quit
-            screen -ls
-            screen -S indexer -d -m pnpm start
-            screen -ls
-            cd ../api
-            pnpm install
-            screen -S api -X quit
-            screen -ls
-            screen -S api -d -m pnpm start
-            screen -ls
-            cd ../../
-            echo $RSYNC_STDOUT
+            npm start
