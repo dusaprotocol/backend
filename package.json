@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "prisma db pull && prisma generate",
-    "start": "pnpm install && cd indexer && pnpm install && screen -ls && screen -S indexer -X quit && screen -ls && screen -S indexer -d -m pnpm start && screen -ls && cd ../api && pnpm install && screen -S api -X quit && screen -ls && screen -S api -d -m pnpm start && screen -ls && cd ../../ && echo $RSYNC_STDOUT",
+    "start": "pnpm install && cd indexer && pnpm install && screen -S indexer -X quit ; screen -S indexer -d -m pnpm start ; cd ../api && pnpm install && screen -S api -X quit ; screen -S api -d -m pnpm start ; echo $RSYNC_STDOUT",
     "test": "vitest",
     "reset": "prisma migrate reset --force && prisma db push",
     "seed": "ts-node ./api/src/seed.ts"
