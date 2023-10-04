@@ -23,4 +23,5 @@ jobs:
           SCRIPT_AFTER: |
             npm install -g pnpm
             cd backend
+            git pull
             npm start
