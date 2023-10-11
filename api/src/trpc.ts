@@ -399,7 +399,7 @@ export const appRouter = t.router({
               );
 
               const priceChange = today.length
-                ? today[today.length - 1].close - today[0].open
+                ? (today[today.length - 1].close - today[0].open) * -1
                 : 0;
               const pricePctChange =
                 today.length && today[0].open !== 0
