@@ -61,9 +61,9 @@ model Swap {
   amountOut   BigInt
   timestamp   DateTime
   txHash      String
-  indexInSlot Int      @default(1)
   usdValue    Float
   userAddress String
+  indexInSlot Int      @default(1)
   pool        Pool     @relation(fields: [poolAddress], references: [address])
   user        User     @relation(fields: [userAddress], references: [address])
 
@@ -76,11 +76,11 @@ model Liquidity {
   amount1     BigInt
   timestamp   DateTime
   txHash      String
-  indexInSlot Int      @default(1)
   lowerBound  Int
   upperBound  Int
   usdValue    Float
   userAddress String
+  indexInSlot Int      @default(1)
   pool        Pool     @relation(fields: [poolAddress], references: [address])
   user        User     @relation(fields: [userAddress], references: [address])
 
