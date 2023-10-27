@@ -1,5 +1,5 @@
 version: v1
 directories:
-    - massa-proto/proto/apis
-    - massa-proto/proto/commons
-    - massa-proto/proto/third_party
+    - node_modules/massa-proto/proto/apis
+    - node_modules/massa-proto/proto/commons
+    - node_modules/massa-proto/proto/third_party

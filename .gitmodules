@@ -1,3 +1,0 @@
-[submodule "indexer/massa-proto"]
-	path = indexer/massa-proto
-	url = https://github.com/massalabs/massa-proto.git
