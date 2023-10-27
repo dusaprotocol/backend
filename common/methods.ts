@@ -12,8 +12,6 @@ import logger from "./logger";
 import { Token } from "@prisma/client";
 import { Bin, PairV2 } from "@dusalabs/sdk";
 
-const REAL_ID_SHIFT = 2 ** 17;
-
 export const getPriceFromId = Bin.getPriceFromId;
 export const getIdFromPrice = Bin.getIdFromPrice;
 
