@@ -14,9 +14,6 @@ dependencies:
   '@prisma/client':
     specifier: ^5.4.2
     version: 5.4.2(prisma@5.4.2)
-  dotenv:
-    specifier: ^16.3.1
-    version: 16.3.1
   winston:
     specifier: ^3.11.0
     version: 3.11.0
