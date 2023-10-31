@@ -23,7 +23,9 @@ export const fillAnalytics = () => {
 
   getPools().then((pools) => {
     pools.forEach(async (pool) => {
-      fetchNewAnalytics(pool.address, pool.binStep);
+      fetchNewAnalytics(pool.address, pool.binStep).catch(
+        (e) => logger.warn(e.message) && logger.warn(e.toString())
+      );
     });
   });
 };

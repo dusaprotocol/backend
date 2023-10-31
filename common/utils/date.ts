@@ -5,9 +5,11 @@ import { web3Client } from "../client";
 export const ONE_MINUTE = 60 * 1000;
 export const ONE_HOUR = 60 * ONE_MINUTE;
 export const ONE_DAY = 24 * ONE_HOUR;
+export const ONE_PERIOD = 16_000;
+
+// (changes here should be reflected in the interface)
 export const TIME_BETWEEN_TICKS = 5 * ONE_MINUTE;
 export const TICKS_PER_DAY = ONE_DAY / TIME_BETWEEN_TICKS;
-export const PERIOD_DURATION = 16_000;
 
 // Cron expressions
 export const EVERY_TICK = "*/5 * * * *" as const;
@@ -23,8 +25,8 @@ export const parseTimestamp = (
   const elapsedInMs = timestamp - genesisTimestamp;
 
   return {
-    period: Math.floor(elapsedInMs / PERIOD_DURATION),
-    thread: Math.floor(((elapsedInMs % PERIOD_DURATION) / 1000) * 2),
+    period: Math.floor(elapsedInMs / ONE_PERIOD),
+    thread: Math.floor(((elapsedInMs % ONE_PERIOD) / 1000) * 2),
   };
 };
 

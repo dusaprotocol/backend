@@ -55,19 +55,22 @@ export const appRouter = t.router({
     .input(
       z.object({
         address: z.string(),
-        take: z.number(),
+        take: z.union([
+          z.literal(7 * TICKS_PER_DAY),
+          z.literal(30 * TICKS_PER_DAY),
+        ]),
       })
     )
     .query(async ({ input, ctx }) => {
       const { address, take } = input;
       return ctx.prisma.analytics
         .findMany({
-          where: {
-            poolAddress: address,
-          },
           select: {
             volume: true,
             date: true,
+          },
+          where: {
+            poolAddress: address,
           },
           orderBy: {
             date: "desc",
@@ -115,21 +118,24 @@ export const appRouter = t.router({
     .input(
       z.object({
         address: z.string(),
-        take: z.number(),
+        take: z.union([
+          z.literal(7 * TICKS_PER_DAY),
+          z.literal(30 * TICKS_PER_DAY),
+        ]),
       })
     )
     .query(async ({ input, ctx }) => {
       const { address, take } = input;
       return ctx.prisma.analytics
         .findMany({
-          where: {
-            poolAddress: address,
-          },
           select: {
             token0Locked: true,
             token1Locked: true,
             usdLocked: true,
             date: true,
+          },
+          where: {
+            poolAddress: address,
           },
           orderBy: {
             date: "desc",
@@ -141,7 +147,7 @@ export const appRouter = t.router({
           const res: TVL[] = [];
 
           analytics.forEach((analytic, i) => {
-            if (i % 24 === 0) {
+            if (i % TICKS_PER_DAY === 0) {
               res.push(analytic);
             }
           });
@@ -153,85 +159,18 @@ export const appRouter = t.router({
           return [];
         });
     }),
-  getAnalytics: t.procedure
-    .input(
-      z.object({
-        address: z.string(),
-        take: z.number(),
-      })
-    )
-    .output(
-      z.array(
-        z.object({ volume: z.number(), usdLocked: z.number(), date: z.date() })
-      )
-    )
-    .query(async ({ input, ctx }) => {
-      const { address, take } = input;
-      return ctx.prisma.analytics
-        .findMany({
-          where: {
-            poolAddress: address,
-          },
-          select: {
-            volume: true,
-            usdLocked: true,
-            date: true,
-          },
-          orderBy: {
-            date: "desc",
-          },
-          take,
-        })
-        .then((analytics) => {
-          if (analytics.length === 0) return [];
-          const res: Analytics[] = [];
-
-          let acc = 0;
-          let date = analytics[0].date;
-          analytics.forEach((analytic, i) => {
-            if (
-              date.getDay() !== analytic.date.getDay() ||
-              i === analytics.length - 1
-            ) {
-              res.push({
-                date,
-                volume: acc,
-                usdLocked: analytic.usdLocked,
-              });
-              acc = 0;
-              date = analytic.date;
-              return;
-            }
-
-            acc += Number(analytic.volume);
-          });
-
-          const nbEntriesToFill = take / 24 - res.length;
-          const emptyEntries: Analytics[] = Array.from(
-            { length: nbEntriesToFill },
-            (_, i) => ({
-              volume: 0,
-              usdLocked: 0,
-              date: new Date(
-                res[res.length - 1].date.getTime() - ONE_DAY * (i + 1)
-              ),
-            })
-          );
-          return res.concat(emptyEntries).reverse();
-        })
-        .catch((err) => {
-          logger.error(err);
-          return [];
-        });
-    }),
   get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
     return ctx.prisma.analytics
       .findMany({
+        select: {
+          volume: true,
+          fees: true,
+          date: true,
+        },
         where: {
           poolAddress: input,
           date: {
-            // greater than 48h ago to calculate 24h change
-            gt: new Date(Date.now() - ONE_DAY * 2),
+            gt: new Date(Date.now() - ONE_DAY * 2), // greater than 48h ago to calculate 24h change
           },
         },
         orderBy: {
@@ -276,7 +215,7 @@ export const appRouter = t.router({
         };
       })
       .catch((err) => {
-        logger.error(err);
+        logger.error(err.message);
         return {
           fees: 0,
           volume: 0,
@@ -298,6 +237,7 @@ export const appRouter = t.router({
 
       // Retrieve pools which include either token0 or token1
       const pools = await ctx.prisma.pool.findMany({
+        select: { address: true, token0Address: true, token1Address: true },
         where: {
           OR: [
             { token0Address },
@@ -377,6 +317,13 @@ export const appRouter = t.router({
           calculateVolume(token1Address),
           ctx.prisma.analytics
             .findMany({
+              select: {
+                date: true,
+                high: true,
+                low: true,
+                close: true,
+                open: true,
+              },
               where: {
                 poolAddress,
                 date: { gt: new Date(Date.now() - ONE_DAY) },
@@ -409,7 +356,7 @@ export const appRouter = t.router({
               return { high, low, priceChange, pricePctChange };
             })
             .catch((err) => {
-              logger.error(err);
+              logger.error(err.toString());
               return { high: 0, low: 0, priceChange: 0, pricePctChange: 0 };
             }),
         ]);
@@ -488,6 +435,13 @@ export const appRouter = t.router({
       const { poolAddress, take } = input;
       return ctx.prisma.analytics
         .findMany({
+          select: {
+            open: true,
+            close: true,
+            high: true,
+            low: true,
+            date: true,
+          },
           where: {
             poolAddress,
           },
