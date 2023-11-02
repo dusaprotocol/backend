@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   '@dusalabs/sdk':
-    specifier: ^0.2.19
-    version: 0.2.19(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4)
+    specifier: ^0.2.34
+    version: 0.2.34(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4)
   '@massalabs/massa-web3':
     specifier: 1.24.2
     version: 1.24.2(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4)
@@ -404,8 +404,8 @@ packages:
     engines: {node: '>=10.0.0'}
     dev: false
 
-  /@dusalabs/sdk@0.2.19(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4):
-    resolution: {integrity: sha512-oqpE+1zDmgF0x913Bjizqg5YRMd5D5EGyE1ju1Z/IZPuQ+u6SIrtQg645ov53WolSecXGxLyiG0/v+PU1B6wHQ==}
+  /@dusalabs/sdk@0.2.34(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4):
+    resolution: {integrity: sha512-Qz1mnHvTnBCmuqxVaXJUNbtNpPN+hoUPpN+K6ds+2cbF48K/AHRKXtWDsdEL4P1oqMRZF/sVe90wqtI7DkbpWA==}
     engines: {node: '>=10'}
     dependencies:
       '@massalabs/massa-web3': 1.24.2(@babel/core@7.22.11)(@types/node@20.3.1)(jest@29.6.4)
