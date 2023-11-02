@@ -103,10 +103,10 @@ model DCA {
   startTime     DateTime
   tokenIn       String
   tokenOut      String
+  poolAddress   String
   execution     DCAExecution[]
   User          User           @relation(fields: [userAddress], references: [address])
-  Pool          Pool?          @relation(fields: [poolAddress], references: [address])
-  poolAddress   String?
+  Pool          Pool           @relation(fields: [poolAddress], references: [address])
 }
 
 model DCAExecution {
@@ -115,8 +115,8 @@ model DCAExecution {
   amountIn  BigInt
   amountOut BigInt
   timestamp DateTime
-  dCAId     Int?
-  DCA       DCA?     @relation(fields: [dCAId], references: [id])
+  dCAId     Int
+  DCA       DCA      @relation(fields: [dCAId], references: [id])
 }
 
 model Order {
@@ -127,8 +127,8 @@ model Order {
   amountIn     BigInt
   amountOutMin BigInt
   deadline     DateTime
-  User         User?    @relation(fields: [userAddress], references: [address])
-  userAddress  String?
+  userAddress  String
+  User         User     @relation(fields: [userAddress], references: [address])
   Pool         Pool     @relation(fields: [poolAddress], references: [address])
 }
 

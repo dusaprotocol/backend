@@ -24,13 +24,13 @@ export interface SwapParams {
 const extractAmountInOut = (method: string, args: Args) => {
   switch (method) {
     case "swapExactTokensForTokens": {
-      const amountIn = args.nextU64();
-      const amountOutMin = args.nextU64();
+      const amountIn = args.nextU256();
+      const amountOutMin = args.nextU256();
       return { amountIn, amountOut: amountOutMin };
     }
     case "swapTokensForExactTokens": {
-      const amountOut = args.nextU64();
-      const amountInMax = args.nextU64();
+      const amountOut = args.nextU256();
+      const amountInMax = args.nextU256();
       return { amountIn: amountInMax, amountOut };
     }
     default: {
@@ -78,15 +78,15 @@ export const decodeLiquidityTx = async (
     const binStep = args.nextU32();
 
     if (isAdd) {
-      const amount0 = args.nextU64();
-      const amount1 = args.nextU64();
-      const amount0Min = args.nextU64();
-      const amount1Min = args.nextU64();
+      const amount0 = args.nextU256();
+      const amount1 = args.nextU256();
+      const amount0Min = args.nextU256();
+      const amount1Min = args.nextU256();
       const activeIdDesired = Number(args.nextU64());
       const idSlippage = Number(args.nextU64());
       const deltaIds = args.nextArray<number>(ArrayTypes.I64);
-      const distribution0 = args.nextArray<bigint>(ArrayTypes.U64);
-      const distribution1 = args.nextArray<bigint>(ArrayTypes.U64);
+      const distribution0 = args.nextArray<bigint>(ArrayTypes.U256);
+      const distribution1 = args.nextArray<bigint>(ArrayTypes.U256);
       const to = args.nextString();
       const deadline = Number(args.nextU64());
 
@@ -107,10 +107,10 @@ export const decodeLiquidityTx = async (
         deadline,
       };
     } else {
-      const amount0Min = args.nextU64();
-      const amount1Min = args.nextU64();
+      const amount0Min = args.nextU256();
+      const amount1Min = args.nextU256();
       const ids = args.nextArray<number>(ArrayTypes.U64);
-      const amounts = args.nextArray<bigint>(ArrayTypes.U64);
+      const amounts = args.nextArray<bigint>(ArrayTypes.U256);
       const to = args.nextString();
       const deadline = Number(args.nextU64());
 
