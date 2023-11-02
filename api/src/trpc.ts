@@ -13,12 +13,8 @@ type Volume = Prisma.AnalyticsGetPayload<{
   };
 }>;
 
-type TVL = Prisma.AnalyticsGetPayload<{
-  select: {
-    usdLocked: true;
-    date: true;
-  };
-}>;
+const zodTVL = z.object({ avgUsdLocked: z.number(), dateFormatted: z.date() });
+type TVL = z.infer<typeof zodTVL>;
 
 type Analytics = Prisma.AnalyticsGetPayload<{
   select: {
@@ -94,7 +90,7 @@ export const appRouter = t.router({
               return;
             }
 
-            acc += Number(analytic.volume);
+            acc += analytic.volume;
           });
 
           const nbEntriesToFill = take / 24 - res.length;
@@ -109,7 +105,7 @@ export const appRouter = t.router({
           );
           return res.concat(emptyEntries).reverse();
         })
-        .catch((err) => {
+        .catch((err): Volume[] => {
           logger.error(err);
           return [];
         });
@@ -124,6 +120,7 @@ export const appRouter = t.router({
         ]),
       })
     )
+    .output(z.array(zodTVL))
     .query(async ({ input, ctx }) => {
       const { address, take } = input;
       return ctx.prisma.analytics
@@ -486,6 +483,47 @@ export const appRouter = t.router({
           return [];
         });
     }),
+  getDCAs: t.procedure
+    .input(
+      z.object({
+        userAddress: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { userAddress } = input;
+      return ctx.prisma.dCA
+        .findMany({
+          where: {
+            userAddress,
+          },
+          include: {
+            execution: true,
+          },
+        })
+        .catch((err) => {
+          logger.error(err);
+          return [];
+        });
+    }),
+  getOrders: t.procedure
+    .input(
+      z.object({
+        userAddress: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { userAddress } = input;
+      return ctx.prisma.order
+        .findMany({
+          where: {
+            userAddress,
+          },
+        })
+        .catch((err) => {
+          logger.error(err);
+          return [];
+        });
+    }),
 });
 
 export const expressMiddleware = trpcExpress.createExpressMiddleware({
@@ -495,10 +533,10 @@ export const expressMiddleware = trpcExpress.createExpressMiddleware({
     const { ctx, paths, errors, type } = opts;
     // checking that no procedures errored
     const allOk = errors.length === 0;
+
     // checking we're doing a query request
     const isQuery = type === "query";
     if (ctx?.res && allOk && isQuery) {
-      console.log("setting cache");
       return {
         headers: {
           "cache-control": `stale-while-revalidate=${ONE_HOUR / 1000}`,

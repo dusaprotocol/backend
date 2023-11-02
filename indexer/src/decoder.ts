@@ -2,6 +2,7 @@ import { Args, ArrayTypes } from "@massalabs/massa-web3";
 import {
   AddLiquidityParameters,
   Address,
+  StartDCAParameters,
   ChainId,
   LiquidityParameters,
   RemoveLiquidityParameters,
@@ -40,7 +41,7 @@ const extractAmountInOut = (method: string, args: Args) => {
 
 export const decodeSwapTx = async (
   method: string,
-  params: Uint8Array | undefined
+  params: Uint8Array
 ): Promise<SwapParams | undefined> => {
   try {
     const args = new Args(params);
@@ -68,7 +69,7 @@ type DecodedLiquidity = AddLiquidityParameters | RemoveLiquidityParameters;
 
 export const decodeLiquidityTx = async (
   isAdd: boolean,
-  params: Uint8Array | undefined
+  params: Uint8Array
 ): Promise<DecodedLiquidity | undefined> => {
   try {
     const args = new Args(params);
@@ -125,6 +126,37 @@ export const decodeLiquidityTx = async (
         deadline,
       };
     }
+  } catch (e) {
+    console.log(e);
+  }
+};
+
+export const decodeDcaTx = (
+  params: Uint8Array
+): (StartDCAParameters & { startTime: Date; endTime: Date }) | undefined => {
+  try {
+    const args = new Args(params);
+    const amountEachDCA = args.nextU256();
+    const interval = Number(args.nextU64());
+    const nbOfDCA = Number(args.nextU64());
+    const tokenIn = args.nextString();
+    const tokenOut = args.nextString();
+    const startIn = Number(args.nextU64());
+
+    const startTime = Date.now() + startIn;
+    const endTime =
+      nbOfDCA == 0 ? Infinity : startTime + (interval * (2 * nbOfDCA - 1)) / 2;
+
+    return {
+      amountEachDCA,
+      interval,
+      nbOfDCA,
+      tokenIn,
+      tokenOut,
+      startIn,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+    };
   } catch (e) {
     console.log(e);
   }

@@ -11,8 +11,8 @@ import {
   NewSlotExecutionOutputsRequest,
   OpType,
 } from "./gen/ts/massa/api/v1/api";
-import { dcaSC, routerSC } from "../common/contracts";
-import { decodeLiquidityTx, decodeSwapTx } from "./src/decoder";
+import { dcaSC, orderSC, routerSC } from "../common/contracts";
+import { decodeDcaTx, decodeLiquidityTx, decodeSwapTx } from "./src/decoder";
 import { Operation } from "./gen/ts/massa/model/v1/operation";
 import {
   ONE_MINUTE,
@@ -22,8 +22,9 @@ import {
 } from "../common/utils";
 import { fetchPairAddress, getCallee } from "../common/methods";
 import { SWAP_ROUTER_METHODS, LIQUIDITY_ROUTER_METHODS } from "@dusalabs/sdk";
-import { ExecutionOutputStatus } from "./gen/ts/massa/model/v1/execution";
 import { analyticsCron } from "./src/crons";
+import { prisma } from "../common/db";
+import { Status } from "@prisma/client";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
@@ -42,7 +43,7 @@ const subscribeNewSlotExecutionOutputs = async (
     id: "1",
     query: {
       filter: {
-        status: [ExecutionOutputStatus.FINAL],
+        status: [2],
       },
     },
   };
@@ -62,10 +63,11 @@ const subscribeNewSlotExecutionOutputs = async (
       events.forEach((event) => {
         if (!event.context) return;
 
-        console.log(event.context.callStack, event.data);
+        // console.log(event.context.callStack, event.data);
         if (event.context.callStack.includes(dcaSC)) {
           const swapEvents = events.filter((e) => e.data.startsWith("SWAP:"));
           console.log(event.data);
+          message.output?.executionOutput?.stateChanges?.asyncPoolChanges;
           // processSwap(event.context.originOperationId, event.context.indexInSlot, )
         }
       });
@@ -118,8 +120,8 @@ const subscribeNewOperations = async (host: string = grpcDefaultHost) => {
 
 // Start gRPC subscriptions
 
-// subscribeNewSlotExecutionOutputs();
-subscribeNewOperations();
+subscribeNewSlotExecutionOutputs();
+// subscribeNewOperations();
 
 // Start cron jobs
 
@@ -136,12 +138,50 @@ async function processOperation(
   if (opType?.oneofKind !== "callSc") return;
 
   const { targetAddr, targetFunc, param } = opType.callSc;
+
+  // PERIPHERY CONTRACTS
+
   if (targetAddr === dcaSC) {
-    if (targetFunc === "dca") {
-    } else if (targetFunc === "stopDca") {
-    } else if (targetFunc === "updateDCA") {
-    } else return;
+    switch (targetFunc) {
+      case "startDca":
+        const dca = decodeDcaTx(param);
+
+        await awaitOperationStatus(txId);
+        const events = await fetchEvents({ original_operation_id: txId });
+        const id = parseInt(
+          events
+            .find((e) => e.data.startsWith("DCA_ADDED:"))
+            ?.data.split(",")[1] as string
+        );
+        if (!dca || !id) return;
+
+        prisma.dCA.create({
+          data: {
+            ...dca,
+            userAddress: caller,
+            txHash: txId,
+            id,
+            status: Status.ACTIVE,
+          },
+        });
+      case "stopDca":
+      case "updateDCA":
+      default:
+        break;
+    }
+    return;
+  } else if (targetAddr === orderSC) {
+    switch (targetFunc) {
+      case "addLimitOrder":
+      case "removeLimitOrder":
+        break;
+      default:
+        break;
+    }
+    return;
   }
+
+  // CORE CONTRACTS
 
   if (targetAddr !== routerSC) return;
 

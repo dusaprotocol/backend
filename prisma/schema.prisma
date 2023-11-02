@@ -13,6 +13,8 @@ model User {
   address      String      @unique
   swapTxs      Swap[]
   liquidityTxs Liquidity[]
+  dcas         DCA[]
+  orders       Order[]
 }
 
 model Token {
@@ -29,11 +31,13 @@ model Pool {
   binStep       Int
   token0Address String
   token1Address String
-  token0        Token       @relation("pool0", fields: [token0Address], references: [address])
-  token1        Token       @relation("pool1", fields: [token1Address], references: [address])
+  token0        Token       @relation("pool0", fields: [token0Address], references: [address], onDelete: Cascade)
+  token1        Token       @relation("pool1", fields: [token1Address], references: [address], onDelete: Cascade)
   analytics     Analytics[]
   swapTxs       Swap[]
   liquidityTxs  Liquidity[]
+  dcas          DCA[]
+  orders        Order[]
 }
 
 model Analytics {
@@ -48,7 +52,7 @@ model Analytics {
   low          Float
   open         Float
   poolAddress  String
-  pool         Pool     @relation(fields: [poolAddress], references: [address])
+  pool         Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
 
   @@id([poolAddress, date])
 }
@@ -64,7 +68,7 @@ model Swap {
   usdValue    Float
   userAddress String
   indexInSlot Int      @default(1)
-  pool        Pool     @relation(fields: [poolAddress], references: [address])
+  pool        Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
   user        User     @relation(fields: [userAddress], references: [address])
 
   @@id([txHash, indexInSlot])
@@ -81,8 +85,55 @@ model Liquidity {
   usdValue    Float
   userAddress String
   indexInSlot Int      @default(1)
-  pool        Pool     @relation(fields: [poolAddress], references: [address])
+  pool        Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
   user        User     @relation(fields: [userAddress], references: [address])
 
   @@id([txHash, indexInSlot])
+}
+
+model DCA {
+  id            Int            @id
+  txHash        String
+  userAddress   String
+  status        Status
+  amountEachDCA BigInt
+  endTime       DateTime
+  interval      Int
+  nbOfDCA       Int
+  startTime     DateTime
+  tokenIn       String
+  tokenOut      String
+  execution     DCAExecution[]
+  User          User           @relation(fields: [userAddress], references: [address])
+  Pool          Pool?          @relation(fields: [poolAddress], references: [address])
+  poolAddress   String?
+}
+
+model DCAExecution {
+  id        Int      @id
+  txHash    String
+  amountIn  BigInt
+  amountOut BigInt
+  timestamp DateTime
+  dCAId     Int?
+  DCA       DCA?     @relation(fields: [dCAId], references: [id])
+}
+
+model Order {
+  id           Int      @id
+  txHash       String
+  poolAddress  String
+  swapForY     Boolean
+  amountIn     BigInt
+  amountOutMin BigInt
+  deadline     DateTime
+  User         User?    @relation(fields: [userAddress], references: [address])
+  userAddress  String?
+  Pool         Pool     @relation(fields: [poolAddress], references: [address])
+}
+
+enum Status {
+  ACTIVE
+  STOPPED
+  ENDED
 }
