@@ -85,6 +85,14 @@ export const getBars = async (
 
   const prices = await prisma.analytics
     .findMany({
+      select: {
+        date: true,
+        open: true,
+        high: true,
+        low: true,
+        close: true,
+        volume: true,
+      },
       where: {
         poolAddress: symbol,
         date: {

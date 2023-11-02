@@ -183,7 +183,7 @@ export const updateVolumeAndPrice = async (
     .findMany({
       where: {
         poolAddress,
-        date: date.toISOString(),
+        date,
       },
     })
     .then((e) => {
@@ -196,10 +196,7 @@ export const updateVolumeAndPrice = async (
     });
   if (!curr) {
     logger.warn(
-      "No analytics entry found for pool " +
-        poolAddress +
-        " at date " +
-        date.toISOString()
+      `No analytics entry found for pool ${poolAddress} at date ${date.toString()}`
     );
     fetchNewAnalytics(poolAddress, binStep);
     return;

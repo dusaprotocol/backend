@@ -7,8 +7,7 @@
   "scripts": {
     "start": "ts-node main.ts",
     "dev": "nodemon main.ts",
-    "build": "buf generate",
-    "postinstall": "git submodule update --init --recursive && npm run build"
+    "postinstall": "buf generate"
   },
   "dependencies": {
     "@bufbuild/buf": "1.26.1",
@@ -17,12 +16,11 @@
     "@protobuf-ts/plugin": "^2.9.1",
     "@protobuf-ts/runtime": "^2.9.1",
     "@protobuf-ts/runtime-rpc": "^2.9.1",
+    "massa-proto": "github:massalabs/massa-proto#a20f10ab2d16043b8a05ee08a4c879a7e44b582e",
     "node-cron": "^3.0.2"
   },
   "devDependencies": {
-    "@types/node-cron": "^3.0.7",
-    "nodemon": "^2.0.22",
-    "ts-node": "^10.9.1"
+    "@types/node-cron": "^3.0.7"
   },
   "keywords": [],
   "author": "",

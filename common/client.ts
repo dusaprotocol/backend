@@ -1,4 +1,3 @@
-import * as dotenv from "dotenv";
 import {
   Client,
   DefaultProviderUrls,
@@ -6,8 +5,6 @@ import {
   ProviderType,
 } from "@massalabs/massa-web3";
 import { ChainId } from "@dusalabs/sdk";
-
-dotenv.config();
 
 const url = DefaultProviderUrls.BUILDNET;
 const providers: IProvider[] = [

@@ -51,19 +51,22 @@ export const appRouter = t.router({
     .input(
       z.object({
         address: z.string(),
-        take: z.number(),
+        take: z.union([
+          z.literal(7 * TICKS_PER_DAY),
+          z.literal(30 * TICKS_PER_DAY),
+        ]),
       })
     )
     .query(async ({ input, ctx }) => {
       const { address, take } = input;
       return ctx.prisma.analytics
         .findMany({
-          where: {
-            poolAddress: address,
-          },
           select: {
             volume: true,
             date: true,
+          },
+          where: {
+            poolAddress: address,
           },
           orderBy: {
             date: "desc",
@@ -111,24 +114,44 @@ export const appRouter = t.router({
     .input(
       z.object({
         address: z.string(),
-        take: z.number(),
+        take: z.union([
+          z.literal(7 * TICKS_PER_DAY),
+          z.literal(30 * TICKS_PER_DAY),
+        ]),
       })
     )
     .output(z.array(zodTVL))
     .query(async ({ input, ctx }) => {
       const { address, take } = input;
-      return ctx.prisma.$queryRaw<TVL[]>`
-        SELECT DATE(date) as dateFormatted, ROUND(AVG(usdLocked), 0) as avgUsdLocked
-        FROM Analytics
-        WHERE poolAddress = ${address}
-        GROUP BY dateFormatted, poolAddress
-        ORDER BY dateFormatted DESC;
-      `
-        .then((tvl) => {
-          console.log(tvl);
-          return tvl;
+      return ctx.prisma.analytics
+        .findMany({
+          select: {
+            token0Locked: true,
+            token1Locked: true,
+            usdLocked: true,
+            date: true,
+          },
+          where: {
+            poolAddress: address,
+          },
+          orderBy: {
+            date: "desc",
+          },
+          take,
         })
-        .catch((err): TVL[] => {
+        .then((analytics) => {
+          if (analytics.length === 0) return [];
+          const res: TVL[] = [];
+
+          analytics.forEach((analytic, i) => {
+            if (i % TICKS_PER_DAY === 0) {
+              res.push(analytic);
+            }
+          });
+
+          return res.reverse();
+        })
+        .catch((err) => {
           logger.error(err);
           return [];
         });
@@ -136,11 +159,15 @@ export const appRouter = t.router({
   get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
     return ctx.prisma.analytics
       .findMany({
+        select: {
+          volume: true,
+          fees: true,
+          date: true,
+        },
         where: {
           poolAddress: input,
           date: {
-            // greater than 48h ago to calculate 24h change
-            gt: new Date(Date.now() - ONE_DAY * 2),
+            gt: new Date(Date.now() - ONE_DAY * 2), // greater than 48h ago to calculate 24h change
           },
         },
         orderBy: {
@@ -177,10 +204,15 @@ export const appRouter = t.router({
           volumeYesterday === 0
             ? 0
             : ((volume - volumeYesterday) / volumeYesterday) * 100;
-        return { fees, volume, feesPctChange, volumePctChange };
+        return {
+          fees,
+          volume,
+          feesPctChange,
+          volumePctChange,
+        };
       })
       .catch((err) => {
-        logger.error(err);
+        logger.error(err.message);
         return {
           fees: 0,
           volume: 0,
@@ -189,18 +221,172 @@ export const appRouter = t.router({
         };
       });
   }),
-  getRecentSwaps: t.procedure
-    .input(z.string())
+  getProBanner24H: t.procedure
+    .input(
+      z.object({
+        poolAddress: z.string(),
+        token0Address: z.string(),
+        token1Address: z.string(),
+      })
+    )
     .query(async ({ input, ctx }) => {
+      const { poolAddress, token0Address, token1Address } = input;
+
+      // Retrieve pools which include either token0 or token1
+      const pools = await ctx.prisma.pool.findMany({
+        select: { address: true, token0Address: true, token1Address: true },
+        where: {
+          OR: [
+            { token0Address },
+            { token1Address },
+            { token1Address: token0Address },
+            { token0Address: token1Address },
+          ],
+        },
+      });
+
+      const calculateVolume = async (tokenAddress: string) => {
+        const relevantPools = pools.filter(
+          (pool) =>
+            pool.token0Address === tokenAddress ||
+            pool.token1Address === tokenAddress
+        );
+        const volumes = await Promise.all(
+          relevantPools.map(async (pool) => {
+            const swaps = await ctx.prisma.swap.findMany({
+              where: {
+                poolAddress: pool.address,
+                timestamp: {
+                  gt: new Date(Date.now() - ONE_DAY * 2),
+                },
+              },
+              orderBy: {
+                timestamp: "desc",
+              },
+            });
+
+            const _24hAgo = new Date(Date.now() - ONE_DAY);
+            const changeIndex = swaps.findIndex(
+              (swap) => swap.timestamp.getTime() < _24hAgo.getTime()
+            );
+
+            const today = swaps.slice(0, changeIndex);
+            const yesterday = swaps.slice(changeIndex);
+
+            return {
+              usdVolumeToday: today.reduce(
+                (acc, curr) => acc + curr.usdValue,
+                0
+              ),
+              usdVolumeYesterday: yesterday.reduce(
+                (acc, curr) => acc + curr.usdValue,
+                0
+              ),
+            };
+          })
+        );
+
+        const totalVolumeToday = volumes.reduce(
+          (acc, curr) => acc + curr.usdVolumeToday,
+          0
+        );
+        const totalVolumeYesterday = volumes.reduce(
+          (acc, curr) => acc + curr.usdVolumeYesterday,
+          0
+        );
+
+        const usdVolumePctChange =
+          totalVolumeYesterday === 0
+            ? 0
+            : ((totalVolumeToday - totalVolumeYesterday) /
+                totalVolumeYesterday) *
+              100;
+
+        return {
+          usdVolume: totalVolumeToday,
+          usdVolumePctChange,
+        };
+      };
+
+      const [usdVolumeToken0, usdVolumeToken1, highLowPrice] =
+        await Promise.all([
+          calculateVolume(token0Address),
+          calculateVolume(token1Address),
+          ctx.prisma.analytics
+            .findMany({
+              select: {
+                date: true,
+                high: true,
+                low: true,
+                close: true,
+                open: true,
+              },
+              where: {
+                poolAddress,
+                date: { gt: new Date(Date.now() - ONE_DAY) },
+              },
+              orderBy: { date: "desc" },
+            })
+            .then((analytics) => {
+              const _24hAgo = new Date(Date.now() - ONE_DAY);
+              const today = analytics.filter(
+                (analytic) => analytic.date.getTime() >= _24hAgo.getTime()
+              );
+
+              const high = today.reduce(
+                (acc, curr) => Math.max(curr.high, acc),
+                -Infinity
+              );
+              const low = today.reduce(
+                (acc, curr) => Math.min(curr.low, acc),
+                Infinity
+              );
+
+              const priceChange = today.length
+                ? (today[today.length - 1].close - today[0].open) * -1
+                : 0;
+              const pricePctChange =
+                today.length && today[0].open !== 0
+                  ? priceChange / today[0].open
+                  : 0;
+
+              return { high, low, priceChange, pricePctChange };
+            })
+            .catch((err) => {
+              logger.error(err.toString());
+              return { high: 0, low: 0, priceChange: 0, pricePctChange: 0 };
+            }),
+        ]);
+
+      return {
+        high: highLowPrice.high,
+        low: highLowPrice.low,
+        priceChange: highLowPrice.priceChange,
+        pricePctChange: highLowPrice.pricePctChange,
+        usdVolumeToken0: usdVolumeToken0.usdVolume,
+        usdVolumeToken1: usdVolumeToken1.usdVolume,
+        usdVolumePctChangeToken0: usdVolumeToken0.usdVolumePctChange,
+        usdVolumePctChangeToken1: usdVolumeToken1.usdVolumePctChange,
+      };
+    }),
+  getRecentSwaps: t.procedure
+    .input(
+      z.object({
+        poolAddress: z.string(),
+        take: z.number(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { poolAddress, take } = input;
       return ctx.prisma.swap
         .findMany({
           where: {
-            poolAddress: input,
+            poolAddress,
           },
           orderBy: {
             timestamp: "desc",
           },
-          take: 10,
+          take,
         })
         .catch((err) => {
           logger.error(err);
@@ -208,17 +394,23 @@ export const appRouter = t.router({
         });
     }),
   getRecentLiquidity: t.procedure
-    .input(z.string())
+    .input(
+      z.object({
+        poolAddress: z.string(),
+        take: z.number(),
+      })
+    )
     .query(async ({ input, ctx }) => {
+      const { poolAddress, take } = input;
       return ctx.prisma.liquidity
         .findMany({
           where: {
-            poolAddress: input,
+            poolAddress,
           },
           orderBy: {
             timestamp: "desc",
           },
-          take: 10,
+          take,
         })
         .catch((err) => {
           logger.error(err);
@@ -240,6 +432,13 @@ export const appRouter = t.router({
       const { poolAddress, take } = input;
       return ctx.prisma.analytics
         .findMany({
+          select: {
+            open: true,
+            close: true,
+            high: true,
+            low: true,
+            date: true,
+          },
           where: {
             poolAddress,
           },

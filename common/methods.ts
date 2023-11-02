@@ -11,7 +11,6 @@ import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
 import { Token } from "@prisma/client";
 import { Bin, PairV2 } from "@dusalabs/sdk";
-import { ScExecutionEvent } from "../indexer/gen/ts/massa/model/v1/execution";
 
 export const getPriceFromId = Bin.getPriceFromId;
 export const getIdFromPrice = Bin.getIdFromPrice;
