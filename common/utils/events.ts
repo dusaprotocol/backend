@@ -1,5 +1,19 @@
-import { IEvent, IEventFilter, ISlot } from "@massalabs/massa-web3";
+import {
+  EventPoller,
+  IEvent,
+  IEventFilter,
+  ISlot,
+} from "@massalabs/massa-web3";
 import { web3Client } from "../client";
+
+const nullFilters: IEventFilter = {
+  start: null,
+  end: null,
+  emitter_address: null,
+  original_caller_address: null,
+  original_operation_id: null,
+  is_final: null,
+};
 
 export const fetchEvents = async (
   filter: Partial<IEventFilter>
@@ -7,12 +21,8 @@ export const fetchEvents = async (
   return web3Client
     .smartContracts()
     .getFilteredScOutputEvents({
-      start: filter.start || null,
-      end: filter.end || null,
-      emitter_address: filter.emitter_address || null,
-      original_caller_address: filter.original_caller_address || null,
-      original_operation_id: filter.original_operation_id || null,
-      is_final: filter.is_final || null,
+      ...nullFilters,
+      ...filter,
     })
     .then((events) => {
       if (!events.length) {
@@ -23,4 +33,46 @@ export const fetchEvents = async (
       }
       return events;
     });
+};
+
+const watchEvent = async (eventName: string): Promise<string[]> => {
+  const eventsNameRegex = `^${eventName}:`;
+  const eventArguments: string[] = await EventPoller.getEventsOnce(
+    { ...nullFilters, eventsNameRegex },
+    web3Client
+  ).then((events) => events[0].data.split(eventName + ":")[1].split(","));
+
+  return eventArguments;
+};
+
+// USAGE:
+
+const TRANSFER_EVENT_NAME = "TRANSFER";
+type TransferEvent = {
+  from: string;
+  to: string;
+  amount: bigint;
+};
+
+type MintEvent = {
+  to: string;
+  amount: bigint;
+};
+
+// const event = await watchEvent<TransferEvent>("TRANSFER");
+// if (!event) {
+//   throw new Error("No event found");
+// }
+// console.log(event);
+// {from: "0x...", to: "0x...", amount: 1000000000000000000n}
+
+export const watchTransferEvent = async (
+  txId: string
+): Promise<TransferEvent> => {
+  const params = await watchEvent(TRANSFER_EVENT_NAME);
+  return {
+    from: params[0],
+    to: params[1],
+    amount: BigInt(params[2]),
+  };
 };

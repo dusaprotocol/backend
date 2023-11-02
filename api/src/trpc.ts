@@ -284,6 +284,47 @@ export const appRouter = t.router({
           return [];
         });
     }),
+  getDCAs: t.procedure
+    .input(
+      z.object({
+        userAddress: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { userAddress } = input;
+      return ctx.prisma.dCA
+        .findMany({
+          where: {
+            userAddress,
+          },
+          include: {
+            execution: true,
+          },
+        })
+        .catch((err) => {
+          logger.error(err);
+          return [];
+        });
+    }),
+  getOrders: t.procedure
+    .input(
+      z.object({
+        userAddress: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { userAddress } = input;
+      return ctx.prisma.order
+        .findMany({
+          where: {
+            userAddress,
+          },
+        })
+        .catch((err) => {
+          logger.error(err);
+          return [];
+        });
+    }),
 });
 
 export const expressMiddleware = trpcExpress.createExpressMiddleware({
