@@ -1,22 +1,13 @@
-import { PrismaClient } from "@prisma/client";
-import type { Analytics, Pool } from "@prisma/client";
+import type { Pool } from "@prisma/client";
 import {
   fetchTokenInfo,
   getBinStep,
   getPairAddressTokens,
-  getPriceFromId,
 } from "../../common/methods";
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
-import { Args, bytesToStr, strToBytes } from "@massalabs/massa-web3";
-import {
-  ONE_DAY,
-  TICKS_PER_DAY,
-  TIME_BETWEEN_TICKS,
-} from "../../common/utils/date";
-import { PairV2 } from "@dusalabs/sdk";
-
-const prisma = new PrismaClient();
+import { bytesToStr, strToBytes } from "@massalabs/massa-web3";
+import { prisma } from "../../common/db";
 
 async function createPools() {
   const pools: Pick<Pool, "address" | "binStep">[] = [];
@@ -90,94 +81,6 @@ async function createPools() {
       console.error(err);
     }
   }
-}
-
-async function generateAnalytics(pool: Pool) {
-  const data: Analytics[] = [];
-
-  let prevValue = 5000;
-  for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
-    let pairInfo = await PairV2.getLBPairReservesAndId(
-      pool.address,
-      web3Client
-    );
-    if (!pairInfo) return;
-
-    let close = getPriceFromId(pairInfo.activeId, pool.binStep);
-    const open = close;
-    const high = close;
-    const low = close;
-    const value = 0;
-    const binId = Math.round(2 ** 17 - 50 + Math.random() * 50);
-
-    const date = new Date(Date.now() - ONE_DAY * 30 + TIME_BETWEEN_TICKS * i);
-
-    data.push({
-      poolAddress: pool.address,
-      date,
-      token0Locked: BigInt(value),
-      token1Locked: BigInt(value),
-      usdLocked: value,
-      volume: value,
-      fees: Math.round(value / 1000),
-      open,
-      close,
-      high,
-      low,
-    });
-
-    prevValue = value;
-  }
-
-  prisma.analytics
-    .createMany({
-      data,
-    })
-    .catch((err) => console.error(err));
-}
-
-async function createMissingPrices(pool: Pool) {
-  const data: Analytics[] = [];
-  const prices = await prisma.analytics.findMany({
-    where: {
-      poolAddress: pool.address,
-      date: {
-        gte: new Date(Date.now() - ONE_DAY * 30),
-      },
-    },
-    orderBy: {
-      date: "asc",
-    },
-  });
-  for (let i = 0; i < prices.length; i++) {
-    if (i === prices.length - 1) break;
-
-    const date = new Date(prices[i].date);
-    const nextDate = new Date(prices[i + 1].date);
-    const elapsed = nextDate.getTime() - date.getTime();
-    if (elapsed !== TIME_BETWEEN_TICKS) {
-      const missingHours = Math.floor(elapsed / TIME_BETWEEN_TICKS);
-      console.log(missingHours, date, nextDate);
-
-      for (let j = 1; j < missingHours; j++) {
-        const missingData: Analytics = {
-          ...prices[i],
-          date: new Date(date.getTime() + TIME_BETWEEN_TICKS * j),
-          open: prices[i].close,
-          close: prices[i].close,
-          high: prices[i].close,
-          low: prices[i].close,
-        };
-        data.push(missingData);
-      }
-    }
-  }
-  await prisma.analytics
-    .createMany({
-      data,
-    })
-    .then((res) => console.log(res))
-    .catch((err) => console.error(err));
 }
 
 (() => {

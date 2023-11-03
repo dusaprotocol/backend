@@ -260,7 +260,9 @@ async function processSwapOperation(
         tokenOut,
         binStep,
         events.filter(
-          (e) => getCallee(e) === pairAddress && e.data.startsWith("SWAP:")
+          (e) =>
+            getCallee(e.context.call_stack) === pairAddress &&
+            e.data.startsWith("SWAP:")
         ),
         swapParams
       );

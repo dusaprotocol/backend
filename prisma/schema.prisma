@@ -36,7 +36,6 @@ model Pool {
   analytics     Analytics[]
   swapTxs       Swap[]
   liquidityTxs  Liquidity[]
-  dcas          DCA[]
   orders        Order[]
 }
 
@@ -103,10 +102,8 @@ model DCA {
   startTime     DateTime
   tokenIn       String
   tokenOut      String
-  poolAddress   String
   execution     DCAExecution[]
   User          User           @relation(fields: [userAddress], references: [address])
-  Pool          Pool           @relation(fields: [poolAddress], references: [address])
 }
 
 model DCAExecution {

@@ -13,12 +13,8 @@ type Volume = Prisma.AnalyticsGetPayload<{
   };
 }>;
 
-const zodTVL = z.object({ avgUsdLocked: z.number(), dateFormatted: z.date() });
-type TVL = z.infer<typeof zodTVL>;
-
-type Analytics = Prisma.AnalyticsGetPayload<{
+type TVL = Prisma.AnalyticsGetPayload<{
   select: {
-    volume: true;
     usdLocked: true;
     date: true;
   };
@@ -120,14 +116,11 @@ export const appRouter = t.router({
         ]),
       })
     )
-    .output(z.array(zodTVL))
     .query(async ({ input, ctx }) => {
       const { address, take } = input;
       return ctx.prisma.analytics
         .findMany({
           select: {
-            token0Locked: true,
-            token1Locked: true,
             usdLocked: true,
             date: true,
           },
@@ -523,6 +516,23 @@ export const appRouter = t.router({
           logger.error(err);
           return [];
         });
+    }),
+  getGlobal24H: t.procedure
+    // .output(z.object({ volume: z.number() }))
+    .query(async ({ ctx }) => {
+      const x = await ctx.prisma.analytics.groupBy({
+        by: "poolAddress",
+        _sum: {
+          volume: true,
+          fees: true,
+        },
+        where: {
+          date: {
+            gt: new Date(Date.now() - ONE_DAY),
+          },
+        },
+      });
+      return x;
     }),
 });
 
