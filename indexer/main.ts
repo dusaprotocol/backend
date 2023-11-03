@@ -25,6 +25,7 @@ import { SWAP_ROUTER_METHODS, LIQUIDITY_ROUTER_METHODS } from "@dusalabs/sdk";
 import { analyticsCron } from "./src/crons";
 import { prisma } from "../common/db";
 import { Status } from "@prisma/client";
+import { ExecutionOutputStatus } from "./gen/ts/massa/model/v1/execution";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
@@ -43,7 +44,7 @@ const subscribeNewSlotExecutionOutputs = async (
     id: "1",
     query: {
       filter: {
-        status: [2],
+        status: [ExecutionOutputStatus.FINAL],
       },
     },
   };
@@ -63,13 +64,18 @@ const subscribeNewSlotExecutionOutputs = async (
       events.forEach((event) => {
         if (!event.context) return;
 
-        // console.log(event.context.callStack, event.data);
-        if (event.context.callStack.includes(dcaSC)) {
+        const { callStack } = event.context;
+        if (callStack.includes(dcaSC)) {
           const swapEvents = events.filter((e) => e.data.startsWith("SWAP:"));
-          console.log(event.data);
-          message.output?.executionOutput?.stateChanges?.asyncPoolChanges;
-          // processSwap(event.context.originOperationId, event.context.indexInSlot, )
-        }
+
+          swapEvents.forEach((e) => console.log(e.data));
+          console.log(message.output?.executionOutput?.stateChanges);
+        } else if (callStack.includes(orderSC)) {
+        } else if (
+          callStack.includes(routerSC) &&
+          getCallee(callStack) !== routerSC
+        ) {
+        } else return;
       });
       console.log("--------------------");
     }
@@ -121,7 +127,7 @@ const subscribeNewOperations = async (host: string = grpcDefaultHost) => {
 // Start gRPC subscriptions
 
 subscribeNewSlotExecutionOutputs();
-// subscribeNewOperations();
+subscribeNewOperations();
 
 // Start cron jobs
 
