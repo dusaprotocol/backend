@@ -10,7 +10,7 @@ import { web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
 import { Token } from "@prisma/client";
-import { Bin, PairV2 } from "@dusalabs/sdk";
+import { Bin, Fraction, PairV2 } from "@dusalabs/sdk";
 
 export const getPriceFromId = Bin.getPriceFromId;
 export const getIdFromPrice = Bin.getIdFromPrice;
@@ -94,16 +94,22 @@ export const getTokenValue = async (
   if (tokenAddress === usdcSC) return 1;
 
   const binSteps = await fetchPairBinSteps(tokenAddress, usdcSC);
-  if (!binSteps) return;
+  if (!binSteps || !binSteps.length) return;
+  const binStep = binSteps[0];
 
-  const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binSteps[0]);
+  const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binStep);
   if (!pairAddress) return;
 
   const pairInfo = await PairV2.getLBPairReservesAndId(pairAddress, web3Client);
   if (!pairInfo) return;
 
-  const price = getPriceFromId(pairInfo.activeId, binSteps[0]);
+  const price = getPriceFromId(pairInfo.activeId, binStep);
   return tokenAddress < usdcSC ? price : 1 / price;
+};
+
+export const toFraction = (price: number): Fraction => {
+  const value = BigInt(Math.round((price || 1) * 1e18));
+  return new Fraction(value, BigInt(1e18));
 };
 
 export const getPairAddressTokens = async (

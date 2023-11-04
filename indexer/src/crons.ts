@@ -1,16 +1,18 @@
 import cron from "node-cron";
 import { prisma } from "../../common/db";
-import { web3Client } from "../../common/client";
+import { CHAIN_ID, web3Client } from "../../common/client";
 import logger from "../../common/logger";
 import {
   getPairAddressTokens,
   getTokenValue,
   getPriceFromId,
   fetchTokenInfo,
+  toFraction,
 } from "../../common/methods";
 import { Pool } from "@prisma/client";
 import { EVERY_TICK, getClosestTick } from "../../common/utils";
-import { PairV2 } from "@dusalabs/sdk";
+import { PairV2, Token, TokenAmount } from "@dusalabs/sdk";
+import { Decimal } from "@prisma/client/runtime/library";
 
 const getPools = (): Promise<Pool[]> =>
   prisma.pool.findMany().catch((e) => {
@@ -55,15 +57,20 @@ export const fetchNewAnalytics = async (
 
     const token0Locked = pairInfo.reserveX;
     const token1Locked = pairInfo.reserveY;
-    const usdLocked =
-      Number(token0Locked / BigInt(10 ** token0Decimals)) * token0Value +
-      Number(token1Locked / BigInt(10 ** token1Decimals)) * token1Value;
+
+    const token0 = new Token(CHAIN_ID, tokens[0], token0Decimals);
+    const token1 = new Token(CHAIN_ID, tokens[1], token1Decimals);
+    const usdLocked = new TokenAmount(token0, token0Locked)
+      .multiply(toFraction(token0Value))
+      .add(
+        new TokenAmount(token1, token1Locked).multiply(toFraction(token1Value))
+      ).quotient;
 
     createAnalytic(
       poolAddress,
-      token0Locked,
-      token1Locked,
-      Math.round(usdLocked),
+      token0Locked.toString(),
+      token1Locked.toString(),
+      Number(usdLocked),
       activePrice
     );
   });
@@ -71,8 +78,8 @@ export const fetchNewAnalytics = async (
 
 const createAnalytic = (
   poolAddress: string,
-  token0Locked: bigint,
-  token1Locked: bigint,
+  token0Locked: string,
+  token1Locked: string,
   usdLocked: number,
   close: number,
   open = close,

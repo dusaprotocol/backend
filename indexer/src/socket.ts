@@ -5,6 +5,7 @@ import {
   fetchTokenInfo,
   getPriceFromId,
   getTokenValue,
+  toFraction,
 } from "../../common/methods";
 import { getClosestTick, multiplyWithFloat } from "../../common/utils";
 import logger from "../../common/logger";
@@ -105,19 +106,19 @@ export const processLiquidity = async (
   userAddress: string,
   timestamp: string | Date,
   poolAddress: string,
-  token0: string,
-  token1: string,
+  token0Address: string,
+  token1Address: string,
   liqEvents: IEvent[],
   isAddLiquidity: boolean
 ) => {
-  let amountX = 0;
-  let amountY = 0;
+  let amountX = 0n;
+  let amountY = 0n;
 
   liqEvents.forEach((event) => {
     const [to, _binId, _amountX, _amountY] = event.data.split(",");
 
-    amountX += Number(_amountX);
-    amountY += Number(_amountY);
+    amountX += BigInt(_amountX);
+    amountY += BigInt(_amountY);
   });
 
   const amount0 = isAddLiquidity ? amountX : -amountX;
@@ -125,18 +126,25 @@ export const processLiquidity = async (
   const lowerBound = Number(liqEvents[0].data.split(",")[1]);
   const upperBound = Number(liqEvents[liqEvents.length - 1].data.split(",")[1]);
 
-  const token0Decimals = await fetchTokenInfo(token0).then((e) =>
+  const token0Decimals = await fetchTokenInfo(token0Address).then((e) =>
     e ? e.decimals : 0
   );
-  const token1Decimals = await fetchTokenInfo(token1).then((e) =>
+  const token1Decimals = await fetchTokenInfo(token1Address).then((e) =>
     e ? e.decimals : 0
   );
 
-  const token0Value = await getTokenValue(token0);
-  const token1Value = await getTokenValue(token1);
-  const usdValue =
-    (token0Value ?? 0) * (amount0 / 10 ** token0Decimals) +
-    (token1Value ?? 0) * (amount1 / 10 ** token1Decimals);
+  const token0Value = (await getTokenValue(token0Address)) || 0;
+  const token1Value = (await getTokenValue(token1Address)) || 0;
+
+  const token0 = new Token(CHAIN_ID, token0Address, token0Decimals);
+  const token1 = new Token(CHAIN_ID, token1Address, token1Decimals);
+
+  const usdValue = Number(
+    new TokenAmount(token0, amount0)
+      .multiply(toFraction(token0Value))
+      .add(new TokenAmount(token1, amount1).multiply(toFraction(token1Value)))
+      .quotient
+  );
 
   prisma.liquidity
     .create({

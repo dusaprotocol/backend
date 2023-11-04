@@ -43,8 +43,8 @@ model Analytics {
   date         DateTime
   volume       Int
   fees         Int
-  token0Locked BigInt
-  token1Locked BigInt
+  token0Locked String
+  token1Locked String
   usdLocked    Int
   close        Float
   high         Float
