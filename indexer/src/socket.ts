@@ -9,14 +9,14 @@ import {
 } from "../../common/methods";
 import { getClosestTick, multiplyWithFloat } from "../../common/utils";
 import logger from "../../common/logger";
-import { SwapParams } from "./decoder";
+import { SwapParams, decodeSwapEvents } from "./decoder";
 import { fetchNewAnalytics } from "./crons";
 import { Token, TokenAmount } from "@dusalabs/sdk";
 import { CHAIN_ID } from "../../common/client";
 
 // EVENT PROCESSING
 
-export const processSwap = (
+export const processSwap = async (
   txHash: string,
   indexInSlot: number,
   userAddress: string,
@@ -25,79 +25,33 @@ export const processSwap = (
   tokenIn: string,
   tokenOut: string,
   binStep: number,
-  swapEvents: IEvent[],
+  swapEvents: string[],
   swapParams?: SwapParams
 ) => {
-  let binId = 0;
-  let price = 0;
-  let swapForY = false;
-  let amountIn = 0n;
-  let amountOut = 0n;
-  let totalFees = 0n;
+  const swapPayload = decodeSwapEvents(swapEvents, binStep);
+  const { amountIn, amountOut, totalFees, swapForY, binId, price } =
+    swapPayload;
 
-  swapEvents.forEach((event) => {
-    const [
-      to,
-      _binId,
-      _swapForY,
-      _amountIn,
-      _amountOut,
-      volatilityAccumulated,
-      _totalFees,
-    ] = event.data.split(",");
+  const valueIn = await getTokenValue(tokenIn);
+  if (!valueIn) return;
 
-    binId = Number(_binId);
-    price = getPriceFromId(binId, binStep);
-    swapForY = _swapForY === "true";
-    amountIn += BigInt(_amountIn);
-    amountOut += BigInt(_amountOut);
-    totalFees += BigInt(_totalFees);
-  });
-  amountIn += totalFees;
+  const tokenInDecimals = await fetchTokenInfo(tokenIn).then(
+    (e) => e && e.decimals
+  );
+  if (!tokenInDecimals) return;
 
-  getTokenValue(tokenIn).then(async (valueIn) => {
-    if (!valueIn) return;
-
-    const tokenInDecimals = await fetchTokenInfo(tokenIn).then(
-      (e) => e && e.decimals
-    );
-    if (!tokenInDecimals) return;
-
-    const token = new Token(CHAIN_ID, tokenIn, tokenInDecimals);
-    const volume = multiplyWithFloat(new TokenAmount(token, amountIn), valueIn);
-    const fees = multiplyWithFloat(new TokenAmount(token, totalFees), valueIn);
-    // fees are stored in cents
-    updateVolumeAndPrice(poolAddress, binStep, volume, fees, price);
-
-    prisma.swap
-      .create({
-        data: {
-          pool: {
-            connect: {
-              address: poolAddress,
-            },
-          },
-          user: {
-            connectOrCreate: {
-              where: {
-                address: userAddress,
-              },
-              create: {
-                address: userAddress,
-              },
-            },
-          },
-          swapForY,
-          binId,
-          amountIn,
-          amountOut,
-          usdValue: volume,
-          timestamp,
-          txHash,
-          indexInSlot,
-        },
-      })
-      .catch((e) => logger.warn(e));
+  const token = new Token(CHAIN_ID, tokenIn, tokenInDecimals);
+  const volume = multiplyWithFloat(new TokenAmount(token, amountIn), valueIn);
+  const fees = multiplyWithFloat(new TokenAmount(token, totalFees), valueIn);
+  // fees are stored in cents
+  updateVolumeAndPrice(poolAddress, binStep, volume, fees, price);
+  createSwap({
+    ...swapPayload,
+    timestamp,
+    userAddress,
+    poolAddress,
+    txHash,
+    usdValue: volume,
   });
 };
 
@@ -178,6 +132,32 @@ export const processLiquidity = async (
 };
 
 // COMMON PRISMA ACTIONS
+
+export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
+  const {} = payload;
+  prisma.swap
+    .create({
+      data: {
+        // pool: {
+        //   connect: {
+        //     address: payload.poolAddress,
+        //   },
+        // },
+        // user: {
+        //   connectOrCreate: {
+        //     where: {
+        //       address: payload.userAddress,
+        //     },
+        //     create: {
+        //       address: payload.userAddress,
+        //     },
+        //   },
+        // },
+        ...payload,
+      },
+    })
+    .catch((e) => logger.warn(e));
+};
 
 export const updateVolumeAndPrice = async (
   poolAddress: string,

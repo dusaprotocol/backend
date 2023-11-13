@@ -9,7 +9,7 @@ import {
   Token,
   TokenAmount,
 } from "@dusalabs/sdk";
-import { fetchTokenInfo } from "../../common/methods";
+import { fetchTokenInfo, getPriceFromId } from "../../common/methods";
 import { CHAIN_ID } from "../../common/client";
 
 export interface SwapParams {
@@ -186,5 +186,43 @@ const toLog = async (params: SwapParams) => {
     outputAmount: `${parsedAmountOut.toSignificant(6)} ${
       parsedAmountOut.currency.symbol
     }`,
+  };
+};
+
+export const decodeSwapEvents = (events: string[], binStep: number) => {
+  let binId = 0;
+  let price = 0;
+  let swapForY = false;
+  let amountIn = 0n;
+  let amountOut = 0n;
+  let totalFees = 0n;
+
+  events.forEach((event) => {
+    const [
+      to,
+      _binId,
+      _swapForY,
+      _amountIn,
+      _amountOut,
+      volatilityAccumulated,
+      _totalFees,
+    ] = event.split(",");
+
+    binId = Number(_binId);
+    price = getPriceFromId(binId, binStep);
+    swapForY = _swapForY === "true";
+    amountIn += BigInt(_amountIn);
+    amountOut += BigInt(_amountOut);
+    totalFees += BigInt(_totalFees);
+  });
+  amountIn += totalFees;
+
+  return {
+    amountIn,
+    amountOut,
+    totalFees,
+    swapForY,
+    binId,
+    price,
   };
 };
