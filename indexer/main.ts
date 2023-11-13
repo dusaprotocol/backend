@@ -21,7 +21,11 @@ import {
   parseSlot,
 } from "../common/utils";
 import { fetchPairAddress, getCallee } from "../common/methods";
-import { SWAP_ROUTER_METHODS, LIQUIDITY_ROUTER_METHODS } from "@dusalabs/sdk";
+import {
+  SWAP_ROUTER_METHODS,
+  LIQUIDITY_ROUTER_METHODS,
+  SwapRouterMethod,
+} from "@dusalabs/sdk";
 import { analyticsCron } from "./src/crons";
 import { prisma } from "../common/db";
 import { Status } from "@prisma/client";
@@ -126,12 +130,12 @@ const subscribeNewOperations = async (host: string = grpcDefaultHost) => {
 
 // Start gRPC subscriptions
 
-subscribeNewSlotExecutionOutputs();
+// subscribeNewSlotExecutionOutputs();
 subscribeNewOperations();
 
 // Start cron jobs
 
-analyticsCron.start();
+// analyticsCron.start();
 
 // HELPERS
 
@@ -143,7 +147,7 @@ async function processOperation(
   const opType = operation.op?.type;
   if (opType?.oneofKind !== "callSc") return;
 
-  const { targetAddr, targetFunc, param } = opType.callSc;
+  const { targetAddr, targetFunc, param, coins } = opType.callSc;
 
   // PERIPHERY CONTRACTS
 
@@ -192,18 +196,22 @@ async function processOperation(
   if (targetAddr !== routerSC) return;
 
   try {
+    const swapParams = await decodeSwapTx(targetFunc, param, coins);
+    console.log(swapParams);
+
     const status = await awaitOperationStatus(txId);
     const events = await fetchEvents({ original_operation_id: txId });
     const timestamp = await getTimestamp(events);
 
-    if (SWAP_ROUTER_METHODS.includes(targetFunc as any)) {
+    if (SWAP_ROUTER_METHODS.includes(targetFunc as SwapRouterMethod)) {
       await processSwapOperation(
         param,
         targetFunc,
         txId,
         caller,
         timestamp,
-        events
+        events,
+        coins
       );
     } else if (LIQUIDITY_ROUTER_METHODS.includes(targetFunc as any)) {
       await processLiquidityOperation(
@@ -218,6 +226,7 @@ async function processOperation(
       throw new Error("Unknown router method:" + targetFunc);
     }
   } catch (err: any) {
+    console.log(err);
     logger.error(err.message);
   }
 }
@@ -245,9 +254,10 @@ async function processSwapOperation(
   txId: string,
   caller: string,
   timestamp: Date,
-  events: IEvent[]
+  events: IEvent[],
+  coins: bigint
 ) {
-  const swapParams = await decodeSwapTx(method, args);
+  const swapParams = await decodeSwapTx(method, args, coins);
   if (swapParams) {
     for (let i = 0; i < swapParams.path.length - 1; i++) {
       const tokenIn = swapParams.path[i].str;

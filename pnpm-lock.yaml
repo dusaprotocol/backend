@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   '@dusalabs/sdk':
-    specifier: ^0.2.34
-    version: 0.2.34
+    specifier: ^0.3.2
+    version: 0.3.2
   '@massalabs/massa-web3':
     specifier: 1.24.2
     version: 1.24.2
@@ -27,7 +27,7 @@ devDependencies:
     version: 5.4.2
   ts-node:
     specifier: ^10.9.1
-    version: 10.9.1(@types/node@20.8.6)(typescript@4.9.5)
+    version: 10.9.1(@types/node@20.9.0)(typescript@4.9.5)
   tslib:
     specifier: ^2.6.2
     version: 2.6.2
@@ -82,8 +82,8 @@ packages:
       kuler: 2.0.0
     dev: false
 
-  /@dusalabs/sdk@0.2.34:
-    resolution: {integrity: sha512-Qz1mnHvTnBCmuqxVaXJUNbtNpPN+hoUPpN+K6ds+2cbF48K/AHRKXtWDsdEL4P1oqMRZF/sVe90wqtI7DkbpWA==}
+  /@dusalabs/sdk@0.3.2:
+    resolution: {integrity: sha512-xXu7nyqe2ZGt+HYbnwADWZCWFmdyy0o+0j0J6OR1HZJDP/v6wUeCc5yLMlnf3x2H7SmkWabmfAtX49/imx2dXw==}
     engines: {node: '>=10'}
     dependencies:
       '@massalabs/massa-web3': 1.24.2
@@ -522,6 +522,12 @@ packages:
     resolution: {integrity: sha512-eWO4K2Ji70QzKUqRy6oyJWUeB7+g2cRagT3T/nxYibYcT4y2BDL8lqolRXjTHmkZCdJfIPaY73KbJAZmcryxTQ==}
     dependencies:
       undici-types: 5.25.3
+
+  /@types/node@20.9.0:
+    resolution: {integrity: sha512-nekiGu2NDb1BcVofVcEKMIwzlx4NjHlcjhoxxKBNLtz15Y1z7MYf549DFvkHSId02Ax6kGwWntIBPC3l/JZcmw==}
+    dependencies:
+      undici-types: 5.26.5
+    dev: true
 
   /@types/stack-utils@2.0.1:
     resolution: {integrity: sha512-Hl219/BT5fLAaz6NDkSuhzasy49dwQS/DSdu4MdggFB8zcXv7vflBI3xp7FEmkmdDkBUI2bPUNeMttp2knYdxw==}
@@ -1828,7 +1834,7 @@ packages:
     engines: {node: '>= 14.0.0'}
     dev: false
 
-  /ts-node@10.9.1(@types/node@20.8.6)(typescript@4.9.5):
+  /ts-node@10.9.1(@types/node@20.9.0)(typescript@4.9.5):
     resolution: {integrity: sha512-NtVysVPkxxrwFGUUxGYhfux8k78pQB3JqYBXlLRZgdGUqTO5wU/UyHop5p70iEbGhB7q5KmiZiU0Y3KlJrScEw==}
     hasBin: true
     peerDependencies:
@@ -1847,7 +1853,7 @@ packages:
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 20.8.6
+      '@types/node': 20.9.0
       acorn: 8.10.0
       acorn-walk: 8.2.0
       arg: 4.1.3
@@ -1889,6 +1895,10 @@ packages:
 
   /undici-types@5.25.3:
     resolution: {integrity: sha512-Ga1jfYwRn7+cP9v8auvEXN1rX3sWqlayd4HP7OKk4mZWylEmu3KzXDUGrQUN6Ol7qo1gPvB2e5gX6udnyEPgdA==}
+
+  /undici-types@5.26.5:
+    resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
+    dev: true
 
   /universalify@0.2.0:
     resolution: {integrity: sha512-CJ1QgKmNg3CwvAv/kOFmtnEN05f0D/cn9QntgNOQlQF9dgvVTHj3t+8JPdjqawCHk7V/KA+fbUqzZ9XWhcqPUg==}

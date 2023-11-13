@@ -21,7 +21,7 @@ export interface SwapParams {
   deadline: bigint;
 }
 
-const extractAmountInOut = (method: string, args: Args) => {
+const extractAmountInOut = (method: string, args: Args, coins: bigint) => {
   switch (method) {
     case "swapExactTokensForTokens": {
       const amountIn = args.nextU256();
@@ -33,19 +33,40 @@ const extractAmountInOut = (method: string, args: Args) => {
       const amountInMax = args.nextU256();
       return { amountIn: amountInMax, amountOut };
     }
+    case "swapExactMASForTokens": {
+      const amountIn = coins;
+      const amountOutMin = args.nextU256();
+      return { amountIn, amountOut: amountOutMin };
+    }
+    case "swapExactTokensForMAS": {
+      const amountIn = args.nextU256();
+      const amountOutMinMAS = args.nextU256();
+      return { amountIn, amountOut: amountOutMinMAS };
+    }
+    case "swapTokensForExactMAS": {
+      const amountOut = args.nextU256();
+      const amountInMax = args.nextU256();
+      return { amountIn: amountInMax, amountOut };
+    }
+    case "swapMASForExactTokens": {
+      const amountIn = coins;
+      const amountOut = args.nextU256();
+      return { amountIn, amountOut };
+    }
     default: {
-      throw new Error("unknown method");
+      throw new Error("unknown method: " + method);
     }
   }
 };
 
 export const decodeSwapTx = async (
   method: string,
-  params: Uint8Array
+  params: Uint8Array,
+  coins: bigint
 ): Promise<SwapParams | undefined> => {
   try {
     const args = new Args(params);
-    const { amountIn, amountOut } = extractAmountInOut(method, args);
+    const { amountIn, amountOut } = extractAmountInOut(method, args, coins);
 
     const binSteps = args.nextArray(ArrayTypes.U64) as bigint[];
     const path = args.nextSerializableObjectArray(Address);
