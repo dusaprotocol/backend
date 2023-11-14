@@ -44,13 +44,25 @@ export const getConfig = () => {
 
 // Symbol resolve
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#symbol-resolve
-export const resolveSymbol = (symbol: string) => {
+export const resolveSymbol = async (symbol: string) => {
+  const pairInfo = await prisma.pool.findUnique({
+    where: {
+      address: symbol,
+    },
+    include: {
+      token0: true,
+      token1: true,
+    },
+  });
+  const description = pairInfo
+    ? `${pairInfo.token0.symbol}/${pairInfo.token1.symbol} ${pairInfo.binStep}bps`
+    : symbol;
   return {
     name: symbol,
     full_name: symbol,
     // base_name: [symbol],
     // ticker: symbol,
-    description: symbol,
+    description,
     type: "crypto",
     session: "24x7",
     exchange: "Dusa",

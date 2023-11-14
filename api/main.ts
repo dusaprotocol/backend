@@ -25,9 +25,9 @@ app.get("/config", (req, res) => {
   const config = getConfig();
   res.send(config);
 });
-app.get("/symbols", (req, res) => {
+app.get("/symbols", async (req, res) => {
   const symbol = req.query.symbol as string;
-  const symbolInfo = resolveSymbol(symbol);
+  const symbolInfo = await resolveSymbol(symbol);
   res.send(symbolInfo);
 });
 app.get("/search", (req, res) => {
