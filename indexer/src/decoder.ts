@@ -11,6 +11,7 @@ import {
 } from "@dusalabs/sdk";
 import { fetchTokenInfo, getPriceFromId } from "../../common/methods";
 import { CHAIN_ID } from "../../common/client";
+import { wmasSC } from "../../common/contracts";
 
 export interface SwapParams {
   amountIn: bigint;
@@ -90,12 +91,13 @@ type DecodedLiquidity = AddLiquidityParameters | RemoveLiquidityParameters;
 
 export const decodeLiquidityTx = async (
   isAdd: boolean,
-  params: Uint8Array
+  params: Uint8Array,
+  coins: bigint
 ): Promise<DecodedLiquidity | undefined> => {
   try {
     const args = new Args(params);
     const token0 = args.nextString();
-    const token1 = args.nextString();
+    const token1 = coins ? wmasSC : args.nextString();
     const binStep = args.nextU32();
 
     if (isAdd) {

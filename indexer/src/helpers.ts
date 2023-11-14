@@ -13,7 +13,7 @@ import {
 } from "../../common/utils";
 import { decodeDcaTx, decodeSwapTx, decodeLiquidityTx } from "./decoder";
 import { processSwap, processLiquidity } from "./socket";
-import { Operation } from "../gen/ts/massa/model/v1/operation";
+import { CallSC, Operation } from "../gen/ts/massa/model/v1/operation";
 
 export async function processOperation(
   operation: Operation,
@@ -113,8 +113,7 @@ export async function processOperation(
 
     if (SWAP_ROUTER_METHODS.includes(targetFunc as any)) {
       await processSwapOperation(
-        param,
-        targetFunc,
+        opType.callSc,
         txId,
         caller,
         timestamp,
@@ -122,8 +121,7 @@ export async function processOperation(
       );
     } else if (LIQUIDITY_ROUTER_METHODS.includes(targetFunc as any)) {
       await processLiquidityOperation(
-        param,
-        targetFunc,
+        opType.callSc,
         txId,
         caller,
         timestamp,
@@ -155,14 +153,14 @@ export async function getTimestamp(events: IEvent[]) {
 }
 
 export async function processSwapOperation(
-  args: Uint8Array,
-  method: string,
+  operation: CallSC,
   txId: string,
   caller: string,
   timestamp: Date,
   events: IEvent[]
 ) {
-  const swapParams = await decodeSwapTx(method, args);
+  const { targetFunc: method, param: args, coins } = operation;
+  const swapParams = await decodeSwapTx(method, args, coins);
   if (swapParams) {
     for (let i = 0; i < swapParams.path.length - 1; i++) {
       const tokenIn = swapParams.path[i].str;
@@ -194,15 +192,15 @@ export async function processSwapOperation(
 }
 
 export async function processLiquidityOperation(
-  args: Uint8Array,
-  method: string,
+  operation: CallSC,
   txId: string,
   caller: string,
   timestamp: Date,
   events: IEvent[]
 ) {
+  const { targetFunc: method, param: args, coins } = operation;
   const isAdd = method.startsWith("add");
-  const liquidityParams = await decodeLiquidityTx(isAdd, args);
+  const liquidityParams = await decodeLiquidityTx(isAdd, args, coins);
   if (liquidityParams) {
     const { token0, token1, binStep } = liquidityParams;
     const pairAddress = await fetchPairAddress(token0, token1, binStep);
