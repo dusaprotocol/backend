@@ -2,8 +2,7 @@ import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import {
-  fetchTokenInfo,
-  getPriceFromId,
+  getTokenFromAddress,
   getTokenValue,
   toFraction,
 } from "../../common/methods";
@@ -12,7 +11,6 @@ import logger from "../../common/logger";
 import { SwapParams, decodeSwapEvents } from "./decoder";
 import { fetchNewAnalytics } from "./crons";
 import { Token, TokenAmount } from "@dusalabs/sdk";
-import { CHAIN_ID } from "../../common/client";
 
 // EVENT PROCESSING
 
@@ -22,29 +20,30 @@ export const processSwap = async (
   userAddress: string,
   timestamp: string | Date,
   poolAddress: string,
-  tokenIn: string,
-  tokenOut: string,
+  tokenInAddress: string,
+  tokenOutAddress: string,
   binStep: number,
   swapEvents: string[],
   swapParams?: SwapParams
 ) => {
   const swapPayload = decodeSwapEvents(swapEvents, binStep);
-  const { amountIn, amountOut, totalFees, swapForY, binId, price } =
-    swapPayload;
+  const { amountIn, totalFees, price } = swapPayload;
 
-  const valueIn = await getTokenValue(tokenIn);
+  const valueIn = await getTokenValue(tokenInAddress);
   if (!valueIn) return;
 
-  const tokenInDecimals = await fetchTokenInfo(tokenIn).then(
-    (e) => e && e.decimals
-  );
-  if (!tokenInDecimals) return;
+  const tokenIn = await getTokenFromAddress(tokenInAddress);
+  const tokenOut = await getTokenFromAddress(tokenOutAddress);
+  if (!tokenIn || !tokenOut) return;
 
-  const token = new Token(CHAIN_ID, tokenIn, tokenInDecimals);
-  const volume = multiplyWithFloat(new TokenAmount(token, amountIn), valueIn);
-  const fees = multiplyWithFloat(new TokenAmount(token, totalFees), valueIn);
+  const token0 = tokenIn.address < tokenOut.address ? tokenIn : tokenOut;
+  const token1 = tokenIn.address < tokenOut.address ? tokenOut : tokenIn;
+  const priceAdjusted = price * 10 ** (token0.decimals - token1.decimals);
+
+  const volume = multiplyWithFloat(new TokenAmount(tokenIn, amountIn), valueIn);
+  const fees = multiplyWithFloat(new TokenAmount(tokenIn, totalFees), valueIn);
   // fees are stored in cents
-  updateVolumeAndPrice(poolAddress, binStep, volume, fees, price);
+  updateVolumeAndPrice(poolAddress, binStep, volume, fees, priceAdjusted);
   createSwap({
     ...swapPayload,
     timestamp,
@@ -80,18 +79,12 @@ export const processLiquidity = async (
   const lowerBound = Number(liqEvents[0].data.split(",")[1]);
   const upperBound = Number(liqEvents[liqEvents.length - 1].data.split(",")[1]);
 
-  const token0Decimals = await fetchTokenInfo(token0Address).then((e) =>
-    e ? e.decimals : 0
-  );
-  const token1Decimals = await fetchTokenInfo(token1Address).then((e) =>
-    e ? e.decimals : 0
-  );
+  const token0 = await getTokenFromAddress(token0Address);
+  const token1 = await getTokenFromAddress(token1Address);
+  if (!token0 || !token1) return;
 
   const token0Value = (await getTokenValue(token0Address)) || 0;
   const token1Value = (await getTokenValue(token1Address)) || 0;
-
-  const token0 = new Token(CHAIN_ID, token0Address, token0Decimals);
-  const token1 = new Token(CHAIN_ID, token1Address, token1Decimals);
 
   const usdValue = Number(
     new TokenAmount(token0, amount0)

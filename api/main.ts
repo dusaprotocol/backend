@@ -45,7 +45,7 @@ app.get("/history", async (req, res) => {
 });
 app.get("/time", (req, res) => {
   const time = getServerTime();
-  res.send(time);
+  res.send(time.toString()); // express doesnt allow sending numbers (could be interpreted as status code)
 });
 
 const port: number = parseInt(process.env.PORT || "3001");

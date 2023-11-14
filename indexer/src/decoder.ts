@@ -3,14 +3,11 @@ import {
   AddLiquidityParameters,
   Address,
   StartDCAParameters,
-  ChainId,
-  LiquidityParameters,
   RemoveLiquidityParameters,
   Token,
   TokenAmount,
 } from "@dusalabs/sdk";
-import { fetchTokenInfo, getPriceFromId } from "../../common/methods";
-import { CHAIN_ID } from "../../common/client";
+import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
 import { wmasSC } from "../../common/contracts";
 
 export interface SwapParams {
@@ -188,18 +185,12 @@ export const decodeDcaTx = (
 const toLog = async (params: SwapParams) => {
   const tokenInAddress = params.path[0].str;
   const tokenOutAddress = params.path[params.path.length - 1].str;
-  const tokenIn = await fetchTokenInfo(tokenInAddress);
-  const tokenOut = await fetchTokenInfo(tokenOutAddress);
+  const tokenIn = await getTokenFromAddress(tokenInAddress);
+  const tokenOut = await getTokenFromAddress(tokenOutAddress);
   if (!tokenIn || !tokenOut) return;
 
-  const parsedAmountIn = new TokenAmount(
-    new Token(CHAIN_ID, tokenInAddress, tokenIn.decimals),
-    params.amountIn
-  );
-  const parsedAmountOut = new TokenAmount(
-    new Token(CHAIN_ID, tokenOutAddress, tokenOut.decimals),
-    params.amountOut
-  );
+  const parsedAmountIn = new TokenAmount(tokenIn, params.amountIn);
+  const parsedAmountOut = new TokenAmount(tokenOut, params.amountOut);
 
   return {
     route: params.path.map((token) => `${token.str}`).join(", "),

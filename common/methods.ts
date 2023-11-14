@@ -6,11 +6,12 @@ import {
   bytesToStr,
   strToBytes,
 } from "@massalabs/massa-web3";
-import { web3Client } from "./client";
+import { CHAIN_ID, web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
-import { Token } from "@prisma/client";
-import { Bin, Fraction, PairV2 } from "@dusalabs/sdk";
+import { Token as PrismaToken } from "@prisma/client";
+import { Bin, Fraction, PairV2, Token } from "@dusalabs/sdk";
+import { prisma } from "./db";
 
 export const getPriceFromId = Bin.getPriceFromId;
 export const getIdFromPrice = Bin.getIdFromPrice;
@@ -104,7 +105,16 @@ export const getTokenValue = async (
   if (!pairInfo) return;
 
   const price = getPriceFromId(pairInfo.activeId, binStep);
-  return tokenAddress < usdcSC ? price : 1 / price;
+  const token0Address = tokenAddress < usdcSC ? tokenAddress : usdcSC;
+  const token1Address = tokenAddress < usdcSC ? usdcSC : tokenAddress;
+  const token0 = await getTokenFromAddress(token0Address);
+  const token1 = await getTokenFromAddress(token1Address);
+  if (!token0 || !token1) return;
+
+  return (
+    (tokenAddress < usdcSC ? price : 1 / price) *
+    10 ** (token0.decimals - token1.decimals)
+  );
 };
 
 export const toFraction = (price: number): Fraction => {
@@ -142,7 +152,7 @@ export const getPairAddressTokens = async (
 
 export const fetchTokenInfo = async (
   tokenAddress: string
-): Promise<Token | undefined> => {
+): Promise<PrismaToken | undefined> => {
   return web3Client
     .publicApi()
     .getDatastoreEntries([
@@ -165,7 +175,7 @@ export const fetchTokenInfo = async (
         res[1].candidate_value &&
         res[2].candidate_value
       ) {
-        const token: Token = {
+        const token = {
           name: bytesToStr(res[0].candidate_value),
           symbol: bytesToStr(res[1].candidate_value),
           decimals: res[2].candidate_value[0],
@@ -175,4 +185,16 @@ export const fetchTokenInfo = async (
       }
     })
     .catch(() => undefined);
+};
+
+export const getTokenFromAddress = async (
+  tokenAddress: string
+): Promise<Token | null> => {
+  const token = await prisma.token.findUnique({
+    where: {
+      address: tokenAddress,
+    },
+  });
+  if (!token) return null;
+  return new Token(CHAIN_ID, token.address, token.decimals);
 };
