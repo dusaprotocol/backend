@@ -6,7 +6,7 @@ import {
   RemoveLiquidityParameters,
   Token,
   TokenAmount,
-  decodeU256,
+  EventDecoder,
 } from "@dusalabs/sdk";
 import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
 import { wmasSC } from "../../common/contracts";
@@ -154,7 +154,9 @@ export const decodeLiquidityTx = async (
 
 export const decodeDcaTx = (
   params: Uint8Array
-): (StartDCAParameters & { startTime: Date; endTime: Date }) | undefined => {
+):
+  | (Omit<StartDCAParameters, "startIn"> & { startTime: Date; endTime: Date })
+  | undefined => {
   try {
     const args = new Args(params);
     const amountEachDCA = args.nextU256();
@@ -174,7 +176,6 @@ export const decodeDcaTx = (
       nbOfDCA,
       tokenIn,
       tokenOut,
-      startIn,
       startTime: new Date(startTime),
       endTime: new Date(endTime),
     };
@@ -204,6 +205,11 @@ const toLog = async (params: SwapParams) => {
   };
 };
 
+/**
+ * Decode swap events
+ * @param events - string array starting with SWAP
+ * @returns
+ */
 export const decodeSwapEvents = (events: string[], binStep: number) => {
   let binId = 0;
   let price = 0;
@@ -213,22 +219,20 @@ export const decodeSwapEvents = (events: string[], binStep: number) => {
   let totalFees = 0n;
 
   events.forEach((event) => {
-    const [
+    const {
       to,
-      _binId,
-      _swapForY,
-      _amountIn,
-      _amountOut,
-      volatilityAccumulated,
-      _totalFees,
-    ] = event.split(",");
+      activeId,
+      swapForY: _swapForY,
+      amountInToBin,
+      amountOutOfBin,
+      feesTotal,
+    } = EventDecoder.decodeSwap(event);
 
-    binId = Number(_binId);
-    price = getPriceFromId(binId, binStep);
-    swapForY = _swapForY === "true";
-    amountIn += decodeU256(_amountIn);
-    amountOut += decodeU256(_amountOut);
-    totalFees += decodeU256(_totalFees);
+    price = getPriceFromId(activeId, binStep);
+    swapForY = _swapForY;
+    amountIn += amountInToBin;
+    amountOut += amountOutOfBin;
+    totalFees += feesTotal;
   });
   amountIn += totalFees;
 
@@ -242,16 +246,19 @@ export const decodeSwapEvents = (events: string[], binStep: number) => {
   };
 };
 
+/**
+ * Decode liquidity events
+ * @param events - string array starting with DEPOSITED_TO_BIN/WITHDRAWN_FROM_BIN
+ * @returns
+ */
 export const decodeLiquidityEvents = (events: string[]) => {
-  let amountX = 0n;
-  let amountY = 0n;
-
-  events.forEach((event) => {
-    const [to, _binId, _amountX, _amountY] = event.split(",");
-
-    amountX += decodeU256(_amountX);
-    amountY += decodeU256(_amountY);
-  });
+  const [amountX, amountY] = events.reduce(
+    ([sumX, sumY], event) => {
+      const decoded = EventDecoder.decodeLiquidity(event);
+      return [sumX + decoded.amountX, sumY + decoded.amountY];
+    },
+    [0n, 0n]
+  );
 
   return {
     amountX,

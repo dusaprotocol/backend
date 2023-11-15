@@ -10,7 +10,14 @@ import { CHAIN_ID, web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
 import { Token as PrismaToken } from "@prisma/client";
-import { Bin, Fraction, PairV2, Token } from "@dusalabs/sdk";
+import {
+  Bin,
+  EventDecoder,
+  Fraction,
+  IFactory,
+  PairV2,
+  Token,
+} from "@dusalabs/sdk";
 import { prisma } from "./db";
 
 export const getPriceFromId = Bin.getPriceFromId;
@@ -41,17 +48,8 @@ export const fetchPairBinSteps = async (
   token0: string,
   token1: string
 ): Promise<number[]> =>
-  web3Client
-    .smartContracts()
-    .readSmartContract({
-      targetAddress: factorySC,
-      targetFunction: "getAvailableLBPairBinSteps",
-      maxGas: BigInt(100_000_000),
-      parameter: new Args().addString(token0).addString(token1).serialize(),
-    })
-    .then((res) => {
-      return bytesToArray<number>(res.returnValue, ArrayTypes.U32);
-    })
+  new IFactory(factorySC, web3Client)
+    .getAvailableLBPairBinSteps(token0, token1)
     .catch((err) => {
       logger.warn(err);
       return [];
@@ -62,27 +60,11 @@ export const fetchPairAddress = async (
   token1: string,
   binStep: number
 ): Promise<string | undefined> =>
-  web3Client
-    .smartContracts()
-    .readSmartContract({
-      targetAddress: factorySC,
-      targetFunction: "getLBPairInformation",
-      parameter: new Args()
-        .addString(token0)
-        .addString(token1)
-        .addU32(binStep)
-        .serialize(),
-      maxGas: BigInt(100_000_000),
-    })
-    .then((res) => {
-      const returnValue = new Args(res.returnValue);
-      const _ = returnValue.nextU32();
-      const lpAddress = returnValue.nextString();
-      return lpAddress;
-    })
+  new IFactory(factorySC, web3Client)
+    .getLBPairInformation(token0, token1, binStep)
+    .then((res) => res.LBPair)
     .catch((err) => {
-      const errorSplit = err.message.split("error: ");
-      const errMsg = errorSplit[errorSplit.length - 1].split(" at")[0];
+      const errMsg = EventDecoder.decodeError(err.message);
       logger.info(
         ["fetchingPairAddress", errMsg, token0, token1, binStep].join(" ")
       );

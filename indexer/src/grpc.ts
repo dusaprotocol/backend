@@ -13,6 +13,7 @@ import { MassaServiceClient } from "../gen/ts/massa/api/v1/api.client";
 import { ExecutionOutputStatus } from "../gen/ts/massa/model/v1/execution";
 import { processOperation } from "./helpers";
 import { prisma } from "../../common/db";
+import { EventDecoder } from "@dusalabs/sdk";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
@@ -44,50 +45,53 @@ export const subscribeNewSlotExecutionOutputs = async (
   try {
     for await (let message of stream.responses) {
       console.log(message.output?.executionOutput?.slot);
+      // const stateChanges = message.output?.executionOutput?.stateChanges
+
       const events = message.output?.executionOutput?.events;
       if (!events) return;
 
-      console.log("--------------------");
       events.forEach(async (event) => {
         if (!event.context) return;
 
         const { callStack } = event.context;
         if (callStack.includes(dcaSC)) {
+          // handle inner swap
           const swapEvent = events.find((e) => e.data.startsWith("SWAP:"));
           if (!swapEvent) return;
-
-          const amountOut = parseInt(swapEvent.data.split(",")[1]);
           console.log(swapEvent?.data);
-          console.log(message.output?.executionOutput?.stateChanges);
 
+          // handle dca execution
           if (event.data.startsWith("DCA_EXECUTED:")) {
             // DCA_EXECUTED:owner,id
-            const owner = event.data.split(":")[1].split(",")[0];
-            const id = parseInt(event.data.split(":")[1].split(",")[1]);
-            await prisma.dCAExecution.create({
-              data: {
-                amountIn: 0,
-                amountOut: 0,
-                id,
-                txHash: "",
-                timestamp: new Date(),
-                DCA: {
-                  connect: {
-                    id,
+            const eventParams = event.data.split(":")[1].split(",");
+            const owner = eventParams[0];
+            const id = parseInt(eventParams[1]);
+            const amountOut = 1; // EventDecoder.decodeU256(eventParams[2]);
+            console.log("DCA_EXECUTED", owner, id, amountOut);
+
+            // TODO: fetch DCA from datastore if its not already in the db
+
+            prisma.dCAExecution
+              .create({
+                data: {
+                  amountIn: 0,
+                  amountOut: 0,
+                  id,
+                  txHash: "",
+                  timestamp: new Date(),
+                  DCA: {
+                    connect: {
+                      id,
+                    },
                   },
                 },
-              },
-            });
+              })
+              .then(console.log)
+              .catch(console.log);
           }
         } else if (callStack.includes(orderSC)) {
-        } else if (
-          callStack.includes(routerSC) &&
-          getCallee(callStack) !== routerSC
-        ) {
-          console.log(event);
         } else return;
       });
-      console.log("--------------------");
     }
   } catch (err: any) {
     logger.error(err.message);

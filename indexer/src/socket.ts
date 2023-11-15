@@ -10,7 +10,7 @@ import { getClosestTick, multiplyWithFloat } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
 import { fetchNewAnalytics } from "./crons";
-import { TokenAmount } from "@dusalabs/sdk";
+import { EventDecoder, TokenAmount } from "@dusalabs/sdk";
 
 // EVENT PROCESSING
 
@@ -68,8 +68,11 @@ export const processLiquidity = async (
 
   const amount0 = isAddLiquidity ? amountX : -amountX;
   const amount1 = isAddLiquidity ? amountY : -amountY;
-  const lowerBound = Number(liqEvents[0].split(",")[1]);
-  const upperBound = Number(liqEvents[liqEvents.length - 1].split(",")[1]);
+
+  const lowerBound = EventDecoder.decodeLiquidity(liqEvents[0]).id;
+  const upperBound = EventDecoder.decodeLiquidity(
+    liqEvents[liqEvents.length - 1]
+  ).id;
 
   const token0 = await getTokenFromAddress(token0Address);
   const token1 = await getTokenFromAddress(token1Address);
@@ -119,26 +122,34 @@ export const processLiquidity = async (
 // COMMON PRISMA ACTIONS
 
 export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
-  const {} = payload;
+  const { amountIn, amountOut, binId, swapForY, timestamp, txHash, usdValue } =
+    payload;
+
   prisma.swap
     .create({
       data: {
-        // pool: {
-        //   connect: {
-        //     address: payload.poolAddress,
-        //   },
-        // },
-        // user: {
-        //   connectOrCreate: {
-        //     where: {
-        //       address: payload.userAddress,
-        //     },
-        //     create: {
-        //       address: payload.userAddress,
-        //     },
-        //   },
-        // },
-        ...payload,
+        pool: {
+          connect: {
+            address: payload.poolAddress,
+          },
+        },
+        user: {
+          connectOrCreate: {
+            where: {
+              address: payload.userAddress,
+            },
+            create: {
+              address: payload.userAddress,
+            },
+          },
+        },
+        amountIn,
+        amountOut,
+        binId,
+        swapForY,
+        timestamp,
+        txHash,
+        usdValue,
       },
     })
     .catch((e) => logger.warn(e));

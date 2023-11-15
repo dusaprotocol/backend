@@ -1,4 +1,8 @@
-import { SWAP_ROUTER_METHODS, LIQUIDITY_ROUTER_METHODS } from "@dusalabs/sdk";
+import {
+  SWAP_ROUTER_METHODS,
+  LIQUIDITY_ROUTER_METHODS,
+  EventDecoder,
+} from "@dusalabs/sdk";
 import { EOperationStatus, IEvent } from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
 import { web3Client } from "../../common/client";
@@ -27,66 +31,81 @@ export async function processOperation(
 
   // PERIPHERY CONTRACTS
 
-  console.log(targetAddr, targetFunc, param);
+  console.log(targetAddr, targetFunc, caller);
   if (targetAddr === dcaSC) {
     switch (targetFunc) {
-      case "startDca": {
+      case "startDCA": {
         const dca = decodeDcaTx(param);
+        console.log(dca);
+        await awaitOperationStatus(txId).then(console.log);
 
-        await awaitOperationStatus(txId);
         const events = await fetchEvents({ original_operation_id: txId });
-        const id = parseInt(
-          events
-            .find((e) => e.data.startsWith("DCA_ADDED:"))
-            ?.data.split(",")[1] as string
-        );
+        const event = events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data;
+        console.log(event);
+        if (!event) return;
+
+        const id = EventDecoder.decodeDCA(event).id;
+        console.log(id);
         if (!dca || !id) return;
 
-        await prisma.dCA.create({
-          data: {
-            ...dca,
-            userAddress: caller,
-            txHash: txId,
-            id,
-            status: Status.ACTIVE,
-          },
-        });
+        await prisma.dCA
+          .create({
+            data: {
+              ...dca,
+              userAddress: caller,
+              txHash: txId,
+              id,
+              status: Status.ACTIVE,
+            },
+          })
+          .then(console.log)
+          .catch(console.log);
       }
-      case "stopDca": {
+      case "stopDCA": {
+        console.log("stopDCA");
         await awaitOperationStatus(txId);
-        const events = await fetchEvents({ original_operation_id: txId });
-        const id = parseInt(
-          events
-            .find((e) => e.data.startsWith("DCA_CANCELLED:"))
-            ?.data.split(",")[1] as string
+
+        const event = await fetchEvents({ original_operation_id: txId }).then(
+          (events) => events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data
         );
-        await prisma.dCA.update({
-          where: {
-            id,
-          },
-          data: {
-            status: Status.STOPPED,
-          },
-        });
+        if (!event) return;
+
+        const id = EventDecoder.decodeDCA(event).id;
+
+        await prisma.dCA
+          .update({
+            where: {
+              id,
+            },
+            data: {
+              status: Status.STOPPED,
+            },
+          })
+          .then(console.log)
+          .catch(console.log);
       }
       case "updateDCA": {
         const dca = decodeDcaTx(param);
 
         await awaitOperationStatus(txId);
-        const events = await fetchEvents({ original_operation_id: txId });
-        const id = parseInt(
-          events
-            .find((e) => e.data.startsWith("DCA_UPDATED:"))
-            ?.data.split(",")[1] as string
+
+        const event = await fetchEvents({ original_operation_id: txId }).then(
+          (events) => events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data
         );
+        if (!event) return;
+
+        const id = EventDecoder.decodeDCA(event).id;
         if (!dca || !id) return;
 
-        await prisma.dCA.update({
-          where: { id },
-          data: {
-            ...dca,
-          },
-        });
+        await prisma.dCA
+          .update({
+            where: { id },
+            data: {
+              ...dca,
+            },
+          })
+          .then(console.log)
+          .catch(console.log);
       }
       default:
         break;
@@ -224,8 +243,4 @@ export async function processLiquidityOperation(
       );
     }
   }
-}
-
-export async function processDCA(user: string) {
-  // prisma.dCA.update({ where: { userAddress: user }, data: {} });
 }
