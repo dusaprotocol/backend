@@ -8,9 +8,9 @@ import {
 } from "../../common/methods";
 import { getClosestTick, multiplyWithFloat } from "../../common/utils";
 import logger from "../../common/logger";
-import { SwapParams, decodeSwapEvents } from "./decoder";
+import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
 import { fetchNewAnalytics } from "./crons";
-import { Token, TokenAmount } from "@dusalabs/sdk";
+import { TokenAmount } from "@dusalabs/sdk";
 
 // EVENT PROCESSING
 
@@ -61,23 +61,15 @@ export const processLiquidity = async (
   poolAddress: string,
   token0Address: string,
   token1Address: string,
-  liqEvents: IEvent[],
+  liqEvents: string[],
   isAddLiquidity: boolean
 ) => {
-  let amountX = 0n;
-  let amountY = 0n;
-
-  liqEvents.forEach((event) => {
-    const [to, _binId, _amountX, _amountY] = event.data.split(",");
-
-    amountX += BigInt(_amountX);
-    amountY += BigInt(_amountY);
-  });
+  const { amountX, amountY } = decodeLiquidityEvents(liqEvents);
 
   const amount0 = isAddLiquidity ? amountX : -amountX;
   const amount1 = isAddLiquidity ? amountY : -amountY;
-  const lowerBound = Number(liqEvents[0].data.split(",")[1]);
-  const upperBound = Number(liqEvents[liqEvents.length - 1].data.split(",")[1]);
+  const lowerBound = Number(liqEvents[0].split(",")[1]);
+  const upperBound = Number(liqEvents[liqEvents.length - 1].split(",")[1]);
 
   const token0 = await getTokenFromAddress(token0Address);
   const token1 = await getTokenFromAddress(token1Address);

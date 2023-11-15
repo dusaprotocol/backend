@@ -6,6 +6,7 @@ import {
   RemoveLiquidityParameters,
   Token,
   TokenAmount,
+  decodeU256,
 } from "@dusalabs/sdk";
 import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
 import { wmasSC } from "../../common/contracts";
@@ -225,9 +226,9 @@ export const decodeSwapEvents = (events: string[], binStep: number) => {
     binId = Number(_binId);
     price = getPriceFromId(binId, binStep);
     swapForY = _swapForY === "true";
-    amountIn += BigInt(_amountIn);
-    amountOut += BigInt(_amountOut);
-    totalFees += BigInt(_totalFees);
+    amountIn += decodeU256(_amountIn);
+    amountOut += decodeU256(_amountOut);
+    totalFees += decodeU256(_totalFees);
   });
   amountIn += totalFees;
 
@@ -238,5 +239,22 @@ export const decodeSwapEvents = (events: string[], binStep: number) => {
     swapForY,
     binId,
     price,
+  };
+};
+
+export const decodeLiquidityEvents = (events: string[]) => {
+  let amountX = 0n;
+  let amountY = 0n;
+
+  events.forEach((event) => {
+    const [to, _binId, _amountX, _amountY] = event.split(",");
+
+    amountX += decodeU256(_amountX);
+    amountY += decodeU256(_amountY);
+  });
+
+  return {
+    amountX,
+    amountY,
   };
 };

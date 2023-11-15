@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@dusalabs/sdk": "^0.3.8",
+    "@dusalabs/sdk": "^0.3.10",
     "@massalabs/massa-web3": "1.24.2",
     "@prisma/client": "^5.4.2",
     "winston": "^3.11.0"

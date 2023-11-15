@@ -6,7 +6,7 @@ import {
 
 // Start gRPC subscriptions
 
-// subscribeNewSlotExecutionOutputs();
+subscribeNewSlotExecutionOutputs();
 subscribeNewOperations();
 
 // Start cron jobs

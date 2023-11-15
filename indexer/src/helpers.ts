@@ -27,6 +27,7 @@ export async function processOperation(
 
   // PERIPHERY CONTRACTS
 
+  console.log(targetAddr, targetFunc, param);
   if (targetAddr === dcaSC) {
     switch (targetFunc) {
       case "startDca": {
@@ -212,11 +213,13 @@ export async function processLiquidityOperation(
         pairAddress,
         token0,
         token1,
-        events.filter(
-          (e) =>
-            e.data.startsWith("DEPOSITED_TO_BIN:") ||
-            e.data.startsWith("WITHDRAWN_FROM_BIN:")
-        ),
+        events
+          .filter(
+            (e) =>
+              e.data.startsWith("DEPOSITED_TO_BIN:") ||
+              e.data.startsWith("WITHDRAWN_FROM_BIN:")
+          )
+          .map((e) => e.data),
         isAdd
       );
     }
