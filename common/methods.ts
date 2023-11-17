@@ -1,22 +1,19 @@
-import {
-  Args,
-  ArrayTypes,
-  IEvent,
-  bytesToArray,
-  bytesToStr,
-  strToBytes,
-} from "@massalabs/massa-web3";
+import { Args, strToBytes } from "@massalabs/massa-web3";
 import { CHAIN_ID, web3Client } from "./client";
 import { factorySC, usdcSC } from "./contracts";
 import logger from "./logger";
-import { Token as PrismaToken } from "@prisma/client";
 import {
   Bin,
+  ChainId,
   EventDecoder,
   Fraction,
+  IERC20,
   IFactory,
+  ILBPair,
+  LB_FACTORY_ADDRESS,
   PairV2,
   Token,
+  USDC as _USDC,
 } from "@dusalabs/sdk";
 import { prisma } from "./db";
 
@@ -44,17 +41,6 @@ export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
       return binStep;
     });
 
-export const fetchPairBinSteps = async (
-  token0: string,
-  token1: string
-): Promise<number[]> =>
-  new IFactory(factorySC, web3Client)
-    .getAvailableLBPairBinSteps(token0, token1)
-    .catch((err) => {
-      logger.warn(err);
-      return [];
-    });
-
 export const fetchPairAddress = async (
   token0: string,
   token1: string,
@@ -73,29 +59,35 @@ export const fetchPairAddress = async (
 
 export const getTokenValue = async (
   tokenAddress: string
+  // CHAIN_ID: ChainId
 ): Promise<number | undefined> => {
-  if (tokenAddress === usdcSC) return 1;
+  const USDC = _USDC[CHAIN_ID];
+  const factory = new IFactory(LB_FACTORY_ADDRESS[CHAIN_ID], web3Client);
+  if (tokenAddress === USDC.address) return 1;
 
-  const binSteps = await fetchPairBinSteps(tokenAddress, usdcSC);
-  if (!binSteps || !binSteps.length) return;
+  const binSteps = await factory.getAvailableLBPairBinSteps(
+    tokenAddress,
+    USDC.address
+  );
   const binStep = binSteps[0];
 
-  const pairAddress = await fetchPairAddress(tokenAddress, usdcSC, binStep);
-  if (!pairAddress) return;
+  const pairAddress = await factory
+    .getLBPairInformation(tokenAddress, USDC.address, binStep)
+    .then((r) => r.LBPair);
 
   const pairInfo = await PairV2.getLBPairReservesAndId(pairAddress, web3Client);
-  if (!pairInfo) return;
 
-  const price = getPriceFromId(pairInfo.activeId, binStep);
-  const token0Address = tokenAddress < usdcSC ? tokenAddress : usdcSC;
-  const token1Address = tokenAddress < usdcSC ? usdcSC : tokenAddress;
-  const token0 = await getTokenFromAddress(token0Address);
-  const token1 = await getTokenFromAddress(token1Address);
-  if (!token0 || !token1) return;
+  const price = Bin.getPriceFromId(pairInfo.activeId, binStep);
+  const token0Address =
+    tokenAddress < USDC.address ? tokenAddress : USDC.address;
+  const token1Address =
+    tokenAddress < USDC.address ? USDC.address : tokenAddress;
+  const token0Decimals = await new IERC20(token0Address, web3Client).decimals();
+  const token1Decimals = await new IERC20(token1Address, web3Client).decimals();
 
   return (
-    (tokenAddress < usdcSC ? price : 1 / price) *
-    10 ** (token0.decimals - token1.decimals)
+    (tokenAddress < USDC.address ? price : 1 / price) *
+    10 ** (token0Decimals - token1Decimals)
   );
 };
 
@@ -107,66 +99,10 @@ export const toFraction = (price: number): Fraction => {
 export const getPairAddressTokens = async (
   pairAddress: string
 ): Promise<[string, string] | undefined> => {
-  return await web3Client
-    .publicApi()
-    .getDatastoreEntries([
-      {
-        address: pairAddress,
-        key: strToBytes("TOKEN_X"),
-      },
-      {
-        address: pairAddress,
-        key: strToBytes("TOKEN_Y"),
-      },
-    ])
-    .then((r): [string, string] | undefined => {
-      if (r[0].candidate_value && r[1].candidate_value)
-        return [
-          bytesToStr(r[0].candidate_value),
-          bytesToStr(r[1].candidate_value),
-        ];
-    })
-    .catch((err) => {
-      logger.warn(err);
-      return undefined;
-    });
-};
-
-export const fetchTokenInfo = async (
-  tokenAddress: string
-): Promise<PrismaToken | undefined> => {
-  return web3Client
-    .publicApi()
-    .getDatastoreEntries([
-      {
-        address: tokenAddress,
-        key: strToBytes("NAME"),
-      },
-      {
-        address: tokenAddress,
-        key: strToBytes("SYMBOL"),
-      },
-      {
-        address: tokenAddress,
-        key: strToBytes("DECIMALS"),
-      },
-    ])
-    .then((res) => {
-      if (
-        res[0].candidate_value &&
-        res[1].candidate_value &&
-        res[2].candidate_value
-      ) {
-        const token = {
-          name: bytesToStr(res[0].candidate_value),
-          symbol: bytesToStr(res[1].candidate_value),
-          decimals: res[2].candidate_value[0],
-          address: tokenAddress,
-        };
-        return token;
-      }
-    })
-    .catch(() => undefined);
+  return new ILBPair(pairAddress, web3Client).getTokens().catch((err) => {
+    logger.warn(err);
+    return undefined;
+  });
 };
 
 export const getTokenFromAddress = async (
@@ -178,5 +114,11 @@ export const getTokenFromAddress = async (
     },
   });
   if (!token) return null;
-  return new Token(CHAIN_ID, token.address, token.decimals);
+  return new Token(
+    CHAIN_ID,
+    token.address,
+    token.decimals,
+    token.symbol,
+    token.name
+  );
 };

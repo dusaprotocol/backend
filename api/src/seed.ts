@@ -1,13 +1,10 @@
 import type { Pool } from "@prisma/client";
-import {
-  fetchTokenInfo,
-  getBinStep,
-  getPairAddressTokens,
-} from "../../common/methods";
+import { getBinStep, getPairAddressTokens } from "../../common/methods";
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
 import { bytesToStr, strToBytes } from "@massalabs/massa-web3";
 import { prisma } from "../../common/db";
+import { IERC20 } from "@dusalabs/sdk";
 
 async function createPools() {
   const pools: Pick<Pool, "address" | "binStep">[] = [];
@@ -39,23 +36,42 @@ async function createPools() {
     if (!tokenAddresses) return;
 
     const [token0Address, token1Address] = tokenAddresses;
-    const token0 = await fetchTokenInfo(token0Address);
-    const token1 = await fetchTokenInfo(token1Address);
-    if (!token0 || !token1) return;
+    const _token0 = new IERC20(token0Address, web3Client);
+    const _token1 = new IERC20(token1Address, web3Client);
+    const [name0, symbol0, decimals0] = await Promise.all([
+      _token0.name(),
+      _token0.symbol(),
+      _token0.decimals(),
+    ]);
+    const [name1, symbol1, decimals1] = await Promise.all([
+      _token1.name(),
+      _token1.symbol(),
+      _token1.decimals(),
+    ]);
 
     try {
       await prisma.token.upsert({
         where: {
-          address: token0.address,
+          address: token0Address,
         },
-        create: token0,
+        create: {
+          address: token0Address,
+          decimals: decimals0,
+          symbol: symbol0,
+          name: name0,
+        },
         update: {},
       });
       await prisma.token.upsert({
         where: {
-          address: token1.address,
+          address: token1Address,
         },
-        create: token1,
+        create: {
+          address: token1Address,
+          decimals: decimals1,
+          symbol: symbol1,
+          name: name1,
+        },
         update: {},
       });
 
@@ -65,12 +81,12 @@ async function createPools() {
             ...pool,
             token0: {
               connect: {
-                address: token0.address,
+                address: token0Address,
               },
             },
             token1: {
               connect: {
-                address: token1.address,
+                address: token1Address,
               },
             },
           },
