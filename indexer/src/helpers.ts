@@ -28,18 +28,22 @@ export async function processOperation(
   if (opType?.oneofKind !== "callSc") return;
 
   const { targetAddr, targetFunc, param } = opType.callSc;
+  const indexedSC = [dcaSC, orderSC, routerSC];
+
+  if (!indexedSC.includes(targetAddr)) return;
+
+  console.log(targetAddr, targetFunc, caller);
+  await awaitOperationStatus(txId).then(console.log);
+  const events = await fetchEvents({ original_operation_id: txId });
 
   // PERIPHERY CONTRACTS
 
-  console.log(targetAddr, targetFunc, caller);
   if (targetAddr === dcaSC) {
     switch (targetFunc) {
       case "startDCA": {
         const dca = decodeDcaTx(param);
         console.log(dca);
-        await awaitOperationStatus(txId).then(console.log);
 
-        const events = await fetchEvents({ original_operation_id: txId });
         const event = events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data;
         console.log(event);
         if (!event) return;
@@ -60,14 +64,12 @@ export async function processOperation(
           })
           .then(console.log)
           .catch(console.log);
+        break;
       }
       case "stopDCA": {
-        console.log("stopDCA");
-        await awaitOperationStatus(txId);
-
-        const event = await fetchEvents({ original_operation_id: txId }).then(
-          (events) => events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data
-        );
+        const event = events.find((e) =>
+          e.data.startsWith("DCA_CANCELLED:")
+        )?.data;
         if (!event) return;
 
         const id = EventDecoder.decodeDCA(event).id;
@@ -83,50 +85,57 @@ export async function processOperation(
           })
           .then(console.log)
           .catch(console.log);
+        break;
       }
       case "updateDCA": {
-        const dca = decodeDcaTx(param);
+        // const dca = decodeDcaTx(param);
+        // const event = events.find((e) =>
+        //   e.data.startsWith("DCA_UPDATED:")
+        // )?.data;
+        // if (!event) return;
 
-        await awaitOperationStatus(txId);
+        // const id = EventDecoder.decodeDCA(event).id;
+        // if (!dca || !id) return;
 
-        const event = await fetchEvents({ original_operation_id: txId }).then(
-          (events) => events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data
-        );
-        if (!event) return;
-
-        const id = EventDecoder.decodeDCA(event).id;
-        if (!dca || !id) return;
-
-        await prisma.dCA
-          .update({
-            where: { id },
-            data: {
-              ...dca,
-            },
-          })
-          .then(console.log)
-          .catch(console.log);
+        // await prisma.dCA
+        //   .update({
+        //     where: { id },
+        //     data: {
+        //       ...dca,
+        //     },
+        //   })
+        //   .then(console.log)
+        //   .catch(console.log);
+        break;
       }
       default:
         break;
     }
-    return;
   } else if (targetAddr === orderSC) {
     switch (targetFunc) {
-      case "addLimitOrder":
+      case "addLimitOrder": {
+        const event = events.find((e) =>
+          e.data.startsWith("NEW_LIMIT_ORDER:")
+        )?.data;
+        if (!event) return;
+
+        const { id } = EventDecoder.decodeLimitOrder(event);
+        if (!id) return;
+        break;
+      }
       case "removeLimitOrder":
+        const event = events.find((e) =>
+          e.data.startsWith("REMOVE_LIMIT_ORDER:")
+        )?.data;
+        if (!event) return;
+
+        const { id } = EventDecoder.decodeLimitOrder(event);
+        if (!id) return;
         break;
       default:
         break;
     }
-    return;
-  }
-
-  // CORE CONTRACTS
-
-  if (targetAddr !== routerSC) return;
-
-  try {
+  } else {
     const status = await awaitOperationStatus(txId);
     const events = await fetchEvents({ original_operation_id: txId });
     const timestamp = await getTimestamp(events);
@@ -150,17 +159,18 @@ export async function processOperation(
     } else {
       throw new Error("Unknown router method:" + targetFunc);
     }
-  } catch (err: any) {
-    logger.error(err.message);
   }
 }
 
-export async function awaitOperationStatus(txId: string) {
+export async function awaitOperationStatus(
+  txId: string,
+  requiredStatus: EOperationStatus = EOperationStatus.SPECULATIVE_SUCCESS
+) {
   return web3Client
     .smartContracts()
-    .awaitRequiredOperationStatus(txId, EOperationStatus.FINAL_SUCCESS)
+    .awaitRequiredOperationStatus(txId, requiredStatus)
     .then((status) => {
-      if (status !== EOperationStatus.FINAL_SUCCESS) {
+      if (status !== requiredStatus) {
         throw new Error("Operation status is not FINAL_SUCCESS");
       }
       return status;
@@ -180,7 +190,7 @@ export async function processSwapOperation(
   events: IEvent[]
 ) {
   const { targetFunc: method, param: args, coins } = operation;
-  const swapParams = await decodeSwapTx(method, args, coins);
+  const swapParams = decodeSwapTx(method, args, coins);
   if (swapParams) {
     for (let i = 0; i < swapParams.path.length - 1; i++) {
       const tokenIn = swapParams.path[i].str;
@@ -220,7 +230,7 @@ export async function processLiquidityOperation(
 ) {
   const { targetFunc: method, param: args, coins } = operation;
   const isAdd = method.startsWith("add");
-  const liquidityParams = await decodeLiquidityTx(isAdd, args, coins);
+  const liquidityParams = decodeLiquidityTx(isAdd, args, coins);
   if (liquidityParams) {
     const { token0, token1, binStep } = liquidityParams;
     const pairAddress = await fetchPairAddress(token0, token1, binStep);

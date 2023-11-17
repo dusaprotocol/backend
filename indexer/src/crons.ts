@@ -59,7 +59,7 @@ export const fetchNewAnalytics = async (
       new TokenAmount(token1, token1Locked).multiply(toFraction(token1Value))
     ).quotient;
 
-  const adjustedPrice = activePrice * 10 ** (token0.decimals - token1.decimals);
+  const adjustedPrice = activePrice * 10 ** (token1.decimals - token0.decimals);
 
   createAnalytic(
     poolAddress,
