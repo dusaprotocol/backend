@@ -1,16 +1,16 @@
 import { CHAIN_ID } from "./client";
-import { usdcSC, wmasSC } from "./contracts";
+import { USDC, WMAS } from "./contracts";
 import { getTokenValue } from "./methods";
 import { WETH as _WETH } from "@dusalabs/sdk";
 import { describe, expect, test } from "vitest";
 
 describe("getTokenValue", () => {
   test("returns 1 for USDC", async () => {
-    const value = await getTokenValue(usdcSC);
+    const value = await getTokenValue(USDC.address);
     expect(value).toBe(1);
   });
-  test("returns around 5 for WMASK", async () => {
-    const value = await getTokenValue(wmasSC);
+  test("returns around 5 for WMAS", async () => {
+    const value = await getTokenValue(WMAS.address);
     const [min, max] = radius(5, 25);
     expect(value).toBeGreaterThan(min);
     expect(value).toBeLessThan(max);

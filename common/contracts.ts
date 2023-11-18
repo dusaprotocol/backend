@@ -3,8 +3,8 @@ import {
   LB_FACTORY_ADDRESS,
   LB_ROUTER_ADDRESS,
   LIMIT_ORDER_MANAGER_ADDRESS,
-  USDC,
-  WMAS,
+  USDC as _USDC,
+  WMAS as _WMAS,
 } from "@dusalabs/sdk";
 import { CHAIN_ID } from "./client";
 
@@ -13,5 +13,5 @@ export const factorySC = LB_FACTORY_ADDRESS[CHAIN_ID];
 export const dcaSC = DCA_MANAGER_ADDRESS[CHAIN_ID];
 export const orderSC = LIMIT_ORDER_MANAGER_ADDRESS[CHAIN_ID];
 
-export const usdcSC = USDC[CHAIN_ID].address;
-export const wmasSC = WMAS[CHAIN_ID].address;
+export const USDC = _USDC[CHAIN_ID];
+export const WMAS = _WMAS[CHAIN_ID];
