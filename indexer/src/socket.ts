@@ -38,7 +38,7 @@ export const processSwap = async (
 
   const token0 = tokenIn.address < tokenOut.address ? tokenIn : tokenOut;
   const token1 = tokenIn.address < tokenOut.address ? tokenOut : tokenIn;
-  const priceAdjusted = price * 10 ** (token1.decimals - token0.decimals);
+  const priceAdjusted = price * 10 ** (token0.decimals - token1.decimals);
 
   const volume = Number(
     new TokenAmount(tokenIn, amountIn)

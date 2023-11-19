@@ -118,11 +118,8 @@ export const getTokenValue = async (
     tokenAddress < USDC.address ? USDC.address : tokenAddress;
   const token0Decimals = await new IERC20(token0Address, web3Client).decimals();
   const token1Decimals = await new IERC20(token1Address, web3Client).decimals();
-
-  return (
-    (tokenAddress < USDC.address ? price : 1 / price) *
-    10 ** (token0Decimals - token1Decimals)
-  );
+  const priceAdjusted = price * 10 ** (token0Decimals - token1Decimals);
+  return tokenAddress < USDC.address ? priceAdjusted : 1 / priceAdjusted;
 };
 
 export const toFraction = (price: number): Fraction => {
