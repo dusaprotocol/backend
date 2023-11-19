@@ -46,8 +46,8 @@ export const fetchNewAnalytics = async (
   const token1 = await getTokenFromAddress(tokens[1]);
   if (!token0 || !token1) return;
 
-  const token0Value = await getTokenValue(tokens[0]);
-  const token1Value = await getTokenValue(tokens[1]);
+  const token0Value = await getTokenValue(tokens[0], false);
+  const token1Value = await getTokenValue(tokens[1], false);
   if (!token0Value || !token1Value) return;
 
   const token0Locked = pairInfo.reserveX;
@@ -57,9 +57,10 @@ export const fetchNewAnalytics = async (
     .multiply(toFraction(token0Value))
     .add(
       new TokenAmount(token1, token1Locked).multiply(toFraction(token1Value))
-    ).quotient;
+    )
+    .toSignificant(6);
 
-  const adjustedPrice = activePrice * 10 ** (token1.decimals - token0.decimals);
+  const adjustedPrice = activePrice * 10 ** (token0.decimals - token1.decimals);
 
   createAnalytic(
     poolAddress,
@@ -68,6 +69,12 @@ export const fetchNewAnalytics = async (
     Number(usdLocked),
     adjustedPrice
   );
+
+  return {
+    adjustedPrice,
+    token0Locked,
+    token1Locked,
+  };
 };
 
 const createAnalytic = (

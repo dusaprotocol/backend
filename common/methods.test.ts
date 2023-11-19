@@ -1,6 +1,6 @@
 import { CHAIN_ID } from "./client";
 import { USDC, WMAS } from "./contracts";
-import { getTokenValue } from "./methods";
+import { getTokenValue, radius } from "./methods";
 import { WETH as _WETH } from "@dusalabs/sdk";
 import { describe, expect, test } from "vitest";
 
@@ -22,8 +22,3 @@ describe("getTokenValue", () => {
     expect(value).toBeLessThan(max);
   });
 });
-
-const radius = (x: number, pct: number): [number, number] => [
-  x - (x * pct) / 100,
-  x + (x * pct) / 100,
-];

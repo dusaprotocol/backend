@@ -82,11 +82,12 @@ export const getTokenValueUsingQuoter = async (
 export const getTokenValue = async (
   tokenAddress: string,
   // CHAIN_ID: ChainId
+  adjusted = true,
   opts?: {
     poolAddress: string;
     binStep: number;
   }
-): Promise<number | undefined> => {
+): Promise<number> => {
   const factory = new IFactory(LB_FACTORY_ADDRESS[CHAIN_ID], web3Client);
   if (tokenAddress === USDC.address) return 1;
 
@@ -94,17 +95,23 @@ export const getTokenValue = async (
     ? opts.binStep
     : await factory
         .getAvailableLBPairBinSteps(tokenAddress, USDC.address)
-        .then((r) => r[0]);
-
+        .then((r) => r[0])
+        .catch(() => undefined);
   if (!binStep) return getTokenValueUsingQuoter(tokenAddress);
 
-  const pairAddress = await factory
-    .getLBPairInformation(tokenAddress, USDC.address, binStep)
-    .then((r) => r.LBPair);
+  const pairAddress = opts
+    ? opts.poolAddress
+    : await factory
+        .getLBPairInformation(tokenAddress, USDC.address, binStep)
+        .then((r) => r.LBPair)
+        .catch(() => undefined);
+  if (!pairAddress) return getTokenValueUsingQuoter(tokenAddress);
 
   const pairInfo = await PairV2.getLBPairReservesAndId(pairAddress, web3Client);
-
   const price = Bin.getPriceFromId(pairInfo.activeId, binStep);
+
+  if (!adjusted) return price;
+
   const token0Address =
     tokenAddress < USDC.address ? tokenAddress : USDC.address;
   const token1Address =
@@ -114,7 +121,7 @@ export const getTokenValue = async (
 
   return (
     (tokenAddress < USDC.address ? price : 1 / price) *
-    10 ** (token1Decimals - token0Decimals)
+    10 ** (token0Decimals - token1Decimals)
   );
 };
 
@@ -168,3 +175,10 @@ export const fetchTokenFromAddress = async (
 
   return new Token(CHAIN_ID, token.address, decimals, symbol, name);
 };
+
+// TESTING PURPOSE
+
+export const radius = (x: number, pct: number): [number, number] => [
+  x - (x * pct) / 100,
+  x + (x * pct) / 100,
+];
