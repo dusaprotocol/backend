@@ -35,10 +35,13 @@ export const fetchEvents = async (
     });
 };
 
-const watchEvent = async (eventName: string): Promise<string[]> => {
+const watchEvent = async (
+  txHash: string,
+  eventName: string
+): Promise<string[]> => {
   const eventsNameRegex = `^${eventName}:`;
   const eventArguments: string[] = await EventPoller.getEventsOnce(
-    { ...nullFilters, eventsNameRegex },
+    { ...nullFilters, original_operation_id: txHash, eventsNameRegex },
     web3Client
   ).then((events) => events[0].data.split(eventName + ":")[1].split(","));
 
@@ -54,11 +57,6 @@ type TransferEvent = {
   amount: bigint;
 };
 
-type MintEvent = {
-  to: string;
-  amount: bigint;
-};
-
 // const event = await watchEvent<TransferEvent>("TRANSFER");
 // if (!event) {
 //   throw new Error("No event found");
@@ -66,10 +64,8 @@ type MintEvent = {
 // console.log(event);
 // {from: "0x...", to: "0x...", amount: 1000000000000000000n}
 
-export const watchTransferEvent = async (
-  txId: string
-): Promise<TransferEvent> => {
-  const params = await watchEvent(TRANSFER_EVENT_NAME);
+const watchTransferEvent = async (txId: string): Promise<TransferEvent> => {
+  const params = await watchEvent(txId, TRANSFER_EVENT_NAME);
   return {
     from: params[0],
     to: params[1],

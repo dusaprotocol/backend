@@ -62,11 +62,11 @@ export const subscribeNewSlotExecutionOutputs = async (
 
           // handle dca execution
           if (event.data.startsWith("DCA_EXECUTED:")) {
-            // DCA_EXECUTED:owner,id
-            const eventParams = event.data.split(":")[1].split(",");
-            const owner = eventParams[0];
-            const id = parseInt(eventParams[1]);
-            const amountOut = 1; // EventDecoder.decodeU256(eventParams[2]);
+            const [owner, _id, _amountOut] = event.data
+              .split(":")[1]
+              .split(",");
+            const id = parseInt(_id);
+            const amountOut = EventDecoder.decodeU256(_amountOut);
             console.log("DCA_EXECUTED", owner, id, amountOut);
 
             // TODO: fetch DCA from datastore if its not already in the db
@@ -87,7 +87,7 @@ export const subscribeNewSlotExecutionOutputs = async (
                 },
               })
               .then(console.log)
-              .catch(console.log);
+              .catch((e) => console.log(JSON.stringify(e)));
           }
         } else if (callStack.includes(orderSC)) {
         } else return;

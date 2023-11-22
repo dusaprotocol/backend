@@ -6,7 +6,7 @@ import {
   getTokenValue,
   toFraction,
 } from "../../common/methods";
-import { getClosestTick, multiplyWithFloat } from "../../common/utils";
+import { getClosestTick } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
 import { fetchNewAnalytics } from "./crons";
@@ -29,7 +29,7 @@ export const processSwap = async (
   const swapPayload = decodeSwapEvents(swapEvents, binStep);
   const { amountIn, totalFees, price } = swapPayload;
 
-  const valueIn = await getTokenValue(tokenInAddress);
+  const valueIn = await getTokenValue(tokenInAddress, false);
   if (!valueIn) return;
 
   const tokenIn = await getTokenFromAddress(tokenInAddress);
@@ -40,9 +40,17 @@ export const processSwap = async (
   const token1 = tokenIn.address < tokenOut.address ? tokenOut : tokenIn;
   const priceAdjusted = price * 10 ** (token0.decimals - token1.decimals);
 
-  const volume = multiplyWithFloat(new TokenAmount(tokenIn, amountIn), valueIn);
-  const fees = multiplyWithFloat(new TokenAmount(tokenIn, totalFees), valueIn);
+  const volume = Number(
+    new TokenAmount(tokenIn, amountIn)
+      .multiply(toFraction(valueIn))
+      .toSignificant(6)
+  );
   // fees are stored in cents
+  const fees = Number(
+    new TokenAmount(tokenIn, totalFees)
+      .multiply(toFraction(valueIn))
+      .toSignificant(6)
+  );
   updateVolumeAndPrice(poolAddress, binStep, volume, fees, priceAdjusted);
   createSwap({
     ...swapPayload,
@@ -78,14 +86,14 @@ export const processLiquidity = async (
   const token1 = await getTokenFromAddress(token1Address);
   if (!token0 || !token1) return;
 
-  const token0Value = (await getTokenValue(token0Address)) || 0;
-  const token1Value = (await getTokenValue(token1Address)) || 0;
+  const token0Value = (await getTokenValue(token0Address), false) || 0;
+  const token1Value = (await getTokenValue(token1Address), false) || 0;
 
   const usdValue = Number(
     new TokenAmount(token0, amount0)
       .multiply(toFraction(token0Value))
       .add(new TokenAmount(token1, amount1).multiply(toFraction(token1Value)))
-      .quotient
+      .toSignificant(6)
   );
 
   prisma.liquidity

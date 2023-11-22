@@ -9,7 +9,7 @@ import {
   EventDecoder,
 } from "@dusalabs/sdk";
 import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
-import { wmasSC } from "../../common/contracts";
+import { WMAS } from "../../common/contracts";
 
 export interface SwapParams {
   amountIn: bigint;
@@ -58,11 +58,11 @@ const extractAmountInOut = (method: string, args: Args, coins: bigint) => {
   }
 };
 
-export const decodeSwapTx = async (
+export const decodeSwapTx = (
   method: string,
   params: Uint8Array,
   coins: bigint
-): Promise<SwapParams | undefined> => {
+): SwapParams | undefined => {
   try {
     const args = new Args(params);
     const { amountIn, amountOut } = extractAmountInOut(method, args, coins);
@@ -87,15 +87,15 @@ export const decodeSwapTx = async (
 
 type DecodedLiquidity = AddLiquidityParameters | RemoveLiquidityParameters;
 
-export const decodeLiquidityTx = async (
+export const decodeLiquidityTx = (
   isAdd: boolean,
   params: Uint8Array,
   coins: bigint
-): Promise<DecodedLiquidity | undefined> => {
+): DecodedLiquidity | undefined => {
   try {
     const args = new Args(params);
     const token0 = args.nextString();
-    const token1 = coins ? wmasSC : args.nextString();
+    const token1 = coins ? WMAS.address : args.nextString();
     const binStep = args.nextU32();
 
     if (isAdd) {
@@ -155,15 +155,21 @@ export const decodeLiquidityTx = async (
 export const decodeDcaTx = (
   params: Uint8Array
 ):
-  | (Omit<StartDCAParameters, "startIn"> & { startTime: Date; endTime: Date })
+  | (Omit<StartDCAParameters, "startIn" | "tokenPath"> & {
+      tokenIn: string;
+      tokenOut: string;
+      startTime: Date;
+      endTime: Date;
+    })
   | undefined => {
   try {
     const args = new Args(params);
     const amountEachDCA = args.nextU256();
     const interval = Number(args.nextU64());
     const nbOfDCA = Number(args.nextU64());
-    const tokenIn = args.nextString();
-    const tokenOut = args.nextString();
+    const tokenPath: Address[] = args.nextSerializableObjectArray(Address);
+    const tokenIn = tokenPath[0].str;
+    const tokenOut = tokenPath[tokenPath.length - 1].str;
     const startIn = Number(args.nextU64());
 
     const startTime = Date.now() + startIn;

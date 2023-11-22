@@ -5,7 +5,6 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
-import { getTokenValue } from "../../common/methods";
 
 type Volume = Prisma.AnalyticsGetPayload<{
   select: {
@@ -539,12 +538,18 @@ export const appRouter = t.router({
     .input(
       z.object({
         tokenAddress: z.string(),
+        opts: z.optional(
+          z.object({
+            poolAddress: z.string(),
+            binStep: z.number(),
+          })
+        ),
         // chainId: z.number(),
       })
     )
     .query(async ({ input }) => {
-      const { tokenAddress } = input;
-      return getTokenValue(tokenAddress);
+      const { tokenAddress, opts } = input;
+      return getTokenValue(tokenAddress, true, opts);
     }),
 });
 
