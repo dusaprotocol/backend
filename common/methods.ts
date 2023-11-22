@@ -1,5 +1,4 @@
 import { Args, strToBytes } from "@massalabs/massa-web3";
-import { Args, strToBytes } from "@massalabs/massa-web3";
 import { CHAIN_ID, web3Client } from "./client";
 import { factorySC, USDC, WMAS } from "./contracts";
 import logger from "./logger";
@@ -163,7 +162,7 @@ export const getTokenFromAddress = async (
 
 export const fetchTokenFromAddress = async (
   tokenAddress: string
-): Promise<Token | null> => {
+): Promise<Token> => {
   const token = new IERC20(tokenAddress, web3Client);
   const [name, symbol, decimals] = await Promise.all([
     token.name(),

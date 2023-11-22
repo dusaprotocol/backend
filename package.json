@@ -7,7 +7,7 @@
     "postinstall": "prisma db pull && prisma generate",
     "start:api": "cd api && pnpm install && pnpm start",
     "start:indexer": "cd indexer && pnpm install && pnpm start",
-    "test": "vitest",
+    "test": "vitest --no-threads",
     "reset": "prisma migrate reset --force && prisma db push",
     "seed": "ts-node ./api/src/seed.ts"
   },
