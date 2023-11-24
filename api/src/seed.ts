@@ -1,10 +1,10 @@
 import type { Pool } from "@prisma/client";
-import { getBinStep, getPairAddressTokens } from "../../common/methods";
+import { getBinStep } from "../../common/methods";
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
 import { bytesToStr, strToBytes } from "@massalabs/massa-web3";
 import { prisma } from "../../common/db";
-import { IERC20 } from "@dusalabs/sdk";
+import { IERC20, ILBPair } from "@dusalabs/sdk";
 
 async function createPools() {
   const pools: Pick<Pool, "address" | "binStep">[] = [];
@@ -32,10 +32,10 @@ async function createPools() {
 
   for (let i = 0; i < pools.length; i++) {
     const pool = pools[i];
-    const tokenAddresses = await getPairAddressTokens(pool.address);
-    if (!tokenAddresses) return;
-
-    const [token0Address, token1Address] = tokenAddresses;
+    const [token0Address, token1Address] = await new ILBPair(
+      pool.address,
+      web3Client
+    ).getTokens();
     const _token0 = new IERC20(token0Address, web3Client);
     const _token1 = new IERC20(token1Address, web3Client);
     const [name0, symbol0, decimals0] = await Promise.all([

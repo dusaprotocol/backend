@@ -108,7 +108,7 @@ export const getTokenValue = async (
   if (!pairAddress) return getTokenValueUsingQuoter(tokenAddress);
 
   const pairInfo = await PairV2.getLBPairReservesAndId(pairAddress, web3Client);
-  const price = Bin.getPriceFromId(pairInfo.activeId, binStep);
+  const price = getPriceFromId(pairInfo.activeId, binStep);
 
   if (!adjusted) return price;
 
@@ -118,22 +118,19 @@ export const getTokenValue = async (
     tokenAddress < USDC.address ? USDC.address : tokenAddress;
   const token0Decimals = await new IERC20(token0Address, web3Client).decimals();
   const token1Decimals = await new IERC20(token1Address, web3Client).decimals();
-  const priceAdjusted = price * 10 ** (token0Decimals - token1Decimals);
+  const priceAdjusted = adjustPrice(price, token0Decimals, token1Decimals);
   return tokenAddress < USDC.address ? priceAdjusted : 1 / priceAdjusted;
 };
+
+export const adjustPrice = (
+  price: number,
+  token0Decimals: number,
+  token1Decimals: number
+): number => price * 10 ** (token0Decimals - token1Decimals);
 
 export const toFraction = (price: number): Fraction => {
   const value = BigInt(Math.round((price || 1) * 1e18));
   return new Fraction(value, BigInt(1e18));
-};
-
-export const getPairAddressTokens = async (
-  pairAddress: string
-): Promise<[string, string] | undefined> => {
-  return new ILBPair(pairAddress, web3Client).getTokens().catch((err) => {
-    logger.warn(err);
-    return undefined;
-  });
 };
 
 export const getTokenFromAddress = async (

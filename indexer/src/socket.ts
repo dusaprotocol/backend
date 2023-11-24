@@ -2,6 +2,7 @@ import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import {
+  adjustPrice,
   getTokenFromAddress,
   getTokenValue,
   toFraction,
@@ -38,7 +39,7 @@ export const processSwap = async (
 
   const token0 = tokenIn.address < tokenOut.address ? tokenIn : tokenOut;
   const token1 = tokenIn.address < tokenOut.address ? tokenOut : tokenIn;
-  const priceAdjusted = price * 10 ** (token0.decimals - token1.decimals);
+  const priceAdjusted = adjustPrice(price, token0.decimals, token1.decimals);
 
   const volume = Number(
     new TokenAmount(tokenIn, amountIn)

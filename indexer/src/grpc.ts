@@ -7,13 +7,13 @@ import { ONE_MINUTE } from "../../common/utils";
 import {
   NewSlotExecutionOutputsRequest,
   NewOperationsRequest,
-  OpType,
-} from "../gen/ts/massa/api/v1/api";
+} from "../gen/ts/massa/api/v1/public";
 import { MassaServiceClient } from "../gen/ts/massa/api/v1/api.client";
 import { ExecutionOutputStatus } from "../gen/ts/massa/model/v1/execution";
 import { processOperation } from "./helpers";
 import { prisma } from "../../common/db";
 import { EventDecoder } from "@dusalabs/sdk";
+import { bytesToStr } from "@massalabs/massa-web3";
 
 const grpcDefaultHost = "37.187.156.118";
 const grpcPort = 33037;
@@ -56,13 +56,15 @@ export const subscribeNewSlotExecutionOutputs = async (
         const { callStack } = event.context;
         if (callStack.includes(dcaSC)) {
           // handle inner swap
-          const swapEvent = events.find((e) => e.data.startsWith("SWAP:"));
+          const swapEvent = events.find((e) =>
+            bytesToStr(e.data).startsWith("SWAP:")
+          );
           if (!swapEvent) return;
           console.log(swapEvent?.data);
 
           // handle dca execution
-          if (event.data.startsWith("DCA_EXECUTED:")) {
-            const [owner, _id, _amountOut] = event.data
+          if (bytesToStr(event.data).startsWith("DCA_EXECUTED:")) {
+            const [owner, _id, _amountOut] = bytesToStr(event.data)
               .split(":")[1]
               .split(",");
             const id = parseInt(_id);
@@ -128,7 +130,7 @@ export const subscribeNewOperations = async (
 
   try {
     for await (let message of stream.responses) {
-      const txId = message.operation?.id;
+      const txId = message.operation?.secureHash;
       const caller = message.operation?.contentCreatorAddress;
       const content = message.operation?.content;
       if (!txId || !caller || !content) return;

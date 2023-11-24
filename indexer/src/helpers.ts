@@ -27,21 +27,21 @@ export async function processOperation(
   const opType = operation.op?.type;
   if (opType?.oneofKind !== "callSc") return;
 
-  const { targetAddr, targetFunc, param } = opType.callSc;
+  const { targetAddress, targetFunction, parameter } = opType.callSc;
   const indexedSC = [dcaSC, orderSC, routerSC];
 
-  if (!indexedSC.includes(targetAddr)) return;
+  if (!indexedSC.includes(targetAddress)) return;
 
-  console.log(targetAddr, targetFunc, caller);
+  console.log(targetAddress, targetFunction, caller);
   await awaitOperationStatus(txId).then(console.log);
   const events = await fetchEvents({ original_operation_id: txId });
 
   // PERIPHERY CONTRACTS
 
-  if (targetAddr === dcaSC) {
-    switch (targetFunc) {
+  if (targetAddress === dcaSC) {
+    switch (targetFunction) {
       case "startDCA": {
-        const dca = decodeDcaTx(param);
+        const dca = decodeDcaTx(parameter);
         console.log(dca);
 
         const event = events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data;
@@ -111,8 +111,8 @@ export async function processOperation(
       default:
         break;
     }
-  } else if (targetAddr === orderSC) {
-    switch (targetFunc) {
+  } else if (targetAddress === orderSC) {
+    switch (targetFunction) {
       case "addLimitOrder": {
         const event = events.find((e) =>
           e.data.startsWith("NEW_LIMIT_ORDER:")
@@ -140,7 +140,7 @@ export async function processOperation(
     const events = await fetchEvents({ original_operation_id: txId });
     const timestamp = await getTimestamp(events);
 
-    if (SWAP_ROUTER_METHODS.includes(targetFunc as any)) {
+    if (SWAP_ROUTER_METHODS.includes(targetFunction as any)) {
       await processSwapOperation(
         opType.callSc,
         txId,
@@ -148,7 +148,7 @@ export async function processOperation(
         timestamp,
         events
       );
-    } else if (LIQUIDITY_ROUTER_METHODS.includes(targetFunc as any)) {
+    } else if (LIQUIDITY_ROUTER_METHODS.includes(targetFunction as any)) {
       await processLiquidityOperation(
         opType.callSc,
         txId,
@@ -157,7 +157,7 @@ export async function processOperation(
         events
       );
     } else {
-      throw new Error("Unknown router method:" + targetFunc);
+      throw new Error("Unknown router method:" + targetFunction);
     }
   }
 }
@@ -189,7 +189,7 @@ export async function processSwapOperation(
   timestamp: Date,
   events: IEvent[]
 ) {
-  const { targetFunc: method, param: args, coins } = operation;
+  const { targetFunction: method, parameter: args, coins } = operation;
   const swapParams = decodeSwapTx(method, args, coins);
   if (swapParams) {
     for (let i = 0; i < swapParams.path.length - 1; i++) {
@@ -228,7 +228,7 @@ export async function processLiquidityOperation(
   timestamp: Date,
   events: IEvent[]
 ) {
-  const { targetFunc: method, param: args, coins } = operation;
+  const { targetFunction: method, parameter: args, coins } = operation;
   const isAdd = method.startsWith("add");
   const liquidityParams = decodeLiquidityTx(isAdd, args, coins);
   if (liquidityParams) {

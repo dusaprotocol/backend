@@ -3,15 +3,21 @@ import { prisma } from "../../common/db";
 import { web3Client } from "../../common/client";
 import logger from "../../common/logger";
 import {
-  getPairAddressTokens,
   getTokenValue,
   getPriceFromId,
   toFraction,
   getTokenFromAddress,
+  adjustPrice,
 } from "../../common/methods";
 import { Pool } from "@prisma/client";
 import { EVERY_TICK, getClosestTick } from "../../common/utils";
-import { PairV2, Token, TokenAmount } from "@dusalabs/sdk";
+import {
+  ILBPair,
+  LBPairReservesAndId,
+  PairV2,
+  Token,
+  TokenAmount,
+} from "@dusalabs/sdk";
 
 const getPools = (): Promise<Pool[]> =>
   prisma.pool.findMany().catch((e) => {
@@ -19,7 +25,7 @@ const getPools = (): Promise<Pool[]> =>
     return [];
   });
 
-export const fillAnalytics = () => {
+const fillAnalytics = () => {
   logger.silly(`running the analytics task at ${new Date().toString()}`);
 
   getPools().then((pools) => {
@@ -36,45 +42,49 @@ export const fetchNewAnalytics = async (
   binStep: number
 ) => {
   const pairInfo = await PairV2.getLBPairReservesAndId(poolAddress, web3Client);
-  if (!pairInfo) return;
 
-  const activePrice = getPriceFromId(pairInfo.activeId, binStep);
-  const tokens = await getPairAddressTokens(poolAddress);
-  if (!tokens) return;
+  const tokens = await new ILBPair(poolAddress, web3Client).getTokens();
+  const [token0, token1] = await Promise.all(tokens.map(getTokenFromAddress));
 
-  const token0 = await getTokenFromAddress(tokens[0]);
-  const token1 = await getTokenFromAddress(tokens[1]);
-  if (!token0 || !token1) return;
+  const { reserveX: token0Locked, reserveY: token1Locked } = pairInfo;
+  const usdLocked = await calculateUSDLocked(
+    token0,
+    token0Locked,
+    token1,
+    token1Locked
+  );
 
-  const token0Value = await getTokenValue(tokens[0], false);
-  const token1Value = await getTokenValue(tokens[1], false);
-  if (!token0Value || !token1Value) return;
+  const adjustedPrice = adjustPrice(
+    getPriceFromId(pairInfo.activeId, binStep),
+    token0.decimals,
+    token1.decimals
+  );
 
-  const token0Locked = pairInfo.reserveX;
-  const token1Locked = pairInfo.reserveY;
+  createAnalytic(
+    poolAddress,
+    token0Locked.toString(),
+    token1Locked.toString(),
+    usdLocked,
+    adjustedPrice
+  );
+};
 
+export const calculateUSDLocked = async (
+  token0: Token,
+  token0Locked: bigint,
+  token1: Token,
+  token1Locked: bigint
+): Promise<number> => {
+  const [token0Value, token1Value] = await Promise.all(
+    [token0, token1].map((token) => getTokenValue(token.address, true))
+  );
   const usdLocked = new TokenAmount(token0, token0Locked)
     .multiply(toFraction(token0Value))
     .add(
       new TokenAmount(token1, token1Locked).multiply(toFraction(token1Value))
     )
     .toSignificant(6);
-
-  const adjustedPrice = activePrice * 10 ** (token0.decimals - token1.decimals);
-
-  createAnalytic(
-    poolAddress,
-    token0Locked.toString(),
-    token1Locked.toString(),
-    Number(usdLocked),
-    adjustedPrice
-  );
-
-  return {
-    adjustedPrice,
-    token0Locked,
-    token1Locked,
-  };
+  return Number(usdLocked);
 };
 
 const createAnalytic = (

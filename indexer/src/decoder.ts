@@ -10,6 +10,7 @@ import {
 } from "@dusalabs/sdk";
 import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
 import { WMAS } from "../../common/contracts";
+import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
 
 export interface SwapParams {
   amountIn: bigint;
@@ -20,7 +21,11 @@ export interface SwapParams {
   deadline: bigint;
 }
 
-const extractAmountInOut = (method: string, args: Args, coins: bigint) => {
+const extractAmountInOut = (
+  method: string,
+  args: Args,
+  coins: NativeAmount | undefined
+) => {
   switch (method) {
     case "swapExactTokensForTokens": {
       const amountIn = args.nextU256();
@@ -33,7 +38,8 @@ const extractAmountInOut = (method: string, args: Args, coins: bigint) => {
       return { amountIn: amountInMax, amountOut };
     }
     case "swapExactMASForTokens": {
-      const amountIn = coins;
+      if (!coins) throw new Error("coins not defined");
+      const amountIn = coins.mantissa;
       const amountOutMin = args.nextU256();
       return { amountIn, amountOut: amountOutMin };
     }
@@ -48,7 +54,8 @@ const extractAmountInOut = (method: string, args: Args, coins: bigint) => {
       return { amountIn: amountInMax, amountOut };
     }
     case "swapMASForExactTokens": {
-      const amountIn = coins;
+      if (!coins) throw new Error("coins not defined");
+      const amountIn = coins.mantissa;
       const amountOut = args.nextU256();
       return { amountIn, amountOut };
     }
@@ -61,7 +68,7 @@ const extractAmountInOut = (method: string, args: Args, coins: bigint) => {
 export const decodeSwapTx = (
   method: string,
   params: Uint8Array,
-  coins: bigint
+  coins: NativeAmount | undefined
 ): SwapParams | undefined => {
   try {
     const args = new Args(params);
@@ -90,7 +97,7 @@ type DecodedLiquidity = AddLiquidityParameters | RemoveLiquidityParameters;
 export const decodeLiquidityTx = (
   isAdd: boolean,
   params: Uint8Array,
-  coins: bigint
+  coins: NativeAmount | undefined
 ): DecodedLiquidity | undefined => {
   try {
     const args = new Args(params);
