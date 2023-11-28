@@ -8,14 +8,14 @@ import {
   NewSlotExecutionOutputsRequest,
   NewOperationsRequest,
 } from "../gen/ts/massa/api/v1/public";
-import { MassaServiceClient } from "../gen/ts/massa/api/v1/api.client";
+import { PublicServiceClient as MassaServiceClient } from "../gen/ts/massa/api/v1/public.client";
 import { ExecutionOutputStatus } from "../gen/ts/massa/model/v1/execution";
 import { processOperation } from "./helpers";
 import { prisma } from "../../common/db";
 import { EventDecoder } from "@dusalabs/sdk";
 import { bytesToStr } from "@massalabs/massa-web3";
 
-const grpcDefaultHost = "37.187.156.118";
+const grpcDefaultHost = "buildnet-explorer.massa.net";
 const grpcPort = 33037;
 
 export const subscribeNewSlotExecutionOutputs = async (
@@ -29,12 +29,20 @@ export const subscribeNewSlotExecutionOutputs = async (
   const service = new MassaServiceClient(transport);
   const stream = service.newSlotExecutionOutputs();
   const req: NewSlotExecutionOutputsRequest = {
-    id: "1",
-    query: {
-      filter: {
-        status: [ExecutionOutputStatus.FINAL],
+    filters: [
+      {
+        filter: {
+          oneofKind: "status",
+          status: ExecutionOutputStatus.CANDIDATE,
+        },
       },
-    },
+      // {
+      //   filter: {
+      //     status: ExecutionOutputStatus.CANDIDATE,
+      //     oneofKind: "status",
+      //   },
+      // },
+    ], // TODO: add filters
   };
   stream.requests.send(req);
 
@@ -44,6 +52,7 @@ export const subscribeNewSlotExecutionOutputs = async (
 
   try {
     for await (let message of stream.responses) {
+      console.log(message);
       console.log(message.output?.executionOutput?.slot);
       // const stateChanges = message.output?.executionOutput?.stateChanges
 
@@ -115,12 +124,7 @@ export const subscribeNewOperations = async (
   const service = new MassaServiceClient(transport);
   const stream = service.newOperations();
   const req: NewOperationsRequest = {
-    id: "1",
-    query: {
-      filter: {
-        types: [OpType.CALL_SC],
-      },
-    },
+    filters: [], // TODO: add filters
   };
   stream.requests.send(req);
 
@@ -130,9 +134,10 @@ export const subscribeNewOperations = async (
 
   try {
     for await (let message of stream.responses) {
-      const txId = message.operation?.secureHash;
-      const caller = message.operation?.contentCreatorAddress;
-      const content = message.operation?.content;
+      console.log(message);
+      const txId = message.signedOperation?.secureHash;
+      const caller = message.signedOperation?.contentCreatorAddress;
+      const content = message.signedOperation?.content;
       if (!txId || !caller || !content) return;
       processOperation(content, caller, txId);
     }

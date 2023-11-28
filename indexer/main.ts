@@ -5,12 +5,10 @@ import {
 } from "./src/grpc";
 
 // Start gRPC subscriptions
-
 subscribeNewSlotExecutionOutputs();
 subscribeNewOperations();
 
 // Start cron jobs
-
 analyticsCron.start();
 
 // @ts-ignore: Unreachable code error

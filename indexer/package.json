@@ -16,7 +16,7 @@
     "@protobuf-ts/plugin": "^2.9.1",
     "@protobuf-ts/runtime": "^2.9.1",
     "@protobuf-ts/runtime-rpc": "^2.9.1",
-    "massa-proto": "github:massalabs/massa-proto#a20f10ab2d16043b8a05ee08a4c879a7e44b582e",
+    "massa-proto": "github:massalabs/massa-proto#TEST.26",
     "node-cron": "^3.0.2"
   },
   "devDependencies": {

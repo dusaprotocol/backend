@@ -24,8 +24,8 @@ dependencies:
     specifier: ^2.9.1
     version: 2.9.1
   massa-proto:
-    specifier: github:massalabs/massa-proto#a20f10ab2d16043b8a05ee08a4c879a7e44b582e
-    version: github.com/massalabs/massa-proto/a20f10ab2d16043b8a05ee08a4c879a7e44b582e
+    specifier: github:massalabs/massa-proto#TEST.26
+    version: github.com/massalabs/massa-proto/962414c1dd857ce465f3bf1ca4e2822837cc5d87
   node-cron:
     specifier: ^3.0.2
     version: 3.0.2
@@ -367,8 +367,8 @@ packages:
       yargs-parser: 21.1.1
     dev: false
 
-  github.com/massalabs/massa-proto/a20f10ab2d16043b8a05ee08a4c879a7e44b582e:
-    resolution: {tarball: https://codeload.github.com/massalabs/massa-proto/tar.gz/a20f10ab2d16043b8a05ee08a4c879a7e44b582e}
-    name: massa-proto#a20f10ab2d16043b8a05ee08a4c879a7e44b582e
+  github.com/massalabs/massa-proto/962414c1dd857ce465f3bf1ca4e2822837cc5d87:
+    resolution: {tarball: https://codeload.github.com/massalabs/massa-proto/tar.gz/962414c1dd857ce465f3bf1ca4e2822837cc5d87}
+    name: massa-proto#TEST.26
     version: 0.0.0
     dev: false
