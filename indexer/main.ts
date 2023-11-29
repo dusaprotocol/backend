@@ -9,7 +9,7 @@ subscribeNewSlotExecutionOutputs();
 subscribeNewOperations();
 
 // Start cron jobs
-analyticsCron.start();
+// analyticsCron.start();
 
 // @ts-ignore: Unreachable code error
 BigInt.prototype.toJSON = function (): number {

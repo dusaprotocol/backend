@@ -36,7 +36,9 @@ export const getGenesisTimestamp = () =>
     .getNodeStatus()
     .then((status) => status.config.genesis_timestamp);
 
-export const getClosestTick = (timestamp: number): Date => {
+export const convertMsToSec = (ms: number): number => Math.floor(ms / 1000);
+
+export const getClosestTick = (timestamp: number = Date.now()): Date => {
   const ticks = Math.floor(timestamp / TIME_BETWEEN_TICKS) * TIME_BETWEEN_TICKS;
   return new Date(ticks);
 };

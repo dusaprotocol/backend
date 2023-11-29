@@ -45,7 +45,7 @@ export const getConfig = () => {
 // Symbol resolve
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#symbol-resolve
 export const resolveSymbol = async (symbol: string) => {
-  const pairInfo = await prisma.pool.findUnique({
+  const pool = await prisma.pool.findUnique({
     where: {
       address: symbol,
     },
@@ -54,8 +54,8 @@ export const resolveSymbol = async (symbol: string) => {
       token1: true,
     },
   });
-  const description = pairInfo
-    ? `${pairInfo.token0.symbol}/${pairInfo.token1.symbol} ${pairInfo.binStep}bps`
+  const description = pool
+    ? `${pool.token0.symbol}/${pool.token1.symbol} ${pool.binStep}bps`
     : symbol;
   return {
     name: symbol,

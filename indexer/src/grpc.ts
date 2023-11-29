@@ -52,7 +52,6 @@ export const subscribeNewSlotExecutionOutputs = async (
 
   try {
     for await (let message of stream.responses) {
-      console.log(message);
       console.log(message.output?.executionOutput?.slot);
       // const stateChanges = message.output?.executionOutput?.stateChanges
 

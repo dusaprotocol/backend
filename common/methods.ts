@@ -26,7 +26,7 @@ export const getCallee = (callStack: string[]): string => {
   return callStack[callStack.length - 1];
 };
 
-export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
+export const getBinStep = (pairAddress: string): Promise<number> =>
   web3Client
     .publicApi()
     .getDatastoreEntries([
@@ -36,7 +36,7 @@ export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
       },
     ])
     .then((entries) => {
-      if (!entries[0].final_value) return;
+      if (!entries[0].final_value) throw new Error("No binStep found");
 
       const args = new Args(entries[0].final_value);
       const binStep = args.nextU32();
@@ -47,17 +47,10 @@ export const fetchPairAddress = async (
   token0: string,
   token1: string,
   binStep: number
-): Promise<string | undefined> =>
+): Promise<string> =>
   new IFactory(factorySC, web3Client)
     .getLBPairInformation(token0, token1, binStep)
-    .then((res) => res.LBPair)
-    .catch((err) => {
-      const errMsg = EventDecoder.decodeError(err.message);
-      logger.info(
-        ["fetchingPairAddress", errMsg, token0, token1, binStep].join(" ")
-      );
-      return undefined;
-    });
+    .then((res) => res.LBPair);
 
 export const getTokenValueUsingQuoter = async (
   tokenAddress: string

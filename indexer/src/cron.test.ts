@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { calculateUSDLocked, fetchNewAnalytics } from "./crons";
-import { fetchPairAddress, radius } from "../../common/methods";
+import { calculateUSDLocked } from "./crons";
+import { radius } from "../../common/methods";
 import { USDC, WMAS } from "../../common/contracts";
 import { WETH as _WETH, parseUnits } from "@dusalabs/sdk";
 

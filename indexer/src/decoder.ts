@@ -7,18 +7,21 @@ import {
   Token,
   TokenAmount,
   EventDecoder,
+  SwapRouterMethod,
 } from "@dusalabs/sdk";
 import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
 import { WMAS } from "../../common/contracts";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
+import logger from "../../common/logger";
 
+// TODO: move to sdk
 export interface SwapParams {
   amountIn: bigint;
   amountOut: bigint;
   binSteps: bigint[];
   path: Address[];
   to: string;
-  deadline: bigint;
+  deadline: number;
 }
 
 const extractAmountInOut = (
@@ -66,18 +69,18 @@ const extractAmountInOut = (
 };
 
 export const decodeSwapTx = (
-  method: string,
+  method: SwapRouterMethod,
   params: Uint8Array,
   coins: NativeAmount | undefined
-): SwapParams | undefined => {
+): SwapParams => {
   try {
     const args = new Args(params);
     const { amountIn, amountOut } = extractAmountInOut(method, args, coins);
 
-    const binSteps = args.nextArray(ArrayTypes.U64) as bigint[];
+    const binSteps = args.nextArray<bigint>(ArrayTypes.U64);
     const path = args.nextSerializableObjectArray(Address);
     const to = args.nextString();
-    const deadline = args.nextU64();
+    const deadline = Number(args.nextU64());
 
     return {
       amountIn,
@@ -88,7 +91,8 @@ export const decodeSwapTx = (
       deadline,
     };
   } catch (e) {
-    console.log(e);
+    logger.error(e);
+    throw e;
   }
 };
 
@@ -98,7 +102,7 @@ export const decodeLiquidityTx = (
   isAdd: boolean,
   params: Uint8Array,
   coins: NativeAmount | undefined
-): DecodedLiquidity | undefined => {
+): DecodedLiquidity => {
   try {
     const args = new Args(params);
     const token0 = args.nextString();
@@ -155,7 +159,8 @@ export const decodeLiquidityTx = (
       };
     }
   } catch (e) {
-    console.log(e);
+    logger.error(e);
+    throw e;
   }
 };
 
@@ -193,7 +198,8 @@ export const decodeDcaTx = (
       endTime: new Date(endTime),
     };
   } catch (e) {
-    console.log(e);
+    logger.error(e);
+    throw e;
   }
 };
 

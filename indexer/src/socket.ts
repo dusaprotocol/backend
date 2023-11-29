@@ -31,11 +31,9 @@ export const processSwap = async (
   const { amountIn, totalFees, price } = swapPayload;
 
   const valueIn = await getTokenValue(tokenInAddress, false);
-  if (!valueIn) return;
 
   const tokenIn = await getTokenFromAddress(tokenInAddress);
   const tokenOut = await getTokenFromAddress(tokenOutAddress);
-  if (!tokenIn || !tokenOut) return;
 
   const token0 = tokenIn.address < tokenOut.address ? tokenIn : tokenOut;
   const token1 = tokenIn.address < tokenOut.address ? tokenOut : tokenIn;
@@ -85,7 +83,6 @@ export const processLiquidity = async (
 
   const token0 = await getTokenFromAddress(token0Address);
   const token1 = await getTokenFromAddress(token1Address);
-  if (!token0 || !token1) return;
 
   const token0Value = (await getTokenValue(token0Address), false) || 0;
   const token1Value = (await getTokenValue(token1Address), false) || 0;
@@ -171,22 +168,15 @@ export const updateVolumeAndPrice = async (
   fees: number,
   price: number
 ) => {
-  const date = getClosestTick(Date.now());
-  const curr = await prisma.analytics
-    .findMany({
-      where: {
+  const date = getClosestTick();
+  const curr = await prisma.analytics.findUnique({
+    where: {
+      poolAddress_date: {
         poolAddress,
         date,
       },
-    })
-    .then((e) => {
-      const res = e.length ? e[0] : undefined;
-      return res;
-    })
-    .catch((err) => {
-      logger.warn(err);
-      return;
-    });
+    },
+  });
   if (!curr) {
     logger.warn(
       `No analytics entry found for pool ${poolAddress} at date ${date.toString()}`

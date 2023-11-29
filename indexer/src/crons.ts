@@ -9,7 +9,7 @@ import {
   getTokenFromAddress,
   adjustPrice,
 } from "../../common/methods";
-import { Pool } from "@prisma/client";
+import { Pool, Prisma } from "@prisma/client";
 import { EVERY_TICK, getClosestTick } from "../../common/utils";
 import {
   ILBPair,
@@ -60,13 +60,16 @@ export const fetchNewAnalytics = async (
     token1.decimals
   );
 
-  createAnalytic(
+  createAnalytic({
     poolAddress,
-    token0Locked.toString(),
-    token1Locked.toString(),
+    token0Locked: token0Locked.toString(),
+    token1Locked: token1Locked.toString(),
     usdLocked,
-    adjustedPrice
-  );
+    close: adjustedPrice,
+    high: adjustedPrice,
+    low: adjustedPrice,
+    open: adjustedPrice,
+  });
 };
 
 export const calculateUSDLocked = async (
@@ -87,32 +90,18 @@ export const calculateUSDLocked = async (
   return Number(usdLocked);
 };
 
-const createAnalytic = (
-  poolAddress: string,
-  token0Locked: string,
-  token1Locked: string,
-  usdLocked: number,
-  close: number,
-  open = close,
-  high = close,
-  low = close
+export const createAnalytic = async (
+  args: Omit<Prisma.AnalyticsUncheckedCreateInput, "date" | "volume" | "fees">
 ) => {
-  const date = getClosestTick(Date.now());
+  const date = getClosestTick();
 
   prisma.analytics
     .create({
       data: {
-        poolAddress,
+        ...args,
         date,
-        token0Locked,
-        token1Locked,
-        usdLocked,
         volume: 0,
         fees: 0,
-        close,
-        high,
-        low,
-        open,
       },
     })
     .then((p) => logger.debug(p))
