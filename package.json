@@ -7,7 +7,7 @@
     "postinstall": "prisma db pull && prisma generate",
     "start:api": "cd api && pnpm install && pnpm start",
     "start:indexer": "cd indexer && pnpm install && pnpm start",
-    "test": "vitest",
+    "test": "vitest --no-threads",
     "reset": "prisma migrate reset --force && prisma db push",
     "seed": "ts-node ./api/src/seed.ts"
   },
@@ -15,14 +15,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@dusalabs/sdk": "^0.3.18",
+    "@dusalabs/sdk": "^0.3.19",
     "@massalabs/massa-web3": "1.24.2",
-    "@prisma/client": "^5.4.2",
+    "@prisma/client": "^5.6.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
-    "prisma": "^5.4.2",
+    "prisma": "^5.6.0",
     "ts-node": "^10.9.1",
     "tslib": "^2.6.2",
     "typescript": "^4.9.5",

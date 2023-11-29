@@ -1,10 +1,15 @@
-import type { Pool } from "@prisma/client";
-import { getBinStep, getPairAddressTokens } from "../../common/methods";
+import type { Pool, Prisma } from "@prisma/client";
+import { adjustPrice, getBinStep, getPriceFromId } from "../../common/methods";
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
 import { bytesToStr, strToBytes } from "@massalabs/massa-web3";
 import { prisma } from "../../common/db";
-import { IERC20 } from "@dusalabs/sdk";
+import { IERC20, ILBPair, PairV2 } from "@dusalabs/sdk";
+import {
+  TICKS_PER_DAY,
+  TIME_BETWEEN_TICKS,
+  getClosestTick,
+} from "../../common/utils/date";
 
 async function createPools() {
   const pools: Pick<Pool, "address" | "binStep">[] = [];
@@ -20,7 +25,7 @@ async function createPools() {
         const pair = pairs[i];
         if (!pair) continue;
 
-        const binStep = await getBinStep(pair);
+        const binStep = await getBinStep(pair).catch(() => undefined);
         if (!binStep) continue;
 
         pools.push({
@@ -32,10 +37,10 @@ async function createPools() {
 
   for (let i = 0; i < pools.length; i++) {
     const pool = pools[i];
-    const tokenAddresses = await getPairAddressTokens(pool.address);
-    if (!tokenAddresses) return;
-
-    const [token0Address, token1Address] = tokenAddresses;
+    const [token0Address, token1Address] = await new ILBPair(
+      pool.address,
+      web3Client
+    ).getTokens();
     const _token0 = new IERC20(token0Address, web3Client);
     const _token1 = new IERC20(token1Address, web3Client);
     const [name0, symbol0, decimals0] = await Promise.all([
@@ -99,6 +104,54 @@ async function createPools() {
   }
 }
 
-(() => {
-  createPools();
+async function generateDataset() {
+  const pools = await prisma.pool.findMany({
+    include: { token0: true, token1: true },
+  });
+  pools.forEach(async (pool) => {
+    const pairInfo = await PairV2.getLBPairReservesAndId(
+      pool.address,
+      web3Client
+    );
+    const price = adjustPrice(
+      getPriceFromId(pairInfo.activeId, pool.binStep),
+      pool.token0.decimals,
+      pool.token1.decimals
+    );
+
+    const data: Prisma.AnalyticsCreateManyArgs["data"] = [];
+
+    for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
+      // i day ago
+      const date = getClosestTick(Date.now() - i * TIME_BETWEEN_TICKS);
+      const reserveX =
+        pairInfo.reserveX - (pairInfo.reserveX / 100n) * BigInt(i);
+      const reserveY =
+        pairInfo.reserveY - (pairInfo.reserveY / 100n) * BigInt(i);
+      const close = price;
+      const open = close - (close / 100) * (Math.random() * 10);
+      const high = open + (open / 100) * (Math.random() * 10);
+      const low = open - (open / 100) * (Math.random() * 10);
+      data.push({
+        poolAddress: pool.address,
+        token0Locked: reserveX.toString(),
+        token1Locked: reserveY.toString(),
+        usdLocked: 0,
+        close,
+        high,
+        low,
+        open,
+        date,
+        fees: 0,
+        volume: 0,
+      });
+    }
+
+    await prisma.analytics.createMany({ data }).then(console.log);
+  });
+}
+
+(async () => {
+  await createPools();
+  generateDataset();
 })();

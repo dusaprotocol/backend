@@ -26,7 +26,7 @@ export const getCallee = (callStack: string[]): string => {
   return callStack[callStack.length - 1];
 };
 
-export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
+export const getBinStep = (pairAddress: string): Promise<number> =>
   web3Client
     .publicApi()
     .getDatastoreEntries([
@@ -36,7 +36,7 @@ export const getBinStep = (pairAddress: string): Promise<number | undefined> =>
       },
     ])
     .then((entries) => {
-      if (!entries[0].final_value) return;
+      if (!entries[0].final_value) throw new Error("No binStep found");
 
       const args = new Args(entries[0].final_value);
       const binStep = args.nextU32();
@@ -47,17 +47,10 @@ export const fetchPairAddress = async (
   token0: string,
   token1: string,
   binStep: number
-): Promise<string | undefined> =>
+): Promise<string> =>
   new IFactory(factorySC, web3Client)
     .getLBPairInformation(token0, token1, binStep)
-    .then((res) => res.LBPair)
-    .catch((err) => {
-      const errMsg = EventDecoder.decodeError(err.message);
-      logger.info(
-        ["fetchingPairAddress", errMsg, token0, token1, binStep].join(" ")
-      );
-      return undefined;
-    });
+    .then((res) => res.LBPair);
 
 export const getTokenValueUsingQuoter = async (
   tokenAddress: string
@@ -82,11 +75,12 @@ export const getTokenValueUsingQuoter = async (
 export const getTokenValue = async (
   tokenAddress: string,
   // CHAIN_ID: ChainId
+  adjusted = true,
   opts?: {
     poolAddress: string;
     binStep: number;
   }
-): Promise<number | undefined> => {
+): Promise<number> => {
   const factory = new IFactory(LB_FACTORY_ADDRESS[CHAIN_ID], web3Client);
   if (tokenAddress === USDC.address) return 1;
 
@@ -94,42 +88,42 @@ export const getTokenValue = async (
     ? opts.binStep
     : await factory
         .getAvailableLBPairBinSteps(tokenAddress, USDC.address)
-        .then((r) => r[0]);
-
+        .then((r) => r[0])
+        .catch(() => undefined);
   if (!binStep) return getTokenValueUsingQuoter(tokenAddress);
 
-  const pairAddress = await factory
-    .getLBPairInformation(tokenAddress, USDC.address, binStep)
-    .then((r) => r.LBPair);
+  const pairAddress = opts
+    ? opts.poolAddress
+    : await factory
+        .getLBPairInformation(tokenAddress, USDC.address, binStep)
+        .then((r) => r.LBPair)
+        .catch(() => undefined);
+  if (!pairAddress) return getTokenValueUsingQuoter(tokenAddress);
 
   const pairInfo = await PairV2.getLBPairReservesAndId(pairAddress, web3Client);
+  const price = getPriceFromId(pairInfo.activeId, binStep);
 
-  const price = Bin.getPriceFromId(pairInfo.activeId, binStep);
+  if (!adjusted) return price;
+
   const token0Address =
     tokenAddress < USDC.address ? tokenAddress : USDC.address;
   const token1Address =
     tokenAddress < USDC.address ? USDC.address : tokenAddress;
   const token0Decimals = await new IERC20(token0Address, web3Client).decimals();
   const token1Decimals = await new IERC20(token1Address, web3Client).decimals();
-
-  return (
-    (tokenAddress < USDC.address ? price : 1 / price) *
-    10 ** (token1Decimals - token0Decimals)
-  );
+  const priceAdjusted = adjustPrice(price, token0Decimals, token1Decimals);
+  return tokenAddress < USDC.address ? priceAdjusted : 1 / priceAdjusted;
 };
+
+export const adjustPrice = (
+  price: number,
+  token0Decimals: number,
+  token1Decimals: number
+): number => price * 10 ** (token0Decimals - token1Decimals);
 
 export const toFraction = (price: number): Fraction => {
   const value = BigInt(Math.round((price || 1) * 1e18));
   return new Fraction(value, BigInt(1e18));
-};
-
-export const getPairAddressTokens = async (
-  pairAddress: string
-): Promise<[string, string] | undefined> => {
-  return new ILBPair(pairAddress, web3Client).getTokens().catch((err) => {
-    logger.warn(err);
-    return undefined;
-  });
 };
 
 export const getTokenFromAddress = async (
@@ -158,7 +152,7 @@ export const getTokenFromAddress = async (
 
 export const fetchTokenFromAddress = async (
   tokenAddress: string
-): Promise<Token | null> => {
+): Promise<Token> => {
   const token = new IERC20(tokenAddress, web3Client);
   const [name, symbol, decimals] = await Promise.all([
     token.name(),
@@ -168,3 +162,10 @@ export const fetchTokenFromAddress = async (
 
   return new Token(CHAIN_ID, token.address, decimals, symbol, name);
 };
+
+// TESTING PURPOSE
+
+export const radius = (x: number, pct: number): [number, number] => [
+  x - (x * pct) / 100,
+  x + (x * pct) / 100,
+];

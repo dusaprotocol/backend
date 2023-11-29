@@ -2,6 +2,7 @@ import {
   SWAP_ROUTER_METHODS,
   LIQUIDITY_ROUTER_METHODS,
   EventDecoder,
+  SwapRouterMethod,
 } from "@dusalabs/sdk";
 import { EOperationStatus, IEvent } from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
@@ -27,21 +28,21 @@ export async function processOperation(
   const opType = operation.op?.type;
   if (opType?.oneofKind !== "callSc") return;
 
-  const { targetAddr, targetFunc, param } = opType.callSc;
+  const { targetAddress, targetFunction, parameter, coins } = opType.callSc;
   const indexedSC = [dcaSC, orderSC, routerSC];
 
-  if (!indexedSC.includes(targetAddr)) return;
+  if (!indexedSC.includes(targetAddress)) return;
 
-  console.log(targetAddr, targetFunc, caller);
+  console.log(targetAddress, targetFunction, caller);
   await awaitOperationStatus(txId).then(console.log);
   const events = await fetchEvents({ original_operation_id: txId });
 
   // PERIPHERY CONTRACTS
 
-  if (targetAddr === dcaSC) {
-    switch (targetFunc) {
+  if (targetAddress === dcaSC) {
+    switch (targetFunction) {
       case "startDCA": {
-        const dca = decodeDcaTx(param);
+        const dca = decodeDcaTx(parameter);
         console.log(dca);
 
         const event = events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data;
@@ -111,8 +112,8 @@ export async function processOperation(
       default:
         break;
     }
-  } else if (targetAddr === orderSC) {
-    switch (targetFunc) {
+  } else if (targetAddress === orderSC) {
+    switch (targetFunction) {
       case "addLimitOrder": {
         const event = events.find((e) =>
           e.data.startsWith("NEW_LIMIT_ORDER:")
@@ -140,25 +141,56 @@ export async function processOperation(
     const events = await fetchEvents({ original_operation_id: txId });
     const timestamp = await getTimestamp(events);
 
-    if (SWAP_ROUTER_METHODS.includes(targetFunc as any)) {
-      await processSwapOperation(
-        opType.callSc,
+    if (isSwapMethod(targetFunction)) {
+      const swapParams = decodeSwapTx(targetFunction, parameter, coins);
+      for (let i = 0; i < swapParams.path.length - 1; i++) {
+        const tokenIn = swapParams.path[i].str;
+        const tokenOut = swapParams.path[i + 1].str;
+        const binStep = Number(swapParams.binSteps[i]);
+        const pairAddress = await fetchPairAddress(tokenIn, tokenOut, binStep);
+
+        processSwap(
+          txId,
+          i,
+          caller,
+          timestamp,
+          pairAddress,
+          tokenIn,
+          tokenOut,
+          binStep,
+          events
+            .filter(
+              (e) =>
+                getCallee(e.context.call_stack) === pairAddress &&
+                e.data.startsWith("SWAP:")
+            )
+            .map((e) => e.data),
+          swapParams
+        );
+      }
+    } else if (isLiquidtyMethod(targetFunction)) {
+      const isAdd = targetFunction.startsWith("add");
+      const liquidityParams = decodeLiquidityTx(isAdd, parameter, coins);
+      const { token0, token1, binStep } = liquidityParams;
+      const pairAddress = await fetchPairAddress(token0, token1, binStep);
+
+      processLiquidity(
         txId,
         caller,
         timestamp,
+        pairAddress,
+        token0,
+        token1,
         events
+          .filter(
+            (e) =>
+              e.data.startsWith("DEPOSITED_TO_BIN:") ||
+              e.data.startsWith("WITHDRAWN_FROM_BIN:")
+          )
+          .map((e) => e.data),
+        isAdd
       );
-    } else if (LIQUIDITY_ROUTER_METHODS.includes(targetFunc as any)) {
-      await processLiquidityOperation(
-        opType.callSc,
-        txId,
-        caller,
-        timestamp,
-        events
-      );
-    } else {
-      throw new Error("Unknown router method:" + targetFunc);
-    }
+    } else throw new Error("Unknown router method:" + targetFunction);
   }
 }
 
@@ -177,80 +209,13 @@ export async function awaitOperationStatus(
     });
 }
 
+const isSwapMethod = (str: string): str is SwapRouterMethod =>
+  !!SWAP_ROUTER_METHODS.find((lit) => str === lit);
+
+const isLiquidtyMethod = (str: string): str is SwapRouterMethod =>
+  !!LIQUIDITY_ROUTER_METHODS.find((lit) => str === lit);
+
 export async function getTimestamp(events: IEvent[]) {
   const genesisTimestamp = await getGenesisTimestamp();
   return new Date(parseSlot(events[0].context.slot, genesisTimestamp));
-}
-
-export async function processSwapOperation(
-  operation: CallSC,
-  txId: string,
-  caller: string,
-  timestamp: Date,
-  events: IEvent[]
-) {
-  const { targetFunc: method, param: args, coins } = operation;
-  const swapParams = decodeSwapTx(method, args, coins);
-  if (swapParams) {
-    for (let i = 0; i < swapParams.path.length - 1; i++) {
-      const tokenIn = swapParams.path[i].str;
-      const tokenOut = swapParams.path[i + 1].str;
-      const binStep = Number(swapParams.binSteps[i]);
-      const pairAddress = await fetchPairAddress(tokenIn, tokenOut, binStep);
-      if (!pairAddress) return;
-
-      processSwap(
-        txId,
-        i,
-        caller,
-        timestamp,
-        pairAddress,
-        tokenIn,
-        tokenOut,
-        binStep,
-        events
-          .filter(
-            (e) =>
-              getCallee(e.context.call_stack) === pairAddress &&
-              e.data.startsWith("SWAP:")
-          )
-          .map((e) => e.data),
-        swapParams
-      );
-    }
-  }
-}
-
-export async function processLiquidityOperation(
-  operation: CallSC,
-  txId: string,
-  caller: string,
-  timestamp: Date,
-  events: IEvent[]
-) {
-  const { targetFunc: method, param: args, coins } = operation;
-  const isAdd = method.startsWith("add");
-  const liquidityParams = decodeLiquidityTx(isAdd, args, coins);
-  if (liquidityParams) {
-    const { token0, token1, binStep } = liquidityParams;
-    const pairAddress = await fetchPairAddress(token0, token1, binStep);
-    if (pairAddress) {
-      processLiquidity(
-        txId,
-        caller,
-        timestamp,
-        pairAddress,
-        token0,
-        token1,
-        events
-          .filter(
-            (e) =>
-              e.data.startsWith("DEPOSITED_TO_BIN:") ||
-              e.data.startsWith("WITHDRAWN_FROM_BIN:")
-          )
-          .map((e) => e.data),
-        isAdd
-      );
-    }
-  }
 }

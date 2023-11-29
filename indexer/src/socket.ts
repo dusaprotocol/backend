@@ -2,11 +2,12 @@ import { Args, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import {
+  adjustPrice,
   getTokenFromAddress,
   getTokenValue,
   toFraction,
 } from "../../common/methods";
-import { getClosestTick, multiplyWithFloat } from "../../common/utils";
+import { getClosestTick } from "../../common/utils";
 import logger from "../../common/logger";
 import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
 import { fetchNewAnalytics } from "./crons";
@@ -29,20 +30,26 @@ export const processSwap = async (
   const swapPayload = decodeSwapEvents(swapEvents, binStep);
   const { amountIn, totalFees, price } = swapPayload;
 
-  const valueIn = await getTokenValue(tokenInAddress);
-  if (!valueIn) return;
+  const valueIn = await getTokenValue(tokenInAddress, false);
 
   const tokenIn = await getTokenFromAddress(tokenInAddress);
   const tokenOut = await getTokenFromAddress(tokenOutAddress);
-  if (!tokenIn || !tokenOut) return;
 
   const token0 = tokenIn.address < tokenOut.address ? tokenIn : tokenOut;
   const token1 = tokenIn.address < tokenOut.address ? tokenOut : tokenIn;
-  const priceAdjusted = price * 10 ** (token1.decimals - token0.decimals);
+  const priceAdjusted = adjustPrice(price, token0.decimals, token1.decimals);
 
-  const volume = multiplyWithFloat(new TokenAmount(tokenIn, amountIn), valueIn);
-  const fees = multiplyWithFloat(new TokenAmount(tokenIn, totalFees), valueIn);
+  const volume = Number(
+    new TokenAmount(tokenIn, amountIn)
+      .multiply(toFraction(valueIn))
+      .toSignificant(6)
+  );
   // fees are stored in cents
+  const fees = Number(
+    new TokenAmount(tokenIn, totalFees)
+      .multiply(toFraction(valueIn))
+      .toSignificant(6)
+  );
   updateVolumeAndPrice(poolAddress, binStep, volume, fees, priceAdjusted);
   createSwap({
     ...swapPayload,
@@ -76,16 +83,15 @@ export const processLiquidity = async (
 
   const token0 = await getTokenFromAddress(token0Address);
   const token1 = await getTokenFromAddress(token1Address);
-  if (!token0 || !token1) return;
 
-  const token0Value = (await getTokenValue(token0Address)) || 0;
-  const token1Value = (await getTokenValue(token1Address)) || 0;
+  const token0Value = (await getTokenValue(token0Address), false) || 0;
+  const token1Value = (await getTokenValue(token1Address), false) || 0;
 
   const usdValue = Number(
     new TokenAmount(token0, amount0)
       .multiply(toFraction(token0Value))
       .add(new TokenAmount(token1, amount1).multiply(toFraction(token1Value)))
-      .quotient
+      .toSignificant(6)
   );
 
   prisma.liquidity
@@ -162,22 +168,15 @@ export const updateVolumeAndPrice = async (
   fees: number,
   price: number
 ) => {
-  const date = getClosestTick(Date.now());
-  const curr = await prisma.analytics
-    .findMany({
-      where: {
+  const date = getClosestTick();
+  const curr = await prisma.analytics.findUnique({
+    where: {
+      poolAddress_date: {
         poolAddress,
         date,
       },
-    })
-    .then((e) => {
-      const res = e.length ? e[0] : undefined;
-      return res;
-    })
-    .catch((err) => {
-      logger.warn(err);
-      return;
-    });
+    },
+  });
   if (!curr) {
     logger.warn(
       `No analytics entry found for pool ${poolAddress} at date ${date.toString()}`
