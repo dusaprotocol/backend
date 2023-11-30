@@ -4,7 +4,7 @@ import {
   EventDecoder,
   SwapRouterMethod,
 } from "@dusalabs/sdk";
-import { EOperationStatus, IEvent } from "@massalabs/massa-web3";
+import { EOperationStatus, IEvent, bytesToStr } from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
 import { web3Client } from "../../common/client";
 import { dcaSC, orderSC, routerSC } from "../../common/contracts";
@@ -19,13 +19,72 @@ import {
 import { decodeDcaTx, decodeSwapTx, decodeLiquidityTx } from "./decoder";
 import { processSwap, processLiquidity } from "./socket";
 import { CallSC, Operation } from "../gen/ts/massa/model/v1/operation";
+import {
+  NewOperationsResponse,
+  NewSlotExecutionOutputsResponse,
+} from "../gen/ts/massa/api/v1/public";
 
-export async function processOperation(
-  operation: Operation,
-  caller: string,
-  txId: string
+export async function handleNewSlotExecutionOutputs(
+  message: NewSlotExecutionOutputsResponse
 ) {
-  const opType = operation.op?.type;
+  console.log(message.output?.executionOutput?.slot);
+  const events = message.output?.executionOutput?.events;
+  if (!events) return;
+
+  events.forEach(async (event) => {
+    if (!event.context) return;
+
+    const { callStack } = event.context;
+    if (callStack.includes(dcaSC)) {
+      // handle inner swap
+      const swapEvent = events.find((e) =>
+        bytesToStr(e.data).startsWith("SWAP:")
+      );
+      if (!swapEvent) return;
+      console.log(swapEvent?.data);
+
+      // handle dca execution
+      if (bytesToStr(event.data).startsWith("DCA_EXECUTED:")) {
+        const [owner, _id, _amountOut] = bytesToStr(event.data)
+          .split(":")[1]
+          .split(",");
+        const id = parseInt(_id);
+        const amountOut = EventDecoder.decodeU256(_amountOut);
+        console.log("DCA_EXECUTED", owner, id, amountOut);
+
+        // TODO: fetch DCA from datastore if its not already in the db
+
+        prisma.dCAExecution
+          .create({
+            data: {
+              amountIn: 0,
+              amountOut: 0,
+              id,
+              txHash: "",
+              timestamp: new Date(),
+              DCA: {
+                connect: {
+                  id,
+                },
+              },
+            },
+          })
+          .then(console.log)
+          .catch((e) => console.log(JSON.stringify(e)));
+      }
+    } else if (callStack.includes(orderSC)) {
+    } else return;
+  });
+}
+
+export async function handleNewOperations(message: NewOperationsResponse) {
+  if (!message.signedOperation) return;
+  const {
+    secureHash: txId,
+    contentCreatorAddress: caller,
+    content: operation,
+  } = message.signedOperation;
+  const opType = operation?.op?.type;
   if (opType?.oneofKind !== "callSc") return;
 
   const { targetAddress, targetFunction, parameter, coins } = opType.callSc;
