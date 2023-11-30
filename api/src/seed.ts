@@ -120,6 +120,7 @@ async function generateDataset() {
     );
 
     const data: Prisma.AnalyticsCreateManyArgs["data"] = [];
+    let prevPrice = price;
 
     for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
       // i day ago
@@ -128,10 +129,20 @@ async function generateDataset() {
         pairInfo.reserveX - (pairInfo.reserveX / 100n) * BigInt(i);
       const reserveY =
         pairInfo.reserveY - (pairInfo.reserveY / 100n) * BigInt(i);
-      const close = price;
-      const open = close - (close / 100) * (Math.random() * 10);
-      const high = open + (open / 100) * (Math.random() * 10);
-      const low = open - (open / 100) * (Math.random() * 10);
+
+      const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
+      const open = price;
+      const close = prevPrice;
+      const high =
+        Math.random() > 0.5
+          ? Math.max(prevPrice, price) * (1 + Math.random() * 0.05)
+          : Math.max(prevPrice, price);
+      const low =
+        Math.random() > 0.5
+          ? Math.min(prevPrice, price) * (1 - Math.random() * 0.05)
+          : Math.min(prevPrice, price);
+      prevPrice = price;
+
       data.push({
         poolAddress: pool.address,
         token0Locked: reserveX.toString(),
