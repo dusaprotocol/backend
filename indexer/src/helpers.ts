@@ -3,6 +3,7 @@ import {
   LIQUIDITY_ROUTER_METHODS,
   EventDecoder,
   SwapRouterMethod,
+  LiquidityRouterMethod,
 } from "@dusalabs/sdk";
 import { EOperationStatus, IEvent, bytesToStr } from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
@@ -11,14 +12,9 @@ import { dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { fetchPairAddress, getCallee } from "../../common/methods";
-import {
-  fetchEvents,
-  getGenesisTimestamp,
-  parseSlot,
-} from "../../common/utils";
+import { fetchEvents, getTimestamp } from "../../common/utils";
 import { decodeDcaTx, decodeSwapTx, decodeLiquidityTx } from "./decoder";
 import { processSwap, processLiquidity } from "./socket";
-import { CallSC, Operation } from "../gen/ts/massa/model/v1/operation";
 import {
   NewOperationsResponse,
   NewSlotExecutionOutputsResponse,
@@ -89,7 +85,6 @@ export async function handleNewOperations(message: NewOperationsResponse) {
 
   const { targetAddress, targetFunction, parameter, coins } = opType.callSc;
   const indexedSC = [dcaSC, orderSC, routerSC];
-
   if (!indexedSC.includes(targetAddress)) return;
 
   console.log(targetAddress, targetFunction, caller);
@@ -148,24 +143,6 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         break;
       }
       case "updateDCA": {
-        // const dca = decodeDcaTx(param);
-        // const event = events.find((e) =>
-        //   e.data.startsWith("DCA_UPDATED:")
-        // )?.data;
-        // if (!event) return;
-
-        // const id = EventDecoder.decodeDCA(event).id;
-        // if (!dca || !id) return;
-
-        // await prisma.dCA
-        //   .update({
-        //     where: { id },
-        //     data: {
-        //       ...dca,
-        //     },
-        //   })
-        //   .then(console.log)
-        //   .catch(console.log);
         break;
       }
       default:
@@ -196,9 +173,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         break;
     }
   } else {
-    const status = await awaitOperationStatus(txId);
-    const events = await fetchEvents({ original_operation_id: txId });
-    const timestamp = await getTimestamp(events);
+    const timestamp = await getTimestamp(events[0]);
 
     if (isSwapMethod(targetFunction)) {
       const swapParams = decodeSwapTx(targetFunction, parameter, coins);
@@ -207,6 +182,12 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         const tokenOut = swapParams.path[i + 1].str;
         const binStep = Number(swapParams.binSteps[i]);
         const pairAddress = await fetchPairAddress(tokenIn, tokenOut, binStep);
+
+        const swapEvents = events.filter(
+          (e) =>
+            getCallee(e.context.call_stack) === pairAddress &&
+            e.data.startsWith("SWAP:")
+        );
 
         processSwap(
           txId,
@@ -217,13 +198,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
           tokenIn,
           tokenOut,
           binStep,
-          events
-            .filter(
-              (e) =>
-                getCallee(e.context.call_stack) === pairAddress &&
-                e.data.startsWith("SWAP:")
-            )
-            .map((e) => e.data),
+          swapEvents.map((e) => e.data),
           swapParams
         );
       }
@@ -233,6 +208,13 @@ export async function handleNewOperations(message: NewOperationsResponse) {
       const { token0, token1, binStep } = liquidityParams;
       const pairAddress = await fetchPairAddress(token0, token1, binStep);
 
+      const liqEvents = events.filter(
+        (e) =>
+          getCallee(e.context.call_stack) === pairAddress &&
+          (e.data.startsWith("DEPOSITED_TO_BIN:") ||
+            e.data.startsWith("WITHDRAWN_FROM_BIN:"))
+      );
+
       processLiquidity(
         txId,
         caller,
@@ -240,20 +222,14 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         pairAddress,
         token0,
         token1,
-        events
-          .filter(
-            (e) =>
-              e.data.startsWith("DEPOSITED_TO_BIN:") ||
-              e.data.startsWith("WITHDRAWN_FROM_BIN:")
-          )
-          .map((e) => e.data),
+        liqEvents.map((e) => e.data),
         isAdd
       );
     } else throw new Error("Unknown router method:" + targetFunction);
   }
 }
 
-export async function awaitOperationStatus(
+async function awaitOperationStatus(
   txId: string,
   requiredStatus: EOperationStatus = EOperationStatus.SPECULATIVE_SUCCESS
 ) {
@@ -271,10 +247,5 @@ export async function awaitOperationStatus(
 const isSwapMethod = (str: string): str is SwapRouterMethod =>
   !!SWAP_ROUTER_METHODS.find((lit) => str === lit);
 
-const isLiquidtyMethod = (str: string): str is SwapRouterMethod =>
+const isLiquidtyMethod = (str: string): str is LiquidityRouterMethod =>
   !!LIQUIDITY_ROUTER_METHODS.find((lit) => str === lit);
-
-export async function getTimestamp(events: IEvent[]) {
-  const genesisTimestamp = await getGenesisTimestamp();
-  return new Date(parseSlot(events[0].context.slot, genesisTimestamp));
-}

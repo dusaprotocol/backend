@@ -518,9 +518,13 @@ export const appRouter = t.router({
           return [];
         });
     }),
-  getGlobal24H: t.procedure
+  getGlobalMetrics: t.procedure
+    .input(
+      z.object({ take: z.union([z.literal(1), z.literal(7), z.literal(30)]) })
+    )
     // .output(z.object({ volume: z.number() }))
-    .query(async ({ ctx }) => {
+    .query(async ({ input, ctx }) => {
+      const { take } = input;
       const x = await ctx.prisma.analytics.groupBy({
         by: "poolAddress",
         _sum: {
@@ -529,7 +533,7 @@ export const appRouter = t.router({
         },
         where: {
           date: {
-            gt: new Date(Date.now() - ONE_DAY),
+            gt: new Date(Date.now() - ONE_DAY * take),
           },
         },
       });

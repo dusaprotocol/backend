@@ -12,6 +12,7 @@ import {
 } from "@dusalabs/sdk";
 import { CHAIN_ID, web3Client } from "../../common/client";
 import { ONE_MINUTE, convertMsToSec } from "../../common/utils";
+import { radius } from "../../common/methods";
 
 describe("decoder", () => {
   it("should decode a simple swap", async () => {
@@ -40,9 +41,9 @@ describe("decoder", () => {
       CHAIN_ID
     );
     const params = bestTrade.swapCallParameters({
-      ttl: ONE_MINUTE * 10, // 10 minutes
+      ttl: ONE_MINUTE * 10,
       recipient: "",
-      allowedSlippage: new Percent("5"),
+      allowedSlippage: new Percent(1n, 100n),
     });
 
     const decoded = decodeSwapTx(
@@ -52,6 +53,7 @@ describe("decoder", () => {
     );
 
     expect(decoded.amountIn).toStrictEqual(BigInt(typedValueInParsed));
+    expect(decoded.binSteps).toStrictEqual(bestTrade.quote.binSteps);
     expect(decoded.path).toStrictEqual([
       new Address(USDC.address),
       new Address(WMAS.address),
