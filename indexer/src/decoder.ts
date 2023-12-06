@@ -239,7 +239,6 @@ export const decodeSwapEvents = (events: string[], binStep: number) => {
 
   events.forEach((event) => {
     const {
-      to,
       activeId,
       swapForY: _swapForY,
       amountInToBin,
@@ -247,6 +246,7 @@ export const decodeSwapEvents = (events: string[], binStep: number) => {
       feesTotal,
     } = EventDecoder.decodeSwap(event);
 
+    binId = activeId;
     price = getPriceFromId(activeId, binStep);
     swapForY = _swapForY;
     amountIn += amountInToBin;
@@ -256,12 +256,12 @@ export const decodeSwapEvents = (events: string[], binStep: number) => {
   amountIn += totalFees;
 
   return {
+    binId,
+    price,
+    swapForY,
     amountIn,
     amountOut,
     totalFees,
-    swapForY,
-    binId,
-    price,
   };
 };
 

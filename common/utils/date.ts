@@ -1,4 +1,4 @@
-import { ISlot } from "@massalabs/massa-web3";
+import { IEvent, ISlot } from "@massalabs/massa-web3";
 import { web3Client } from "../client";
 
 // Constants (in ms)
@@ -30,11 +30,17 @@ export const parseTimestamp = (
   };
 };
 
-export const getGenesisTimestamp = () =>
+const getGenesisTimestamp = () =>
   web3Client
     .publicApi()
     .getNodeStatus()
     .then((status) => status.config.genesis_timestamp);
+
+export const getTimestamp = (event: IEvent) =>
+  getGenesisTimestamp().then(
+    (genesisTimestamp) =>
+      new Date(parseSlot(event.context.slot, genesisTimestamp))
+  );
 
 export const convertMsToSec = (ms: number): number => Math.floor(ms / 1000);
 

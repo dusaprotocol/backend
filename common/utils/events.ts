@@ -15,26 +15,6 @@ const nullFilters: IEventFilter = {
   is_final: null,
 };
 
-export const fetchEvents = async (
-  filter: Partial<IEventFilter>
-): Promise<IEvent[]> => {
-  return web3Client
-    .smartContracts()
-    .getFilteredScOutputEvents({
-      ...nullFilters,
-      ...filter,
-    })
-    .then((events) => {
-      if (!events.length) {
-        throw new Error("No events found");
-      }
-      if (events[events.length - 1].data.includes("massa_execution_error")) {
-        throw new Error("Tx went wrong");
-      }
-      return events;
-    });
-};
-
 const watchEvent = async (
   txHash: string,
   eventName: string
