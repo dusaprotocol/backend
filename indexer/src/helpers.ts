@@ -5,25 +5,31 @@ import {
   SwapRouterMethod,
   LiquidityRouterMethod,
 } from "@dusalabs/sdk";
-import { EOperationStatus, IEvent, bytesToStr } from "@massalabs/massa-web3";
+import {
+  EOperationStatus,
+  IEvent,
+  bytesToStr,
+  withTimeoutRejection,
+} from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
 import { web3Client } from "../../common/client";
 import { dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { fetchPairAddress, getCallee } from "../../common/methods";
-import { fetchEvents, getTimestamp } from "../../common/utils";
+import { ONE_MINUTE, getTimestamp } from "../../common/utils";
 import { decodeDcaTx, decodeSwapTx, decodeLiquidityTx } from "./decoder";
 import { processSwap, processLiquidity } from "./socket";
 import {
   NewOperationsResponse,
   NewSlotExecutionOutputsResponse,
 } from "../gen/ts/massa/api/v1/public";
+import { pollAsyncEvents } from "./eventPoller";
 
 export async function handleNewSlotExecutionOutputs(
   message: NewSlotExecutionOutputsResponse
 ) {
-  console.log(message.output?.executionOutput?.slot);
+  // console.log(message.output?.executionOutput?.slot);
   const events = message.output?.executionOutput?.events;
   if (!events) return;
 
@@ -48,7 +54,13 @@ export async function handleNewSlotExecutionOutputs(
         const amountOut = EventDecoder.decodeU256(_amountOut);
         console.log("DCA_EXECUTED", owner, id, amountOut);
 
-        // TODO: fetch DCA from datastore if its not already in the db
+        const dca = await prisma.dCA.findUnique({
+          where: {
+            id,
+          },
+        });
+        if (!dca) return;
+        // TODO: fetch DCA from datastore or wait 1 min and retry
 
         prisma.dCAExecution
           .create({
@@ -87,9 +99,12 @@ export async function handleNewOperations(message: NewOperationsResponse) {
   const indexedSC = [dcaSC, orderSC, routerSC];
   if (!indexedSC.includes(targetAddress)) return;
 
-  console.log(targetAddress, targetFunction, caller);
-  await awaitOperationStatus(txId).then(console.log);
-  const events = await fetchEvents({ original_operation_id: txId });
+  console.log({ caller, targetAddress, targetFunction });
+  const { events, eventPoller } = await withTimeoutRejection(
+    pollAsyncEvents(txId),
+    ONE_MINUTE
+  );
+  eventPoller.stopPolling();
 
   // PERIPHERY CONTRACTS
 
@@ -229,23 +244,8 @@ export async function handleNewOperations(message: NewOperationsResponse) {
   }
 }
 
-async function awaitOperationStatus(
-  txId: string,
-  requiredStatus: EOperationStatus = EOperationStatus.SPECULATIVE_SUCCESS
-) {
-  return web3Client
-    .smartContracts()
-    .awaitRequiredOperationStatus(txId, requiredStatus)
-    .then((status) => {
-      if (status !== requiredStatus) {
-        throw new Error("Operation status is not FINAL_SUCCESS");
-      }
-      return status;
-    });
-}
-
 const isSwapMethod = (str: string): str is SwapRouterMethod =>
-  !!SWAP_ROUTER_METHODS.find((lit) => str === lit);
+  !!SWAP_ROUTER_METHODS.find((method) => str === method);
 
 const isLiquidtyMethod = (str: string): str is LiquidityRouterMethod =>
-  !!LIQUIDITY_ROUTER_METHODS.find((lit) => str === lit);
+  !!LIQUIDITY_ROUTER_METHODS.find((method) => str === method);
