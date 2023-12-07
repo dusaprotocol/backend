@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { decodeLiquidityTx, decodeSwapTx } from "./decoder";
+import {
+  decodeLiquidityEvents,
+  decodeLiquidityTx,
+  decodeSwapEvents,
+  decodeSwapTx,
+} from "./decoder";
 import { Args, ArrayTypes } from "@massalabs/massa-web3";
 import {
-  WMAS as _WMAS,
-  USDC as _USDC,
   parseUnits,
   TokenAmount,
   QuoterHelper,
@@ -12,62 +15,28 @@ import {
 } from "@dusalabs/sdk";
 import { CHAIN_ID, web3Client } from "../../common/client";
 import { ONE_MINUTE, convertMsToSec } from "../../common/utils";
-import { radius } from "../../common/methods";
+import { WMAS, USDC } from "../../common/contracts";
+import { params, swapOptions, bestTrade } from "./__tests__/placeholder";
 
-describe("decoder", () => {
+describe("tx decoder", () => {
   it("should decode a simple swap", async () => {
-    const WMAS = _WMAS[CHAIN_ID];
-    const USDC = _USDC[CHAIN_ID];
-
-    // Init: user inputs
-    const inputToken = USDC;
-    const outputToken = WMAS;
-    const typedValueIn = "20"; // user string input
-    const typedValueInParsed = parseUnits(
-      typedValueIn,
-      inputToken.decimals
-    ).toString(); // returns 20000000
-    const amountIn = new TokenAmount(inputToken, typedValueInParsed); // wrap into TokenAmount
-
-    const bestTrade = await QuoterHelper.findBestPath(
-      inputToken,
-      false,
-      outputToken,
-      true,
-      amountIn,
-      true,
-      3,
-      web3Client,
-      CHAIN_ID
-    );
-    const params = bestTrade.swapCallParameters({
-      ttl: ONE_MINUTE * 10,
-      recipient: "",
-      allowedSlippage: new Percent(1n, 100n),
-    });
-
     const decoded = decodeSwapTx(
       "swapExactTokensForTokens",
       Uint8Array.from(params.args.serialize()),
       undefined
     );
 
-    expect(decoded.amountIn).toStrictEqual(BigInt(typedValueInParsed));
+    expect(decoded.amountIn).toStrictEqual(bestTrade.inputAmount.raw);
     expect(decoded.binSteps).toStrictEqual(bestTrade.quote.binSteps);
-    expect(decoded.path).toStrictEqual([
-      new Address(USDC.address),
-      new Address(WMAS.address),
-    ]);
-    expect(convertMsToSec(decoded.deadline)).toStrictEqual(
-      convertMsToSec(Date.now() + ONE_MINUTE * 10)
+    expect(decoded.path).toStrictEqual(
+      bestTrade.route.pathToStrArr().map((str) => new Address(str))
     );
-    expect(decoded.to).toStrictEqual("");
+    expect(convertMsToSec(decoded.deadline)).toStrictEqual(
+      convertMsToSec(Date.now() + swapOptions.ttl)
+    );
+    expect(decoded.to).toStrictEqual(swapOptions.recipient);
   });
   it("should decode a simple addLiquidity", async () => {
-    const WMAS = _WMAS[CHAIN_ID];
-    const USDC = _USDC[CHAIN_ID];
-
-    // Init: user inputs
     const inputToken = USDC;
     const outputToken = WMAS;
     const binStep = 20;
@@ -111,10 +80,6 @@ describe("decoder", () => {
     expect(decoded.to).toStrictEqual("");
   });
   it("should decode a simple removeLiquidity", async () => {
-    const WMAS = _WMAS[CHAIN_ID];
-    const USDC = _USDC[CHAIN_ID];
-
-    // Init: user inputs
     const inputToken = USDC;
     const outputToken = WMAS;
     const binStep = 20;
@@ -150,5 +115,35 @@ describe("decoder", () => {
     expect(decoded.amount0Min).toStrictEqual(amount0Min);
     expect(decoded.deadline).toStrictEqual(1);
     expect(decoded.to).toStrictEqual("");
+  });
+});
+describe("event decoder", () => {
+  it("should decode a simple swap", async () => {
+    const swapEvents = [
+      "SWAP:AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar,8391258,true,䄥\x0F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,௟\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,0,ě\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+      "SWAP:AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar,8391259,true,䄥\x0F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,௟\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,0,ě\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+      "SWAP:AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar,8391260,true,䄥\x0F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,௟\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,0,ě\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+    ];
+
+    const decoded = decodeSwapEvents(swapEvents);
+
+    expect(decoded.totalFees).toStrictEqual(283n * 3n);
+    expect(decoded.amountIn).toStrictEqual(999717n * 3n + decoded.totalFees);
+    expect(decoded.amountOut).toStrictEqual(199222843n * 3n);
+    expect(decoded.binId).toStrictEqual(8391260);
+  });
+  it("should decode a simple liquidity", async () => {
+    const liqEvents = [
+      "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391258,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391259,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391260,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+    ];
+
+    const decoded = decodeLiquidityEvents(liqEvents);
+
+    expect(decoded.amountX).toStrictEqual(917501n * 3n);
+    expect(decoded.amountY).toStrictEqual(4561880455n * 3n);
+    expect(decoded.upperBound).toStrictEqual(8391260);
+    expect(decoded.lowerBound).toStrictEqual(8391258);
   });
 });
