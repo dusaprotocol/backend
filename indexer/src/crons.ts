@@ -59,6 +59,7 @@ export const fetchNewAnalytics = async (
     token0.decimals,
     token1.decimals
   );
+  if (!adjustedPrice) return;
 
   createAnalytic({
     poolAddress,

@@ -43,7 +43,6 @@ export async function handleNewSlotExecutionOutputs(
         bytesToStr(e.data).startsWith("SWAP:")
       );
       if (!swapEvent) return;
-      console.log(swapEvent?.data);
 
       // handle dca execution
       if (bytesToStr(event.data).startsWith("DCA_EXECUTED:")) {
@@ -52,7 +51,6 @@ export async function handleNewSlotExecutionOutputs(
           .split(",");
         const id = parseInt(_id);
         const amountOut = EventDecoder.decodeU256(_amountOut);
-        console.log("DCA_EXECUTED", owner, id, amountOut);
 
         const dca = await prisma.dCA.findUnique({
           where: {
@@ -112,14 +110,11 @@ export async function handleNewOperations(message: NewOperationsResponse) {
     switch (targetFunction) {
       case "startDCA": {
         const dca = decodeDcaTx(parameter);
-        console.log(dca);
 
         const event = events.find((e) => e.data.startsWith("DCA_ADDED:"))?.data;
-        console.log(event);
         if (!event) return;
 
         const id = EventDecoder.decodeDCA(event).id;
-        console.log(id);
         if (!dca || !id) return;
 
         await prisma.dCA

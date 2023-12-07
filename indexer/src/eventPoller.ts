@@ -33,7 +33,6 @@ export const pollAsyncEvents = async (
 
   return new Promise((resolve, reject) => {
     eventPoller.on(ON_MASSA_EVENT_DATA, (events: Array<IEvent>) => {
-      console.log({ events });
       const errorEvents: IEvent[] = events.filter((e) =>
         e.data.includes(MASSA_EXEC_ERROR)
       );

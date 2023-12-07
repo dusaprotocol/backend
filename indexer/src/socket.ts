@@ -31,7 +31,6 @@ export const processSwap = async (params: {
     swapPayload
   );
 
-  console.log({ volume, fees, priceAdjusted });
   updateVolumeAndPrice(poolAddress, binStep, volume, fees, priceAdjusted);
   createSwap({
     ...swapPayload,
