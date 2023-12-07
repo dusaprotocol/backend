@@ -6,13 +6,7 @@ import {
   decodeSwapTx,
 } from "./decoder";
 import { Args, ArrayTypes } from "@massalabs/massa-web3";
-import {
-  parseUnits,
-  TokenAmount,
-  QuoterHelper,
-  Percent,
-  Address,
-} from "@dusalabs/sdk";
+import { Address } from "@dusalabs/sdk";
 import { CHAIN_ID, web3Client } from "../../common/client";
 import { ONE_MINUTE, convertMsToSec } from "../../common/utils";
 import { WMAS, USDC } from "../../common/contracts";

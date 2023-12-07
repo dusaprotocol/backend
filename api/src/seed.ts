@@ -35,8 +35,7 @@ async function createPools() {
       }
     });
 
-  for (let i = 0; i < pools.length; i++) {
-    const pool = pools[i];
+  pools.forEach(async (pool, i) => {
     const [token0Address, token1Address] = await new ILBPair(
       pool.address,
       web3Client
@@ -101,7 +100,7 @@ async function createPools() {
     } catch (err) {
       console.error(err);
     }
-  }
+  });
 }
 
 async function generateDataset() {
