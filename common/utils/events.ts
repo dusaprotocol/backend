@@ -6,7 +6,7 @@ import {
 } from "@massalabs/massa-web3";
 import { web3Client } from "../client";
 
-const nullFilters: IEventFilter = {
+export const nullFilters: IEventFilter = {
   start: null,
   end: null,
   emitter_address: null,
@@ -44,8 +44,8 @@ type TransferEvent = {
 // console.log(event);
 // {from: "0x...", to: "0x...", amount: 1000000000000000000n}
 
-const watchTransferEvent = async (txId: string): Promise<TransferEvent> => {
-  const params = await watchEvent(txId, TRANSFER_EVENT_NAME);
+const watchTransferEvent = async (txHash: string): Promise<TransferEvent> => {
+  const params = await watchEvent(txHash, TRANSFER_EVENT_NAME);
   return {
     from: params[0],
     to: params[1],

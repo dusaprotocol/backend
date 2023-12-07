@@ -88,8 +88,8 @@ export async function handleNewSlotExecutionOutputs(
 export async function handleNewOperations(message: NewOperationsResponse) {
   if (!message.signedOperation) return;
   const {
-    secureHash: txId,
-    contentCreatorAddress: caller,
+    secureHash: txHash,
+    contentCreatorAddress: userAddress,
     content: operation,
   } = message.signedOperation;
   const opType = operation?.op?.type;
@@ -99,9 +99,9 @@ export async function handleNewOperations(message: NewOperationsResponse) {
   const indexedSC = [dcaSC, orderSC, routerSC];
   if (!indexedSC.includes(targetAddress)) return;
 
-  console.log({ caller, targetAddress, targetFunction });
+  console.log({ userAddress, targetAddress, targetFunction });
   const { events, eventPoller } = await withTimeoutRejection(
-    pollAsyncEvents(txId),
+    pollAsyncEvents(txHash),
     ONE_MINUTE
   );
   eventPoller.stopPolling();
@@ -126,8 +126,8 @@ export async function handleNewOperations(message: NewOperationsResponse) {
           .create({
             data: {
               ...dca,
-              userAddress: caller,
-              txHash: txId,
+              userAddress,
+              txHash,
               id,
               status: Status.ACTIVE,
             },
@@ -188,58 +188,63 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         break;
     }
   } else {
-    const timestamp = await getTimestamp(events[0]);
+    const timestamp = getTimestamp(events[0]);
 
     if (isSwapMethod(targetFunction)) {
       const swapParams = decodeSwapTx(targetFunction, parameter, coins);
       for (let i = 0; i < swapParams.path.length - 1; i++) {
-        const tokenIn = swapParams.path[i].str;
-        const tokenOut = swapParams.path[i + 1].str;
+        const tokenInAddress = swapParams.path[i].str;
+        const tokenOutAddress = swapParams.path[i + 1].str;
         const binStep = Number(swapParams.binSteps[i]);
-        const pairAddress = await fetchPairAddress(tokenIn, tokenOut, binStep);
+        const poolAddress = await fetchPairAddress(
+          tokenInAddress,
+          tokenOutAddress,
+          binStep
+        );
 
         const swapEvents = events.filter(
           (e) =>
-            getCallee(e.context.call_stack) === pairAddress &&
+            getCallee(e.context.call_stack) === poolAddress &&
             e.data.startsWith("SWAP:")
         );
 
-        processSwap(
-          txId,
-          i,
-          caller,
+        processSwap({
+          txHash,
+          indexInSlot: i,
+          userAddress,
           timestamp,
-          pairAddress,
-          tokenIn,
-          tokenOut,
+          poolAddress,
+          tokenInAddress,
+          tokenOutAddress,
           binStep,
-          swapEvents.map((e) => e.data),
-          swapParams
-        );
+          swapEvents: swapEvents.map((e) => e.data),
+          swapParams,
+        });
       }
     } else if (isLiquidtyMethod(targetFunction)) {
       const isAdd = targetFunction.startsWith("add");
       const liquidityParams = decodeLiquidityTx(isAdd, parameter, coins);
       const { token0, token1, binStep } = liquidityParams;
-      const pairAddress = await fetchPairAddress(token0, token1, binStep);
+      const poolAddress = await fetchPairAddress(token0, token1, binStep);
 
       const liqEvents = events.filter(
         (e) =>
-          getCallee(e.context.call_stack) === pairAddress &&
-          (e.data.startsWith("DEPOSITED_TO_BIN:") ||
-            e.data.startsWith("WITHDRAWN_FROM_BIN:"))
+          getCallee(e.context.call_stack) === poolAddress &&
+          ["DEPOSITED_TO_BIN:", "WITHDRAWN_FROM_BIN:"].some(
+            e.data.startsWith.bind(e.data)
+          )
       );
 
-      processLiquidity(
-        txId,
-        caller,
+      processLiquidity({
+        txHash,
+        userAddress,
         timestamp,
-        pairAddress,
-        token0,
-        token1,
-        liqEvents.map((e) => e.data),
-        isAdd
-      );
+        poolAddress,
+        token0Address: token0,
+        token1Address: token1,
+        liqEvents: liqEvents.map((e) => e.data),
+        isAdd,
+      });
     } else throw new Error("Unknown router method:" + targetFunction);
   }
 }

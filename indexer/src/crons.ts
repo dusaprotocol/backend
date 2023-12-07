@@ -95,7 +95,7 @@ export const createAnalytic = async (
 ) => {
   const date = getClosestTick();
 
-  prisma.analytics
+  return prisma.analytics
     .create({
       data: {
         ...args,
@@ -104,8 +104,9 @@ export const createAnalytic = async (
         fees: 0,
       },
     })
-    .then((p) => logger.debug(p))
-    .catch((err) => logger.warn(err));
+    .catch((err) => {
+      logger.warn(err);
+    });
 };
 
 if (!cron.validate(EVERY_TICK)) throw new Error("Invalid cron expression");

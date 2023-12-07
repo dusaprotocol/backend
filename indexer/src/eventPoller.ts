@@ -7,6 +7,7 @@ import {
   IEvent,
 } from "@massalabs/massa-web3";
 import { web3Client } from "../../common/client";
+import { nullFilters } from "../../common/utils";
 
 interface IEventPollerResult {
   isError: boolean;
@@ -20,12 +21,8 @@ export const pollAsyncEvents = async (
   opId: string
 ): Promise<IEventPollerResult> => {
   const eventsFilter: IEventFilter = {
-    start: null,
-    end: null,
-    original_caller_address: null,
+    ...nullFilters,
     original_operation_id: opId,
-    emitter_address: null,
-    is_final: null,
   };
 
   const eventPoller = EventPoller.startEventsPolling(

@@ -105,15 +105,23 @@ export const getTokenValue = async (
 
   if (!adjusted) return price;
 
-  const token0Address =
-    tokenAddress < USDC.address ? tokenAddress : USDC.address;
-  const token1Address =
-    tokenAddress < USDC.address ? USDC.address : tokenAddress;
+  const [token0Address, token1Address] = sortTokenAddresses(
+    tokenAddress,
+    USDC.address
+  );
   const token0Decimals = await new IERC20(token0Address, web3Client).decimals();
   const token1Decimals = await new IERC20(token1Address, web3Client).decimals();
   const priceAdjusted = adjustPrice(price, token0Decimals, token1Decimals);
   return tokenAddress < USDC.address ? priceAdjusted : 1 / priceAdjusted;
 };
+
+export const sortTokenAddresses = (
+  tokenA: string,
+  tokenB: string
+): [string, string] => (tokenA < tokenB ? [tokenA, tokenB] : [tokenB, tokenA]);
+
+export const sortTokens = (tokenA: Token, tokenB: Token): [Token, Token] =>
+  tokenA.address < tokenB.address ? [tokenA, tokenB] : [tokenB, tokenA];
 
 export const adjustPrice = (
   price: number,

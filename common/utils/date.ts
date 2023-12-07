@@ -30,17 +30,10 @@ export const parseTimestamp = (
   };
 };
 
-const getGenesisTimestamp = () =>
-  web3Client
-    .publicApi()
-    .getNodeStatus()
-    .then((status) => status.config.genesis_timestamp);
+export const genesisTimestamp = 1689847403682;
 
 export const getTimestamp = (event: IEvent) =>
-  getGenesisTimestamp().then(
-    (genesisTimestamp) =>
-      new Date(parseSlot(event.context.slot, genesisTimestamp))
-  );
+  new Date(parseSlot(event.context.slot, genesisTimestamp));
 
 export const convertMsToSec = (ms: number): number => Math.floor(ms / 1000);
 

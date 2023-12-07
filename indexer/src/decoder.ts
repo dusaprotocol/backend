@@ -229,40 +229,27 @@ const toLog = async (params: SwapParams) => {
  * @param events - string array starting with SWAP
  * @returns
  */
-export const decodeSwapEvents = (events: string[], binStep: number) => {
-  let binId = 0;
-  let price = 0;
-  let swapForY = false;
-  let amountIn = 0n;
-  let amountOut = 0n;
-  let totalFees = 0n;
+export const decodeSwapEvents = (events: string[]) => {
+  return events.reduce(
+    (prev, event) => {
+      const {
+        activeId,
+        swapForY: _swapForY,
+        amountInToBin,
+        amountOutOfBin,
+        feesTotal,
+      } = EventDecoder.decodeSwap(event);
 
-  events.forEach((event) => {
-    const {
-      activeId,
-      swapForY: _swapForY,
-      amountInToBin,
-      amountOutOfBin,
-      feesTotal,
-    } = EventDecoder.decodeSwap(event);
+      prev.binId = activeId;
+      prev.swapForY = _swapForY;
+      prev.amountIn += amountInToBin + feesTotal;
+      prev.amountOut += amountOutOfBin;
+      prev.totalFees += feesTotal;
 
-    binId = activeId;
-    price = getPriceFromId(activeId, binStep);
-    swapForY = _swapForY;
-    amountIn += amountInToBin;
-    amountOut += amountOutOfBin;
-    totalFees += feesTotal;
-  });
-  amountIn += totalFees;
-
-  return {
-    binId,
-    price,
-    swapForY,
-    amountIn,
-    amountOut,
-    totalFees,
-  };
+      return prev;
+    },
+    { binId: 0, swapForY: false, amountIn: 0n, amountOut: 0n, totalFees: 0n }
+  );
 };
 
 /**
@@ -271,16 +258,17 @@ export const decodeSwapEvents = (events: string[], binStep: number) => {
  * @returns
  */
 export const decodeLiquidityEvents = (events: string[]) => {
-  const [amountX, amountY] = events.reduce(
-    ([sumX, sumY], event) => {
+  return events.reduce(
+    (prev, event) => {
       const decoded = EventDecoder.decodeLiquidity(event);
-      return [sumX + decoded.amountX, sumY + decoded.amountY];
-    },
-    [0n, 0n]
-  );
 
-  return {
-    amountX,
-    amountY,
-  };
+      prev.amountX += decoded.amountX;
+      prev.amountY += decoded.amountY;
+      prev.lowerBound = Math.min(prev.lowerBound, decoded.id);
+      prev.upperBound = Math.max(prev.upperBound, decoded.id);
+
+      return prev;
+    },
+    { amountX: 0n, amountY: 0n, lowerBound: +Infinity, upperBound: -Infinity }
+  );
 };
