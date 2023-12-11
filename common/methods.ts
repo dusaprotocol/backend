@@ -69,7 +69,11 @@ export const getTokenValueUsingQuoter = async (
     web3Client,
     CHAIN_ID
   );
-  return Number(bestTrade.executionPrice.toSignificant());
+  try {
+    return Number(bestTrade.executionPrice.toSignificant());
+  } catch (e) {
+    return 0;
+  }
 };
 
 export const getTokenValue = async (
@@ -138,7 +142,7 @@ export const getTokenFromAddress = async (
   tokenAddress: string
 ): Promise<Token> => {
   const token = await prisma.token
-    .findUnique({
+    .findUniqueOrThrow({
       where: {
         address: tokenAddress,
       },
