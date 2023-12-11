@@ -106,7 +106,7 @@ export const decodeLiquidityTx = (
   try {
     const args = new Args(params);
     const token0 = args.nextString();
-    const token1 = coins ? WMAS.address : args.nextString();
+    const token1 = args.nextString();
     const binStep = args.nextU32();
 
     if (isAdd) {

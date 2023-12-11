@@ -24,6 +24,6 @@ const swapOptions = {
   recipient: "",
   allowedSlippage: new Percent(1n, 100n),
 };
-const params = bestTrade.swapCallParameters(swapOptions);
+const swapParams = bestTrade.swapCallParameters(swapOptions);
 
-export { params, swapOptions, bestTrade };
+export { swapParams, swapOptions, bestTrade };

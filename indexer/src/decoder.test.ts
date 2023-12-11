@@ -10,13 +10,46 @@ import { Address } from "@dusalabs/sdk";
 import { CHAIN_ID, web3Client } from "../../common/client";
 import { ONE_MINUTE, convertMsToSec } from "../../common/utils";
 import { WMAS, USDC } from "../../common/contracts";
-import { params, swapOptions, bestTrade } from "./__tests__/placeholder";
+import { swapParams, swapOptions, bestTrade } from "./__tests__/placeholder";
+import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
+
+const inputToken = USDC;
+const outputToken = WMAS;
+const binStep = 20;
+const amount0 = 1n;
+const amount1 = 1n;
+const amount0Min = 1n;
+const amount1Min = 1n;
+const activeIdDesired = 1;
+const idSlippage = 1;
+const deltaIds = [1n];
+const distribution0 = [1n];
+const distribution1 = [1n];
+const to = "";
+const deadline = 1;
+
+const params = new Args()
+  .addString(inputToken.address)
+  .addString(outputToken.address)
+  .addU32(binStep)
+  .addU256(amount0)
+  .addU256(amount1)
+  .addU256(amount0Min)
+  .addU256(amount1Min)
+  .addU64(BigInt(activeIdDesired))
+  .addU64(BigInt(idSlippage))
+  .addArray(deltaIds, ArrayTypes.I64)
+  .addArray(distribution0, ArrayTypes.U256)
+  .addArray(distribution1, ArrayTypes.U256)
+  .addString(to)
+  .addU64(BigInt(deadline))
+  .serialize();
 
 describe("tx decoder", () => {
   it("should decode a simple swap", async () => {
     const decoded = decodeSwapTx(
       "swapExactTokensForTokens",
-      Uint8Array.from(params.args.serialize()),
+      Uint8Array.from(swapParams.args.serialize()),
       undefined
     );
 
@@ -31,38 +64,6 @@ describe("tx decoder", () => {
     expect(decoded.to).toStrictEqual(swapOptions.recipient);
   });
   it("should decode a simple addLiquidity", async () => {
-    const inputToken = USDC;
-    const outputToken = WMAS;
-    const binStep = 20;
-    const amount0 = 1n;
-    const amount1 = 1n;
-    const amount0Min = 1n;
-    const amount1Min = 1n;
-    const activeIdDesired = 1;
-    const idSlippage = 1;
-    const deltaIds = [1n];
-    const distribution0 = [1n];
-    const distribution1 = [1n];
-    const to = "";
-    const deadline = 1;
-
-    const params = new Args()
-      .addString(inputToken.address)
-      .addString(outputToken.address)
-      .addU32(binStep)
-      .addU256(amount0)
-      .addU256(amount1)
-      .addU256(amount0Min)
-      .addU256(amount1Min)
-      .addU64(BigInt(activeIdDesired))
-      .addU64(BigInt(idSlippage))
-      .addArray(deltaIds, ArrayTypes.I64)
-      .addArray(distribution0, ArrayTypes.U256)
-      .addArray(distribution1, ArrayTypes.U256)
-      .addString(to)
-      .addU64(BigInt(deadline))
-      .serialize();
-
     const decoded = decodeLiquidityTx(true, Uint8Array.from(params), undefined);
 
     expect("amount0" in decoded).toStrictEqual(true);
@@ -74,15 +75,8 @@ describe("tx decoder", () => {
     expect(decoded.to).toStrictEqual("");
   });
   it("should decode a simple removeLiquidity", async () => {
-    const inputToken = USDC;
-    const outputToken = WMAS;
-    const binStep = 20;
-    const amount0Min = 1n;
-    const amount1Min = 1n;
     const ids = [1n];
     const amounts = [1n];
-    const to = "";
-    const deadline = 1;
 
     const params = new Args()
       .addString(inputToken.address)
