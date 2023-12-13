@@ -45,7 +45,11 @@ const prep = async (
 
   try {
     for await (let message of stream.responses) {
-      handler(message);
+      try {
+        handler(message);
+      } catch (err: any) {
+        logger.error(err.message);
+      }
     }
   } catch (err: any) {
     logger.error(err.message);
