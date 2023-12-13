@@ -166,14 +166,12 @@ export const decodeLiquidityTx = (
 
 export const decodeDcaTx = (
   params: Uint8Array
-):
-  | (Omit<StartDCAParameters, "startIn" | "tokenPath"> & {
-      tokenIn: string;
-      tokenOut: string;
-      startTime: Date;
-      endTime: Date;
-    })
-  | undefined => {
+): Omit<StartDCAParameters, "startIn" | "tokenPath"> & {
+  tokenIn: string;
+  tokenOut: string;
+  startTime: Date;
+  endTime: Date;
+} => {
   try {
     const args = new Args(params);
     const amountEachDCA = args.nextU256();

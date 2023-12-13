@@ -29,56 +29,82 @@ import { pollAsyncEvents } from "./eventPoller";
 export async function handleNewSlotExecutionOutputs(
   message: NewSlotExecutionOutputsResponse
 ) {
-  // console.log(message.output?.executionOutput?.slot);
-  const events = message.output?.executionOutput?.events;
+  const output = message.output?.executionOutput;
+  if (!output) return;
+  const { events, slot, blockId: block } = output;
+  const period = Number(slot?.period) || 0;
+  const thread = Number(slot?.thread) || 0;
+  const blockId = block?.value || "";
   if (!events) return;
 
   events.forEach(async (event) => {
     if (!event.context) return;
 
+    const eventData = bytesToStr(event.data);
     const { callStack } = event.context;
     if (callStack.includes(dcaSC)) {
       // handle inner swap
-      const swapEvent = events.find((e) =>
-        bytesToStr(e.data).startsWith("SWAP:")
-      );
-      if (!swapEvent) return;
+      // const swapEvent = events.find((e) =>
+      //   bytesToStr(e.data).startsWith("SWAP:")
+      // );
+      // if (!swapEvent) return;
 
       // handle dca execution
-      if (bytesToStr(event.data).startsWith("DCA_EXECUTED:")) {
-        const [owner, _id, _amountOut] = bytesToStr(event.data)
-          .split(":")[1]
-          .split(",");
-        const id = parseInt(_id);
-        const amountOut = EventDecoder.decodeU256(_amountOut);
-
+      if (eventData.startsWith("DCA_EXECUTED:")) {
+        const { amountOut, id } = EventDecoder.decodeDCAExecution(eventData);
         const dca = await prisma.dCA.findUnique({
           where: {
             id,
           },
         });
-        if (!dca) return;
-        // TODO: fetch DCA from datastore or wait 1 min and retry
+        if (!dca) return; // TODO: fetch DCA from datastore or wait 1 min and retry
 
         prisma.dCAExecution
           .create({
             data: {
-              amountIn: 0,
-              amountOut: 0,
-              id,
-              txHash: "",
+              amountIn: dca.amountEachDCA,
+              amountOut,
               timestamp: new Date(),
-              DCA: {
-                connect: {
-                  id,
-                },
-              },
+              dCAId: id,
+              period,
+              thread,
+              blockId,
             },
           })
-          .then(console.log)
           .catch((e) => console.log(JSON.stringify(e)));
       }
     } else if (callStack.includes(orderSC)) {
+      // handle inner swap
+      // const swapEvent = events.find((e) =>
+      //   bytesToStr(e.data).startsWith("SWAP:")
+      // );
+      // if (!swapEvent) return;
+
+      // handle limit order execution
+      if (eventData.startsWith("EXECUTE_LIMIT_ORDER:")) {
+        const { id, amountOut } =
+          EventDecoder.decodeLimitOrderExecution(eventData);
+        const order = await prisma.order.findUnique({
+          where: {
+            id,
+          },
+        });
+        if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
+
+        prisma.orderExecution
+          .create({
+            data: {
+              amountIn: order.amountIn,
+              amountOut,
+              timestamp: new Date(),
+              orderId: id,
+              period,
+              thread,
+              blockId,
+            },
+          })
+          .catch((e) => console.log(JSON.stringify(e)));
+      }
     } else return;
   });
 }
@@ -152,9 +178,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
           .catch(console.log);
         break;
       }
-      case "updateDCA": {
-        break;
-      }
+      case "updateDCA": // TODO: update DCA
       default:
         break;
     }
