@@ -149,7 +149,7 @@ export const getTokenFromAddress = async (
       },
     })
     .catch((err) => {
-      logger.warn(err);
+      logger.warn("No token found: " + tokenAddress);
       return fetchTokenFromAddress(tokenAddress);
     });
   if (!token) throw new Error(`Token not found: ${tokenAddress}`);

@@ -97,7 +97,6 @@ export const decodeLiquidityTx = (
   coins: NativeAmount | undefined
 ): DecodedLiquidity => {
   const args = new Args(params);
-  console.dir(args.serialize(), { maxArrayLength: null });
   const token0 = args.nextString();
   const token1 = args.nextString();
   const binStep = args.nextU32();

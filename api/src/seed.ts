@@ -11,157 +11,172 @@ import {
   getClosestTick,
 } from "../../common/utils/date";
 
-async function createPools() {
-  const pools: Pick<Pool, "address" | "binStep">[] = [];
-  await web3Client
+type AddressBinStep = Pick<Pool, "address" | "binStep">;
+
+const createPools = async () => {
+  // await new IFactory(factorySC, web3Client).getEveryLBPairAddresses()
+  const pairAddresses = await web3Client
     .publicApi()
     .getDatastoreEntries([{ address: factorySC, key: strToBytes("ALL_PAIRS") }])
     .then(async (res) => {
       const bs = res[0].final_value;
-      if (!bs) return;
+      if (!bs) return [];
 
-      const pairs = bytesToStr(bs).split(":");
-      for (let i = 0; i < pairs.length; i++) {
-        const pair = pairs[i];
-        if (!pair) continue;
-
-        const binStep = await getBinStep(pair).catch(() => undefined);
-        if (!binStep) continue;
-
-        pools.push({
-          address: pair,
-          binStep,
-        });
-      }
+      return bytesToStr(bs)
+        .split(":")
+        .filter((s) => s);
     });
 
-  pools.forEach(async (pool, i) => {
-    const [token0Address, token1Address] = await new ILBPair(
-      pool.address,
-      web3Client
-    ).getTokens();
-    const _token0 = new IERC20(token0Address, web3Client);
-    const _token1 = new IERC20(token1Address, web3Client);
-    const [name0, symbol0, decimals0] = await Promise.all([
-      _token0.name(),
-      _token0.symbol(),
-      _token0.decimals(),
-    ]);
-    const [name1, symbol1, decimals1] = await Promise.all([
-      _token1.name(),
-      _token1.symbol(),
-      _token1.decimals(),
-    ]);
+  const pools: AddressBinStep[] = await Promise.all(
+    pairAddresses.map(async (pair) => {
+      const binStep = await getBinStep(pair);
+      return { address: pair, binStep };
+    })
+  );
 
-    try {
-      await prisma.token.upsert({
-        where: {
-          address: token0Address,
-        },
-        create: {
-          address: token0Address,
-          decimals: decimals0,
-          symbol: symbol0,
-          name: name0,
-        },
-        update: {},
-      });
-      await prisma.token.upsert({
-        where: {
-          address: token1Address,
-        },
-        create: {
-          address: token1Address,
-          decimals: decimals1,
-          symbol: symbol1,
-          name: name1,
-        },
-        update: {},
-      });
+  pools.forEach(async (pool) => {
+    await createPair(pool);
+    generateDataset(pool.address);
+  });
+};
 
-      prisma.pool
-        .create({
-          data: {
-            ...pool,
-            token0: {
-              connect: {
-                address: token0Address,
-              },
-            },
-            token1: {
-              connect: {
-                address: token1Address,
-              },
+const createPair = async (pool: AddressBinStep) => {
+  const [token0Address, token1Address] = await new ILBPair(
+    pool.address,
+    web3Client
+  ).getTokens();
+
+  try {
+    await createToken(token0Address);
+    await createToken(token1Address);
+
+    await prisma.pool
+      .create({
+        data: {
+          ...pool,
+          token0: {
+            connect: {
+              address: token0Address,
             },
           },
-        })
-        .then((res) => console.log(res))
-        .catch((err) => console.error(err));
-    } catch (err) {
-      console.error(err);
-    }
-  });
-}
+          token1: {
+            connect: {
+              address: token1Address,
+            },
+          },
+        },
+      })
+      .then((res) => console.log(res))
+      .catch((err) => console.error(err));
+  } catch (err) {
+    console.error({ err });
+  }
+};
 
-async function generateDataset() {
-  const pools = await prisma.pool.findMany({
+export const createToken = async (address: string) => {
+  const token = new IERC20(address, web3Client);
+  const [name, symbol, decimals] = await Promise.all([
+    token.name(),
+    token.symbol(),
+    token.decimals(),
+  ]);
+  return prisma.token.upsert({
+    where: {
+      address,
+    },
+    create: {
+      address,
+      name,
+      symbol,
+      decimals,
+    },
+    update: {},
+  });
+};
+
+const generateDataset = async (poolAddress: string) => {
+  const pool = await prisma.pool.findUniqueOrThrow({
+    where: { address: poolAddress },
     include: { token0: true, token1: true },
   });
-  pools.forEach(async (pool) => {
-    const pairInfo = await PairV2.getLBPairReservesAndId(
-      pool.address,
-      web3Client
-    );
-    const price = adjustPrice(
-      getPriceFromId(pairInfo.activeId, pool.binStep),
-      pool.token0.decimals,
-      pool.token1.decimals
-    );
+  const pairInfo = await PairV2.getLBPairReservesAndId(
+    pool.address,
+    web3Client
+  );
+  const price = adjustPrice(
+    getPriceFromId(pairInfo.activeId, pool.binStep),
+    pool.token0.decimals,
+    pool.token1.decimals
+  );
 
-    const data: Prisma.AnalyticsCreateManyArgs["data"] = [];
-    let prevPrice = price;
+  const data: Prisma.AnalyticsCreateManyArgs["data"] = [];
+  let prevPrice = price;
 
-    for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
-      // i day ago
-      const date = getClosestTick(Date.now() - i * TIME_BETWEEN_TICKS);
-      const reserveX =
-        pairInfo.reserveX - (pairInfo.reserveX / 100n) * BigInt(i);
-      const reserveY =
-        pairInfo.reserveY - (pairInfo.reserveY / 100n) * BigInt(i);
+  for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
+    const date = getClosestTick(Date.now() - i * TIME_BETWEEN_TICKS);
+    const reserveX = pairInfo.reserveX - (pairInfo.reserveX / 100n) * BigInt(i);
+    const reserveY = pairInfo.reserveY - (pairInfo.reserveY / 100n) * BigInt(i);
 
-      const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
-      const open = price;
-      const close = prevPrice;
-      const high =
-        Math.random() > 0.5
-          ? Math.max(prevPrice, price) * (1 + Math.random() * 0.05)
-          : Math.max(prevPrice, price);
-      const low =
-        Math.random() > 0.5
-          ? Math.min(prevPrice, price) * (1 - Math.random() * 0.05)
-          : Math.min(prevPrice, price);
-      prevPrice = price;
+    const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
+    const open = price;
+    const close = prevPrice;
+    const high =
+      Math.random() > 0.5
+        ? Math.max(prevPrice, price) * (1 + Math.random() * 0.05)
+        : Math.max(prevPrice, price);
+    const low =
+      Math.random() > 0.5
+        ? Math.min(prevPrice, price) * (1 - Math.random() * 0.05)
+        : Math.min(prevPrice, price);
+    prevPrice = price;
 
-      data.push({
-        poolAddress: pool.address,
-        token0Locked: reserveX.toString(),
-        token1Locked: reserveY.toString(),
-        usdLocked: 0,
-        close,
-        high,
-        low,
-        open,
-        date,
-        fees: 0,
-        volume: 0,
-      });
-    }
+    data.push({
+      poolAddress: pool.address,
+      token0Locked: reserveX.toString(),
+      token1Locked: reserveY.toString(),
+      usdLocked: 0,
+      close,
+      high,
+      low,
+      open,
+      date,
+      fees: 0,
+      volume: 0,
+    });
+  }
 
-    await prisma.analytics.createMany({ data }).then(console.log);
-  });
-}
+  await prisma.analytics
+    .createMany({ data })
+    .then(console.log)
+    .catch(console.error);
+};
 
 (async () => {
-  await createPools();
-  generateDataset();
+  // // pool Aya
+  // const pair = {
+  //   address: "AS1sBxofCbHKS2c1y6FqBk48YfQvT46ZdxBzzW5rZB12zpdHCkS3",
+  //   binStep: 20,
+  // };
+  // createPair(pair).then(() => generateDataset(pair.address));
+  // createPools();
+
+  // prisma.dCA.deleteMany({}).then(console.log).catch(console.error);
+  // prisma.order.deleteMany({}).then(console.log).catch(console.error);
+
+  await prisma.swap
+    .create({
+      data: {
+        amountIn: 0n,
+        amountOut: 0n,
+        binId: 0,
+        timestamp: new Date(),
+        usdValue: 0,
+        poolAddress: "AS1sBxofCbHKS2c1y6FqBk48YfQvT46ZdxBzzW5rZB12zpdHCkS3",
+        swapForY: false,
+        txHash: "",
+        userAddress: "0x0000000",
+      },
+    })
+    .then(console.log)
+    .catch(console.error);
 })();

@@ -124,16 +124,12 @@ export const createAnalytic = async (
 ) => {
   const date = getClosestTick();
 
-  prisma.analytics
-    .create({
-      data: {
-        ...args,
-        date,
-        volume: 0,
-        fees: 0,
-      },
-    })
-    .catch((err) => {
-      logger.warn(err);
-    });
+  prisma.analytics.create({
+    data: {
+      ...args,
+      date,
+      volume: 0,
+      fees: 0,
+    },
+  });
 };
