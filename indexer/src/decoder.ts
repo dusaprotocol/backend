@@ -214,16 +214,11 @@ const toLog = async (params: SwapParams) => {
 export const decodeSwapEvents = (events: string[]) => {
   return events.reduce(
     (prev, event) => {
-      const {
-        activeId,
-        swapForY: _swapForY,
-        amountInToBin,
-        amountOutOfBin,
-        feesTotal,
-      } = EventDecoder.decodeSwap(event);
+      const { activeId, swapForY, amountInToBin, amountOutOfBin, feesTotal } =
+        EventDecoder.decodeSwap(event);
 
       prev.binId = activeId;
-      prev.swapForY = _swapForY;
+      prev.swapForY = swapForY;
       prev.amountIn += amountInToBin + feesTotal;
       prev.amountOut += amountOutOfBin;
       prev.totalFees += feesTotal;
