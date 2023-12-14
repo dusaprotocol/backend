@@ -153,7 +153,6 @@ export async function handleNewOperations(message: NewOperationsResponse) {
               status: Status.ACTIVE,
             },
           })
-          .then(console.log)
           .catch(console.log);
         break;
       }
@@ -174,7 +173,6 @@ export async function handleNewOperations(message: NewOperationsResponse) {
               status: Status.STOPPED,
             },
           })
-          .then(console.log)
           .catch(console.log);
         break;
       }

@@ -113,8 +113,8 @@ model DCAExecution {
   timestamp DateTime
   thread    Int
   period    Int
-  blockId   String
   dCAId     Int
+  blockId   String
   DCA       DCA      @relation(fields: [dCAId], references: [id], onDelete: Cascade)
 }
 
@@ -139,8 +139,8 @@ model OrderExecution {
   timestamp DateTime
   thread    Int
   period    Int
-  blockId   String
   orderId   Int      @unique
+  blockId   String
   Order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
