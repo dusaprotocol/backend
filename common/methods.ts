@@ -78,7 +78,7 @@ export const getTokenValueUsingQuoter = async (
 };
 
 export const getTokenValue = async (
-  tokenAddress: string,
+  _tokenAddress: string,
   // CHAIN_ID: ChainId
   adjusted = true,
   opts?: {
@@ -86,6 +86,8 @@ export const getTokenValue = async (
     binStep: number;
   }
 ): Promise<number> => {
+  const tokenAddress = _tokenAddress.replace("_", ""); // TEMP: handle MAS/WMAS
+
   const factory = new IFactory(LB_FACTORY_ADDRESS[CHAIN_ID], web3Client);
   if (tokenAddress === USDC.address) return 1;
 
@@ -142,17 +144,18 @@ export const toFraction = (price: number): Fraction => {
 export const getTokenFromAddress = async (
   tokenAddress: string
 ): Promise<Token> => {
+  const address = tokenAddress.replace("_", ""); // TEMP: handle MAS/WMAS
+
   const token = await prisma.token
     .findUniqueOrThrow({
       where: {
-        address: tokenAddress,
+        address,
       },
     })
-    .catch((err) => {
-      logger.warn("No token found: " + tokenAddress);
-      return fetchTokenFromAddress(tokenAddress);
+    .catch(() => {
+      return fetchTokenFromAddress(address);
     });
-  if (!token) throw new Error(`Token not found: ${tokenAddress}`);
+  if (!token) throw new Error(`Token not found: ${address}`);
 
   return new Token(
     CHAIN_ID,
