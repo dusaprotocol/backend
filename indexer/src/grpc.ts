@@ -31,11 +31,11 @@ type ExtractFunctionKeys<T> = {
 }[keyof T];
 type MyActions = ExtractFunctionKeys<MassaServiceClient>; // "add" | "remove"
 
-const prep = async (
+const subscribe = async (
   client: MassaServiceClient,
   method: MyActions,
   req: any,
-  handler: (message: any) => void
+  handler: (message: any) => Promise<void>
   // TODO: replace 'any'
 ) => {
   const stream = client[method]();
@@ -43,18 +43,14 @@ const prep = async (
 
   logger.info(`${method}:${new Date().toString()}`);
 
-  try {
-    for await (let message of stream.responses) {
-      try {
-        handler(message);
-      } catch (err: any) {
-        logger.error(err.message);
-      }
-    }
-  } catch (err: any) {
-    logger.error(err.message);
-    setTimeout(() => prep(client, method, req, handler), ONE_MINUTE);
+  for await (let message of stream.responses) {
+    handler(message).catch((err: any) => {
+      logger.error(err.message);
+    });
   }
+
+  // TODO: catch connection error
+  // setTimeout(() => subscribe(client, method, req, handler), ONE_MINUTE);
 
   return stream;
 };
@@ -70,7 +66,8 @@ export const subscribeNewSlotExecutionOutputs = async () => {
       },
     ], // TODO: add filters
   };
-  return prep(
+
+  return subscribe(
     baseClient,
     "newSlotExecutionOutputs",
     req,
@@ -82,5 +79,6 @@ export const subscribeNewOperations = async () => {
   const req: NewOperationsRequest = {
     filters: [], // TODO: add filters
   };
-  return prep(baseClient, "newOperations", req, handleNewOperations);
+
+  return subscribe(baseClient, "newOperations", req, handleNewOperations);
 };
