@@ -73,27 +73,22 @@ export const decodeSwapTx = (
   params: Uint8Array,
   coins: NativeAmount | undefined
 ): SwapParams => {
-  try {
-    const args = new Args(params);
-    const { amountIn, amountOut } = extractAmountInOut(method, args, coins);
+  const args = new Args(params);
+  const { amountIn, amountOut } = extractAmountInOut(method, args, coins);
 
-    const binSteps = args.nextArray<bigint>(ArrayTypes.U64);
-    const path = args.nextSerializableObjectArray(Address);
-    const to = args.nextString();
-    const deadline = Number(args.nextU64());
+  const binSteps = args.nextArray<bigint>(ArrayTypes.U64);
+  const path = args.nextSerializableObjectArray(Address);
+  const to = args.nextString();
+  const deadline = Number(args.nextU64());
 
-    return {
-      amountIn,
-      amountOut,
-      binSteps,
-      path,
-      to,
-      deadline,
-    };
-  } catch (e) {
-    logger.error(e);
-    throw e;
-  }
+  return {
+    amountIn,
+    amountOut,
+    binSteps,
+    path,
+    to,
+    deadline,
+  };
 };
 
 type DecodedLiquidity = AddLiquidityParameters | RemoveLiquidityParameters;
@@ -103,64 +98,60 @@ export const decodeLiquidityTx = (
   params: Uint8Array,
   coins: NativeAmount | undefined
 ): DecodedLiquidity => {
-  try {
-    const args = new Args(params);
-    const token0 = args.nextString();
-    const token1 = args.nextString();
-    const binStep = args.nextU32();
+  const args = new Args(params);
+  console.dir(args.serialize(), { maxArrayLength: null });
+  const token0 = args.nextString();
+  const token1 = args.nextString();
+  const binStep = args.nextU32();
 
-    if (isAdd) {
-      const amount0 = args.nextU256();
-      const amount1 = args.nextU256();
-      const amount0Min = args.nextU256();
-      const amount1Min = args.nextU256();
-      const activeIdDesired = Number(args.nextU64());
-      const idSlippage = Number(args.nextU64());
-      const deltaIds = args.nextArray<number>(ArrayTypes.I64);
-      const distribution0 = args.nextArray<bigint>(ArrayTypes.U256);
-      const distribution1 = args.nextArray<bigint>(ArrayTypes.U256);
-      const to = args.nextString();
-      const deadline = Number(args.nextU64());
+  if (isAdd) {
+    const amount0 = args.nextU256();
+    const amount1 = args.nextU256();
+    const amount0Min = args.nextU256();
+    const amount1Min = args.nextU256();
+    const activeIdDesired = Number(args.nextU64());
+    const idSlippage = Number(args.nextU64());
+    const deltaIds = args.nextArray<number>(ArrayTypes.I64);
+    // const distribution0 = args.nextArray<bigint>(ArrayTypes.U256);
+    // const distribution1 = args.nextArray<bigint>(ArrayTypes.U256);
+    const to = args.nextString();
+    const deadline = Number(args.nextU64());
 
-      return {
-        token0,
-        token1,
-        binStep,
-        amount0,
-        amount1,
-        amount0Min,
-        amount1Min,
-        activeIdDesired,
-        idSlippage,
-        deltaIds,
-        distributionX: distribution0,
-        distributionY: distribution1,
-        to,
-        deadline,
-      };
-    } else {
-      const amount0Min = args.nextU256();
-      const amount1Min = args.nextU256();
-      const ids = args.nextArray<number>(ArrayTypes.U64);
-      const amounts = args.nextArray<bigint>(ArrayTypes.U256);
-      const to = args.nextString();
-      const deadline = Number(args.nextU64());
+    return {
+      token0,
+      token1,
+      binStep,
+      amount0,
+      amount1,
+      amount0Min,
+      amount1Min,
+      activeIdDesired,
+      idSlippage,
+      deltaIds,
+      distributionX: [], //distribution0,
+      distributionY: [], //distribution1,
+      to,
+      deadline,
+    };
+  } else {
+    const amount0Min = args.nextU256();
+    const amount1Min = args.nextU256();
+    const ids = args.nextArray<number>(ArrayTypes.U64);
+    const amounts = args.nextArray<bigint>(ArrayTypes.U256);
+    const to = args.nextString();
+    const deadline = Number(args.nextU64());
 
-      return {
-        token0,
-        token1,
-        binStep,
-        amount0Min,
-        amount1Min,
-        ids,
-        amounts,
-        to,
-        deadline,
-      };
-    }
-  } catch (e) {
-    logger.error(e);
-    throw e;
+    return {
+      token0,
+      token1,
+      binStep,
+      amount0Min,
+      amount1Min,
+      ids,
+      amounts,
+      to,
+      deadline,
+    };
   }
 };
 
@@ -172,33 +163,28 @@ export const decodeDcaTx = (
   startTime: Date;
   endTime: Date;
 } => {
-  try {
-    const args = new Args(params);
-    const amountEachDCA = args.nextU256();
-    const interval = Number(args.nextU64());
-    const nbOfDCA = Number(args.nextU64());
-    const tokenPath: Address[] = args.nextSerializableObjectArray(Address);
-    const tokenIn = tokenPath[0].str;
-    const tokenOut = tokenPath[tokenPath.length - 1].str;
-    const startIn = Number(args.nextU64());
+  const args = new Args(params);
+  const amountEachDCA = args.nextU256();
+  const interval = Number(args.nextU64());
+  const nbOfDCA = Number(args.nextU64());
+  const tokenPath: Address[] = args.nextSerializableObjectArray(Address);
+  const tokenIn = tokenPath[0].str;
+  const tokenOut = tokenPath[tokenPath.length - 1].str;
+  const startIn = Number(args.nextU64());
 
-    const startTime = Date.now() + startIn;
-    const endTime =
-      nbOfDCA == 0 ? Infinity : startTime + (interval * (2 * nbOfDCA - 1)) / 2;
+  const startTime = Date.now() + startIn;
+  const endTime =
+    nbOfDCA == 0 ? Infinity : startTime + (interval * (2 * nbOfDCA - 1)) / 2;
 
-    return {
-      amountEachDCA,
-      interval,
-      nbOfDCA,
-      tokenIn,
-      tokenOut,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-    };
-  } catch (e) {
-    logger.error(e);
-    throw e;
-  }
+  return {
+    amountEachDCA,
+    interval,
+    nbOfDCA,
+    tokenIn,
+    tokenOut,
+    startTime: new Date(startTime),
+    endTime: new Date(endTime),
+  };
 };
 
 const toLog = async (params: SwapParams) => {
