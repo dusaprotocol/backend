@@ -4,9 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "prisma db pull && prisma generate",
-    "start:api": "cd api && pnpm install && pnpm start",
-    "start:indexer": "cd indexer && pnpm install && pnpm start",
+    "postinstall": "prisma db pull && prisma generate && pnpm install:api && pnpm install:indexer",
+    "install:api": "cd api && pnpm i",
+    "install:indexer": "cd indexer && pnpm i",
+    "start:api": "cd api && pnpm start",
+    "start:indexer": "cd indexer && pnpm start",
     "test": "vitest --no-threads",
     "reset": "prisma migrate reset --force && prisma db push",
     "seed": "ts-node ./api/src/seed.ts"
