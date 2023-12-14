@@ -9,7 +9,7 @@ import { bytesToStr, withTimeoutRejection } from "@massalabs/massa-web3";
 import { dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { prisma } from "../../common/db";
 import { fetchPairAddress, getCallee } from "../../common/methods";
-import { ONE_MINUTE, getTimestamp } from "../../common/utils";
+import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import { decodeDcaTx, decodeSwapTx, decodeLiquidityTx } from "./decoder";
 import { processSwap, processLiquidity } from "./socket";
 import {
@@ -17,8 +17,9 @@ import {
   NewSlotExecutionOutputsResponse,
 } from "../gen/ts/massa/api/v1/public";
 import { pollAsyncEvents } from "./eventPoller";
-import { updateDCAStatus } from "./db";
-import { Status } from "@prisma/client";
+import { findDCA, updateDCAStatus } from "./db";
+import { DCA, Status } from "@prisma/client";
+import logger from "../../common/logger";
 
 export async function handleNewSlotExecutionOutputs(
   message: NewSlotExecutionOutputsResponse
@@ -32,78 +33,87 @@ export async function handleNewSlotExecutionOutputs(
   if (!events) return;
 
   events.forEach(async (event) => {
-    if (!event.context) return;
+    try {
+      if (!event.context) return;
 
-    const eventData = bytesToStr(event.data);
-    const { callStack } = event.context;
-    if (callStack.includes(dcaSC)) {
-      // handle inner swap
-      // const swapEvent = events.find((e) =>
-      //   bytesToStr(e.data).startsWith("SWAP:")
-      // );
-      // if (!swapEvent) return;
+      const eventData = bytesToStr(event.data);
+      const { callStack } = event.context;
+      if (callStack.includes(dcaSC)) {
+        // handle inner swap
+        // const swapEvent = events.find((e) =>
+        //   bytesToStr(e.data).startsWith("SWAP:")
+        // );
+        // if (!swapEvent) return;
 
-      // handle dca execution
-      if (eventData.startsWith("DCA_EXECUTED:")) {
-        const { amountOut, id } = EventDecoder.decodeDCAExecution(eventData);
-        const dca = await prisma.dCA.findUnique({
-          where: {
-            id,
-          },
-        });
-        if (!dca) return; // TODO: fetch DCA from datastore or wait 1 min and retry
+        // handle dca execution
+        if (eventData.startsWith("DCA_EXECUTED:")) {
+          const { amountOut, id } = EventDecoder.decodeDCAExecution(eventData);
+          const dca: DCA = await findDCA(id).catch((err) => {
+            // console.log("waiting");
+            return (
+              wait(ONE_MINUTE)
+                // .then(() => console.log("retrying"))
+                .then(() => findDCA(id))
+                .catch(() => {
+                  throw new Error(`DCA ${id} not found`);
+                })
+            );
+          });
 
-        await prisma.dCAExecution.create({
-          data: {
-            amountIn: dca.amountEachDCA,
-            amountOut,
-            timestamp: new Date(),
-            dCAId: id,
-            period,
-            thread,
-            blockId,
-          },
-        });
+          await prisma.dCAExecution.create({
+            data: {
+              amountIn: dca.amountEachDCA,
+              amountOut,
+              timestamp: new Date(),
+              dCAId: id,
+              period,
+              thread,
+              blockId,
+            },
+          });
 
-        const nbOfExecutions = await prisma.dCAExecution.count({
-          where: {
-            dCAId: id,
-          },
-        });
+          const nbOfExecutions = await prisma.dCAExecution.count({
+            where: {
+              dCAId: id,
+            },
+          });
 
-        if (dca.nbOfDCA === nbOfExecutions) updateDCAStatus(id, Status.ENDED);
-      }
-    } else if (callStack.includes(orderSC)) {
-      // handle inner swap
-      // const swapEvent = events.find((e) =>
-      //   bytesToStr(e.data).startsWith("SWAP:")
-      // );
-      // if (!swapEvent) return;
+          if (dca.nbOfDCA === nbOfExecutions) updateDCAStatus(id, Status.ENDED);
+        }
+      } else if (callStack.includes(orderSC)) {
+        // handle inner swap
+        // const swapEvent = events.find((e) =>
+        //   bytesToStr(e.data).startsWith("SWAP:")
+        // );
+        // if (!swapEvent) return;
 
-      // handle limit order execution
-      if (eventData.startsWith("EXECUTE_LIMIT_ORDER:")) {
-        const { id, amountOut } =
-          EventDecoder.decodeLimitOrderExecution(eventData);
-        const order = await prisma.order.findUnique({
-          where: {
-            id,
-          },
-        });
-        if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
+        // handle limit order execution
+        if (eventData.startsWith("EXECUTE_LIMIT_ORDER:")) {
+          const { id, amountOut } =
+            EventDecoder.decodeLimitOrderExecution(eventData);
+          const order = await prisma.order.findUnique({
+            where: {
+              id,
+            },
+          });
+          if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
 
-        await prisma.orderExecution.create({
-          data: {
-            amountIn: order.amountIn,
-            amountOut,
-            timestamp: new Date(),
-            orderId: id,
-            period,
-            thread,
-            blockId,
-          },
-        });
-      }
-    } else return;
+          await prisma.orderExecution.create({
+            data: {
+              amountIn: order.amountIn,
+              amountOut,
+              timestamp: new Date(),
+              orderId: id,
+              period,
+              thread,
+              blockId,
+            },
+          });
+        }
+      } else return;
+    } catch (err: any) {
+      logger.error(err.message);
+    }
   });
 }
 

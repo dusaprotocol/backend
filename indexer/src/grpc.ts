@@ -29,11 +29,11 @@ type ExtractFunctionKeys<T> = {
     ? P
     : never;
 }[keyof T];
-type MyActions = ExtractFunctionKeys<MassaServiceClient>; // "add" | "remove"
+type ClientActions = ExtractFunctionKeys<MassaServiceClient>;
 
 const subscribe = async (
   client: MassaServiceClient,
-  method: MyActions,
+  method: ClientActions,
   req: any,
   handler: (message: any) => Promise<void>
   // TODO: replace 'any'

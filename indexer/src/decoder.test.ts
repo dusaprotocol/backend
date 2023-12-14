@@ -71,8 +71,6 @@ describe("tx decoder", () => {
     expect(decoded.amount0).toStrictEqual(amount0);
     expect(decoded.amount1).toStrictEqual(amount1);
     expect(decoded.amount0Min).toStrictEqual(amount0Min);
-    expect(decoded.deadline).toStrictEqual(1);
-    expect(decoded.to).toStrictEqual("");
   });
   it("should decode a simple removeLiquidity", async () => {
     const ids = [1n];

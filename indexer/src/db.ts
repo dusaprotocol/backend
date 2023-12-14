@@ -80,6 +80,13 @@ const findAnalytic = async (poolAddress: string, date: Date) =>
     },
   });
 
+export const findDCA = async (id: number) =>
+  await prisma.dCA.findUniqueOrThrow({
+    where: {
+      id,
+    },
+  });
+
 export const updateVolumeAndPrice = async (
   poolAddress: string,
   binStep: number,
