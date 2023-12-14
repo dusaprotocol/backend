@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { getClosestTick } from "../../common/utils";
-import { fetchNewAnalytics } from "./crons";
+import { fetchNewAnalytics } from "../../common/methods";
 
 export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
   // prettier-ignore
@@ -117,4 +117,23 @@ export const updateVolumeAndPrice = async (
       ...data,
     },
   });
+};
+
+export const createAnalytic = async (
+  args: Omit<Prisma.AnalyticsUncheckedCreateInput, "date" | "volume" | "fees">
+) => {
+  const date = getClosestTick();
+
+  prisma.analytics
+    .create({
+      data: {
+        ...args,
+        date,
+        volume: 0,
+        fees: 0,
+      },
+    })
+    .catch((err) => {
+      logger.warn(err);
+    });
 };

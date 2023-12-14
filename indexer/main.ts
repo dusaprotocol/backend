@@ -1,15 +1,7 @@
-import { analyticsCron } from "./src/crons";
-import {
-  subscribeNewSlotExecutionOutputs,
-  subscribeNewOperations,
-} from "./src/grpc";
+import * as gRPC from "./src/grpc";
 
-// Start gRPC subscriptions
-subscribeNewSlotExecutionOutputs();
-subscribeNewOperations();
-
-// Start cron jobs
-analyticsCron.start();
+gRPC.subscribeNewSlotExecutionOutputs();
+gRPC.subscribeNewOperations();
 
 // @ts-ignore: Unreachable code error
 BigInt.prototype.toJSON = function (): number {
