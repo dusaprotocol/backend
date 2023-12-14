@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, Status } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { getClosestTick } from "../../common/utils";
@@ -117,6 +117,17 @@ export const updateVolumeAndPrice = async (
         increment: fees,
       },
       ...data,
+    },
+  });
+};
+
+export const updateDCAStatus = async (id: number, status: Status) => {
+  await prisma.dCA.update({
+    where: {
+      id,
+    },
+    data: {
+      status,
     },
   });
 };

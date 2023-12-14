@@ -6,7 +6,6 @@ import {
   LiquidityRouterMethod,
 } from "@dusalabs/sdk";
 import { bytesToStr, withTimeoutRejection } from "@massalabs/massa-web3";
-import { Status } from "@prisma/client";
 import { dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { prisma } from "../../common/db";
 import { fetchPairAddress, getCallee } from "../../common/methods";
@@ -18,6 +17,8 @@ import {
   NewSlotExecutionOutputsResponse,
 } from "../gen/ts/massa/api/v1/public";
 import { pollAsyncEvents } from "./eventPoller";
+import { updateDCAStatus } from "./db";
+import { Status } from "@prisma/client";
 
 export async function handleNewSlotExecutionOutputs(
   message: NewSlotExecutionOutputsResponse
@@ -52,7 +53,7 @@ export async function handleNewSlotExecutionOutputs(
         });
         if (!dca) return; // TODO: fetch DCA from datastore or wait 1 min and retry
 
-        prisma.dCAExecution.create({
+        await prisma.dCAExecution.create({
           data: {
             amountIn: dca.amountEachDCA,
             amountOut,
@@ -63,6 +64,14 @@ export async function handleNewSlotExecutionOutputs(
             blockId,
           },
         });
+
+        const nbOfExecutions = await prisma.dCAExecution.count({
+          where: {
+            dCAId: id,
+          },
+        });
+
+        if (dca.nbOfDCA === nbOfExecutions) updateDCAStatus(id, Status.ENDED);
       }
     } else if (callStack.includes(orderSC)) {
       // handle inner swap
@@ -82,7 +91,7 @@ export async function handleNewSlotExecutionOutputs(
         });
         if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
 
-        prisma.orderExecution.create({
+        await prisma.orderExecution.create({
           data: {
             amountIn: order.amountIn,
             amountOut,
@@ -149,15 +158,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         if (!event) return;
 
         const id = EventDecoder.decodeDCA(event).id;
-
-        await prisma.dCA.update({
-          where: {
-            id,
-          },
-          data: {
-            status: Status.STOPPED,
-          },
-        });
+        updateDCAStatus(id, Status.STOPPED);
         break;
       }
       case "updateDCA": // TODO: update DCA
