@@ -7,7 +7,7 @@ import { fetchNewAnalytics } from "../../common/methods";
 export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
   // prettier-ignore
   const { poolAddress, userAddress, amountIn, amountOut, swapForY, binId, timestamp, txHash, usdValue, indexInSlot } = payload;
-  prisma.swap.create({
+  await prisma.swap.create({
     data: {
       pool: {
         connect: {
@@ -70,6 +70,16 @@ export const createLiquidity = async (
   });
 };
 
+const findAnalytic = async (poolAddress: string, date: Date) =>
+  await prisma.analytics.findUniqueOrThrow({
+    where: {
+      poolAddress_date: {
+        poolAddress,
+        date,
+      },
+    },
+  });
+
 export const updateVolumeAndPrice = async (
   poolAddress: string,
   binStep: number,
@@ -78,21 +88,13 @@ export const updateVolumeAndPrice = async (
   price: number
 ) => {
   const date = getClosestTick();
-  const curr = await prisma.analytics.findUnique({
-    where: {
-      poolAddress_date: {
-        poolAddress,
-        date,
-      },
-    },
-  });
-  if (!curr) {
+  const curr = await findAnalytic(poolAddress, date).catch(async () => {
     logger.warn(
-      `No analytics entry found for pool ${poolAddress} at date ${date.toString()}`
+      `No analytics entry found for ${poolAddress} at ${date.toString()}`
     );
-    fetchNewAnalytics(poolAddress, binStep);
-    return;
-  }
+    await fetchNewAnalytics(poolAddress, binStep);
+    return findAnalytic(poolAddress, date);
+  });
 
   const data: Prisma.AnalyticsUpdateInput = {
     close: price,
@@ -124,7 +126,7 @@ export const createAnalytic = async (
 ) => {
   const date = getClosestTick();
 
-  prisma.analytics.create({
+  await prisma.analytics.create({
     data: {
       ...args,
       date,

@@ -11,14 +11,16 @@ const getPools = (): Promise<Pool[]> =>
     return [];
   });
 
-const fillAnalytics = () => {
+const fillAnalytics = async () => {
   logger.silly(`running the analytics task at ${new Date().toString()}`);
 
-  getPools().then((pools) => {
+  await getPools().then((pools) => {
     pools.forEach(async (pool) => {
-      fetchNewAnalytics(pool.address, pool.binStep).catch(
-        (e) => logger.warn(e.message) && logger.warn(e.toString())
-      );
+      await fetchNewAnalytics(pool.address, pool.binStep)
+        .then(() => {
+          logger.silly(`fetched new analytics for ${pool.address}`);
+        })
+        .catch((e) => logger.warn(e));
     });
   });
 };
