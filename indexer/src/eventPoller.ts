@@ -51,7 +51,7 @@ export const pollAsyncEvents = async (
           events,
         });
       } else {
-        console.log("No events have been emitted during deployment");
+        console.log("No events emitted");
       }
     });
     eventPoller.on(ON_MASSA_EVENT_ERROR, (error: Error) => {

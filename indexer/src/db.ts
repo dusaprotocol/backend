@@ -7,37 +7,33 @@ import { fetchNewAnalytics } from "./crons";
 export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
   // prettier-ignore
   const { poolAddress, userAddress, amountIn, amountOut, swapForY, binId, timestamp, txHash, usdValue, indexInSlot } = payload;
-  return prisma.swap
-    .create({
-      data: {
-        pool: {
-          connect: {
-            address: poolAddress,
-          },
+  prisma.swap.create({
+    data: {
+      pool: {
+        connect: {
+          address: poolAddress,
         },
-        user: {
-          connectOrCreate: {
-            where: {
-              address: userAddress,
-            },
-            create: {
-              address: userAddress,
-            },
-          },
-        },
-        amountIn,
-        amountOut,
-        binId,
-        timestamp,
-        txHash,
-        usdValue,
-        indexInSlot,
-        swapForY,
       },
-    })
-    .catch((e) => {
-      logger.warn(e);
-    });
+      user: {
+        connectOrCreate: {
+          where: {
+            address: userAddress,
+          },
+          create: {
+            address: userAddress,
+          },
+        },
+      },
+      amountIn,
+      amountOut,
+      binId,
+      timestamp,
+      txHash,
+      usdValue,
+      indexInSlot,
+      swapForY,
+    },
+  });
 };
 
 export const createLiquidity = async (
@@ -45,37 +41,33 @@ export const createLiquidity = async (
 ) => {
   // prettier-ignore
   const { poolAddress, userAddress, amount0, amount1, lowerBound, upperBound, timestamp, txHash, usdValue, indexInSlot } = payload;
-  return prisma.liquidity
-    .create({
-      data: {
-        pool: {
-          connect: {
-            address: poolAddress,
-          },
+  prisma.liquidity.create({
+    data: {
+      pool: {
+        connect: {
+          address: poolAddress,
         },
-        user: {
-          connectOrCreate: {
-            where: {
-              address: userAddress,
-            },
-            create: {
-              address: userAddress,
-            },
-          },
-        },
-        amount0,
-        amount1,
-        lowerBound,
-        upperBound,
-        timestamp,
-        txHash,
-        usdValue,
-        indexInSlot,
       },
-    })
-    .catch((e) => {
-      logger.warn(e);
-    });
+      user: {
+        connectOrCreate: {
+          where: {
+            address: userAddress,
+          },
+          create: {
+            address: userAddress,
+          },
+        },
+      },
+      amount0,
+      amount1,
+      lowerBound,
+      upperBound,
+      timestamp,
+      txHash,
+      usdValue,
+      indexInSlot,
+    },
+  });
 };
 
 export const updateVolumeAndPrice = async (
@@ -108,25 +100,21 @@ export const updateVolumeAndPrice = async (
   if (price > curr.high) data.high = price;
   if (price < curr.low) data.low = price;
 
-  return prisma.analytics
-    .update({
-      where: {
-        poolAddress_date: {
-          poolAddress,
-          date,
-        },
+  prisma.analytics.update({
+    where: {
+      poolAddress_date: {
+        poolAddress,
+        date,
       },
-      data: {
-        volume: {
-          increment: volume,
-        },
-        fees: {
-          increment: fees,
-        },
-        ...data,
+    },
+    data: {
+      volume: {
+        increment: volume,
       },
-    })
-    .catch((err) => {
-      logger.warn(err);
-    });
+      fees: {
+        increment: fees,
+      },
+      ...data,
+    },
+  });
 };

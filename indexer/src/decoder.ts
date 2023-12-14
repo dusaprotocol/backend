@@ -10,9 +10,7 @@ import {
   SwapRouterMethod,
 } from "@dusalabs/sdk";
 import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
-import { WMAS } from "../../common/contracts";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
-import logger from "../../common/logger";
 
 // TODO: move to sdk
 export interface SwapParams {

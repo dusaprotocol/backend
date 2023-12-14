@@ -5,7 +5,7 @@ import { NewOperationsResponse } from "../gen/ts/massa/api/v1/public";
 import * as db from "./db";
 import { LB_ROUTER_ADDRESS, SWAP_ROUTER_METHODS } from "@dusalabs/sdk";
 import { CHAIN_ID, web3Client } from "../../common/client";
-import { params } from "./__tests__/placeholder";
+import { swapParams } from "./__tests__/placeholder";
 import * as DateUtils from "../../common/utils/date";
 import { EventPoller as _EventPoller } from "@massalabs/massa-web3";
 import * as EventPoller from "./eventPoller";
@@ -70,11 +70,11 @@ describe("handleNewOperations", () => {
               oneofKind: "callSc",
               callSc: {
                 targetAddress: LB_ROUTER_ADDRESS[CHAIN_ID],
-                targetFunction: params.methodName,
+                targetFunction: swapParams.methodName,
                 maxGas,
-                parameter: Uint8Array.from(params.args.serialize()),
+                parameter: Uint8Array.from(swapParams.args.serialize()),
                 coins: {
-                  mantissa: params.value,
+                  mantissa: swapParams.value,
                   scale: 0,
                 },
               },

@@ -5,6 +5,7 @@ import {
   ISlot,
 } from "@massalabs/massa-web3";
 import { web3Client } from "../client";
+import { EventDecoder, SwapEvent } from "@dusalabs/sdk";
 
 export const nullFilters: IEventFilter = {
   start: null,
@@ -18,37 +19,18 @@ export const nullFilters: IEventFilter = {
 const watchEvent = async (
   txHash: string,
   eventName: string
-): Promise<string[]> => {
+): Promise<string> => {
   const eventsNameRegex = `^${eventName}:`;
-  const eventArguments: string[] = await EventPoller.getEventsOnce(
+  return EventPoller.getEventsOnce(
     { ...nullFilters, original_operation_id: txHash, eventsNameRegex },
     web3Client
-  ).then((events) => events[0].data.split(eventName + ":")[1].split(","));
-
-  return eventArguments;
+  ).then((events) => events[0].data);
 };
 
 // USAGE:
 
-const TRANSFER_EVENT_NAME = "TRANSFER";
-type TransferEvent = {
-  from: string;
-  to: string;
-  amount: bigint;
-};
-
-// const event = await watchEvent<TransferEvent>("TRANSFER");
-// if (!event) {
-//   throw new Error("No event found");
-// }
-// console.log(event);
-// {from: "0x...", to: "0x...", amount: 1000000000000000000n}
-
-const watchTransferEvent = async (txHash: string): Promise<TransferEvent> => {
-  const params = await watchEvent(txHash, TRANSFER_EVENT_NAME);
-  return {
-    from: params[0],
-    to: params[1],
-    amount: BigInt(params[2]),
-  };
+const SWAP_EVENT_NAME = "SWAP";
+const watchSwapEvent = async (txHash: string): Promise<SwapEvent> => {
+  const params = await watchEvent(txHash, SWAP_EVENT_NAME);
+  return EventDecoder.decodeSwap(params);
 };

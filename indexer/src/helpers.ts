@@ -5,17 +5,10 @@ import {
   SwapRouterMethod,
   LiquidityRouterMethod,
 } from "@dusalabs/sdk";
-import {
-  EOperationStatus,
-  IEvent,
-  bytesToStr,
-  withTimeoutRejection,
-} from "@massalabs/massa-web3";
+import { bytesToStr, withTimeoutRejection } from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
-import { web3Client } from "../../common/client";
 import { dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { prisma } from "../../common/db";
-import logger from "../../common/logger";
 import { fetchPairAddress, getCallee } from "../../common/methods";
 import { ONE_MINUTE, getTimestamp } from "../../common/utils";
 import { decodeDcaTx, decodeSwapTx, decodeLiquidityTx } from "./decoder";
@@ -59,19 +52,17 @@ export async function handleNewSlotExecutionOutputs(
         });
         if (!dca) return; // TODO: fetch DCA from datastore or wait 1 min and retry
 
-        prisma.dCAExecution
-          .create({
-            data: {
-              amountIn: dca.amountEachDCA,
-              amountOut,
-              timestamp: new Date(),
-              dCAId: id,
-              period,
-              thread,
-              blockId,
-            },
-          })
-          .catch((e) => console.log(JSON.stringify(e)));
+        prisma.dCAExecution.create({
+          data: {
+            amountIn: dca.amountEachDCA,
+            amountOut,
+            timestamp: new Date(),
+            dCAId: id,
+            period,
+            thread,
+            blockId,
+          },
+        });
       }
     } else if (callStack.includes(orderSC)) {
       // handle inner swap
@@ -91,19 +82,17 @@ export async function handleNewSlotExecutionOutputs(
         });
         if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
 
-        prisma.orderExecution
-          .create({
-            data: {
-              amountIn: order.amountIn,
-              amountOut,
-              timestamp: new Date(),
-              orderId: id,
-              period,
-              thread,
-              blockId,
-            },
-          })
-          .catch((e) => console.log(JSON.stringify(e)));
+        prisma.orderExecution.create({
+          data: {
+            amountIn: order.amountIn,
+            amountOut,
+            timestamp: new Date(),
+            orderId: id,
+            period,
+            thread,
+            blockId,
+          },
+        });
       }
     } else return;
   });
@@ -123,7 +112,6 @@ export async function handleNewOperations(message: NewOperationsResponse) {
   const indexedSC = [dcaSC, orderSC, routerSC];
   if (!indexedSC.includes(targetAddress)) return;
 
-  console.log({ userAddress, targetAddress, targetFunction });
   const { events, eventPoller } = await withTimeoutRejection(
     pollAsyncEvents(txHash),
     ONE_MINUTE
@@ -143,17 +131,15 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         const id = EventDecoder.decodeDCA(event).id;
         if (!dca || !id) return;
 
-        await prisma.dCA
-          .create({
-            data: {
-              ...dca,
-              userAddress,
-              txHash,
-              id,
-              status: Status.ACTIVE,
-            },
-          })
-          .catch(console.log);
+        await prisma.dCA.create({
+          data: {
+            ...dca,
+            userAddress,
+            txHash,
+            id,
+            status: Status.ACTIVE,
+          },
+        });
         break;
       }
       case "stopDCA": {
@@ -164,16 +150,14 @@ export async function handleNewOperations(message: NewOperationsResponse) {
 
         const id = EventDecoder.decodeDCA(event).id;
 
-        await prisma.dCA
-          .update({
-            where: {
-              id,
-            },
-            data: {
-              status: Status.STOPPED,
-            },
-          })
-          .catch(console.log);
+        await prisma.dCA.update({
+          where: {
+            id,
+          },
+          data: {
+            status: Status.STOPPED,
+          },
+        });
         break;
       }
       case "updateDCA": // TODO: update DCA
