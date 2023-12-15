@@ -107,15 +107,14 @@ model DCA {
 }
 
 model DCAExecution {
-  id        Int      @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   amountIn  BigInt
   amountOut BigInt
-  timestamp DateTime
   thread    Int
   period    Int
   dCAId     Int
   blockId   String
-  DCA       DCA      @relation(fields: [dCAId], references: [id], onDelete: Cascade)
+  DCA       DCA    @relation(fields: [dCAId], references: [id], onDelete: Cascade)
 }
 
 model Order {
@@ -133,15 +132,14 @@ model Order {
 }
 
 model OrderExecution {
-  id        Int      @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   amountIn  BigInt
   amountOut BigInt
-  timestamp DateTime
   thread    Int
   period    Int
-  orderId   Int      @unique
+  orderId   Int    @unique
   blockId   String
-  Order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  Order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 enum Status {

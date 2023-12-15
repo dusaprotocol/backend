@@ -64,7 +64,6 @@ export async function handleNewSlotExecutionOutputs(
             data: {
               amountIn: dca.amountEachDCA,
               amountOut,
-              timestamp: new Date(),
               dCAId: id,
               period,
               thread,
@@ -102,7 +101,6 @@ export async function handleNewSlotExecutionOutputs(
             data: {
               amountIn: order.amountIn,
               amountOut,
-              timestamp: new Date(),
               orderId: id,
               period,
               thread,
