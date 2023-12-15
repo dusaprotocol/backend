@@ -106,8 +106,7 @@ export const updateVolumeAndPrice = async (
     logger.warn(
       `No analytics entry found for ${poolAddress} at ${date.toString()}`
     );
-    await fetchNewAnalytics(poolAddress, binStep);
-    return findAnalytic(poolAddress, date);
+    return fetchNewAnalytics(poolAddress, binStep);
   });
 
   const data: Prisma.AnalyticsUpdateInput = {
@@ -151,7 +150,7 @@ export const createAnalytic = async (
 ) => {
   const date = getClosestTick();
 
-  await prisma.analytics.create({
+  return await prisma.analytics.create({
     data: {
       ...args,
       date,

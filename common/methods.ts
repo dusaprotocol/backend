@@ -247,7 +247,7 @@ export const fetchNewAnalytics = async (
   );
   if (!adjustedPrice) throw new Error("Price is 0");
 
-  await createAnalytic({
+  return await createAnalytic({
     poolAddress,
     token0Locked: token0Locked.toString(),
     token1Locked: token1Locked.toString(),

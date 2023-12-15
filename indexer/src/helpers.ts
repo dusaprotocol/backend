@@ -61,7 +61,6 @@ export async function handleNewSlotExecutionOutputs(
             await wait(ONE_MINUTE / 2);
             return fetchDCA(id, user)
               .then(async (_dca) => {
-                console.log({ _dca });
                 logger.info(`DCA ${id} fetched from datastore`);
                 await createDCA(_dca).catch(() => {
                   logger.warn(`Insert DCA ${id} went wrong`);
