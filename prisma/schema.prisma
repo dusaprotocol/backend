@@ -127,6 +127,7 @@ model Order {
   deadline       DateTime
   userAddress    String
   status         Status
+  binId          Int
   User           User            @relation(fields: [userAddress], references: [address])
   Pool           Pool            @relation(fields: [poolAddress], references: [address])
   OrderExecution OrderExecution?

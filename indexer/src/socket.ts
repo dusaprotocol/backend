@@ -60,7 +60,7 @@ export const processSwap = async (params: {
   swapParams?: SwapParams;
 }) => {
   // prettier-ignore
-  const { txHash, userAddress, timestamp, poolAddress, binStep, swapEvents } = params;
+  const { txHash, userAddress, timestamp, poolAddress, binStep, swapEvents, indexInSlot } = params;
   const swapPayload = decodeSwapEvents(swapEvents);
 
   const { volume, fees, priceAdjusted } = await calculateSwapValue(
@@ -76,6 +76,7 @@ export const processSwap = async (params: {
     usdValue: volume,
     poolAddress,
     userAddress,
+    indexInSlot,
   });
 };
 
