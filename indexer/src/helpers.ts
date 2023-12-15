@@ -16,7 +16,7 @@ import {
   decodeLiquidityTx,
   decodeOrderTx,
 } from "./decoder";
-import { processSwap, processLiquidity } from "./socket";
+import { processSwap, processLiquidity, processInnerSwap } from "./socket";
 import {
   NewOperationsResponse,
   NewSlotExecutionOutputsResponse,
@@ -37,18 +37,17 @@ export async function handleNewSlotExecutionOutputs(
   const blockId = block?.value || "";
   if (!events) return;
 
-  events.forEach(async (event) => {
+  events.forEach(async (event, i) => {
     try {
       if (!event.context) return;
 
       const eventData = bytesToStr(event.data);
       const { callStack } = event.context;
+
       if (callStack.includes(dcaSC)) {
         // handle inner swap
-        // const swapEvent = events.find((e) =>
-        //   bytesToStr(e.data).startsWith("SWAP:")
-        // );
-        // if (!swapEvent) return;
+        if (eventData.startsWith("SWAP:"))
+          processInnerSwap({ event, callStack, blockId, i });
 
         // handle dca execution
         if (eventData.startsWith("DCA_EXECUTED:")) {
@@ -72,7 +71,7 @@ export async function handleNewSlotExecutionOutputs(
                 throw err;
               });
           });
-          if (!dca) return; // TODO: fetch dca from datastore or wait 1 min and retry
+          if (!dca) return;
 
           await prisma.dCAExecution.create({
             data: {
@@ -95,10 +94,8 @@ export async function handleNewSlotExecutionOutputs(
         }
       } else if (callStack.includes(orderSC)) {
         // handle inner swap
-        // const swapEvent = events.find((e) =>
-        //   bytesToStr(e.data).startsWith("SWAP:")
-        // );
-        // if (!swapEvent) return;
+        if (eventData.startsWith("SWAP:"))
+          processInnerSwap({ event, callStack, blockId, i });
 
         // handle limit order execution
         if (eventData.startsWith("EXECUTE_LIMIT_ORDER:")) {

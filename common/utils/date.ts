@@ -1,5 +1,7 @@
 import { IEvent, ISlot } from "@massalabs/massa-web3";
 import { web3Client } from "../client";
+import { ScExecutionEvent } from "../../indexer/gen/ts/massa/model/v1/execution";
+import { Slot } from "../../indexer/gen/ts/massa/model/v1/slot";
 
 // Constants (in ms)
 export const ONE_MINUTE = 60 * 1000;
@@ -15,8 +17,13 @@ export const TICKS_PER_DAY = ONE_DAY / TIME_BETWEEN_TICKS;
 export const EVERY_TICK = "*/5 * * * *" as const;
 export const EVERY_PERIOD = "*/16 * * * * *" as const;
 
-export const parseSlot = (slot: ISlot, genesisTimestamp: number): number =>
-  genesisTimestamp + slot.period * 16 * 1000 + (slot.thread / 2) * 1000;
+export const parseSlot = (
+  slot: Slot | ISlot,
+  genesisTimestamp: number
+): number =>
+  genesisTimestamp +
+  Number(slot.period) * ONE_PERIOD +
+  (slot.thread / 2) * 1000;
 
 export const parseTimestamp = (
   timestamp: number,
@@ -32,8 +39,15 @@ export const parseTimestamp = (
 
 export const genesisTimestamp = 1689847403682;
 
-export const getTimestamp = (event: IEvent) =>
-  new Date(parseSlot(event.context.slot, genesisTimestamp));
+export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
+  if (!event.context) return new Date();
+
+  const slot =
+    "slot" in event.context ? event.context.slot : event.context.originSlot;
+  if (!slot) return new Date();
+
+  return new Date(parseSlot(slot, genesisTimestamp));
+};
 
 export const convertMsToSec = (ms: number): number => Math.floor(ms / 1000);
 

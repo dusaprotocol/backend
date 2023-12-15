@@ -1,5 +1,7 @@
 import {
   adjustPrice,
+  getBinStep,
+  getCallee,
   getPriceFromId,
   getTokenFromAddress,
   getTokenValue,
@@ -7,8 +9,43 @@ import {
   toFraction,
 } from "../../common/methods";
 import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
-import { EventDecoder, TokenAmount } from "@dusalabs/sdk";
+import { ILBPair, TokenAmount } from "@dusalabs/sdk";
 import { updateVolumeAndPrice, createSwap, createLiquidity } from "./db";
+import { web3Client } from "../../common/client";
+import { getTimestamp } from "../../common/utils";
+import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
+import { bytesToStr } from "@massalabs/massa-web3";
+
+export const processInnerSwap = async (params: {
+  event: ScExecutionEvent;
+  callStack: string[];
+  blockId: string;
+  i: number;
+}) => {
+  const { event, callStack, blockId, i } = params;
+  const eventData = bytesToStr(event.data);
+  if (eventData.startsWith("SWAP:")) {
+    const poolAddress = getCallee(callStack);
+    const [tokenInAddress, tokenOutAddress] = await new ILBPair(
+      poolAddress,
+      web3Client
+    ).getTokens();
+    const binStep = await getBinStep(poolAddress);
+    const userAddress = callStack[0];
+
+    processSwap({
+      poolAddress,
+      tokenInAddress,
+      tokenOutAddress,
+      binStep,
+      swapEvents: [eventData],
+      txHash: blockId,
+      indexInSlot: i,
+      timestamp: getTimestamp(event),
+      userAddress,
+    });
+  }
+};
 
 export const processSwap = async (params: {
   txHash: string;
