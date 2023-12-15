@@ -177,7 +177,7 @@ export const fetchDCA = async (
     .getDatastoreEntries([
       {
         address: DCA_MANAGER_ADDRESS[CHAIN_ID],
-        key: strToBytes(userAddress.concat(id.toString())),
+        key: strToBytes("D::".concat(userAddress.concat(id.toString()))),
       },
     ])
     .then((res) => {
