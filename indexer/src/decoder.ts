@@ -196,12 +196,12 @@ type LimitOrderProperties = ExtractPropertiesIntoObject<LimitOrder>;
 
 export const decodeOrderTx = (
   params: Uint8Array
-): Omit<LimitOrderProperties, "id" | "deadline" | "pair"> & {
+): Omit<LimitOrderProperties, "id" | "deadline" | "pair" | "to"> & {
   poolAddress: string;
   deadline: Date;
 } => {
   // prettier-ignore
-  const {amountIn, amountOutMin, binId, pair: poolAddress, deadline, swapForY, to} = new Args(params).nextSerializable(LimitOrder);
+  const {amountIn, amountOutMin, binId, pair: poolAddress, deadline, swapForY} = new Args(params).nextSerializable(LimitOrder);
   return {
     amountIn,
     amountOutMin,
@@ -209,7 +209,6 @@ export const decodeOrderTx = (
     deadline: new Date(Number(deadline)),
     binId,
     swapForY,
-    to,
   };
 };
 

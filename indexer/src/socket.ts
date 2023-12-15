@@ -1,5 +1,6 @@
 import {
   adjustPrice,
+  calculateUSDLocked,
   getBinStep,
   getCallee,
   getPriceFromId,
@@ -24,27 +25,25 @@ export const processInnerSwap = async (params: {
 }) => {
   const { event, callStack, blockId, i } = params;
   const eventData = bytesToStr(event.data);
-  if (eventData.startsWith("SWAP:")) {
-    const poolAddress = getCallee(callStack);
-    const [tokenInAddress, tokenOutAddress] = await new ILBPair(
-      poolAddress,
-      web3Client
-    ).getTokens();
-    const binStep = await getBinStep(poolAddress);
-    const userAddress = callStack[0];
+  const poolAddress = getCallee(callStack);
+  const [tokenInAddress, tokenOutAddress] = await new ILBPair(
+    poolAddress,
+    web3Client
+  ).getTokens();
+  const binStep = await getBinStep(poolAddress);
+  const userAddress = callStack[0];
 
-    processSwap({
-      poolAddress,
-      tokenInAddress,
-      tokenOutAddress,
-      binStep,
-      swapEvents: [eventData],
-      txHash: blockId,
-      indexInSlot: i,
-      timestamp: getTimestamp(event),
-      userAddress,
-    });
-  }
+  processSwap({
+    poolAddress,
+    tokenInAddress,
+    tokenOutAddress,
+    binStep,
+    swapEvents: [eventData],
+    txHash: blockId,
+    indexInSlot: i,
+    timestamp: getTimestamp(event),
+    userAddress,
+  });
 };
 
 export const processSwap = async (params: {
@@ -63,10 +62,10 @@ export const processSwap = async (params: {
   const { txHash, userAddress, timestamp, poolAddress, binStep, swapEvents, indexInSlot } = params;
   const swapPayload = decodeSwapEvents(swapEvents);
 
-  const { volume, fees, priceAdjusted } = await calculateSwapValue(
-    { ...params },
-    swapPayload
-  );
+  const { volume, fees, priceAdjusted } = await calculateSwapValue({
+    ...params,
+    ...swapPayload,
+  });
 
   updateVolumeAndPrice(poolAddress, binStep, volume, fees, priceAdjusted);
   createSwap({
@@ -95,12 +94,9 @@ export const processLiquidity = async (params: {
   const { amountX, amountY, lowerBound, upperBound } =
     decodeLiquidityEvents(liqEvents);
   const [amount0, amount1] = isAdd ? [amountX, amountY] : [-amountY, -amountX];
-  const usdValue = await calculateLiquidityValue(
-    token0Address,
-    token1Address,
-    amount0,
-    amount1
-  );
+  const token0 = await getTokenFromAddress(token0Address);
+  const token1 = await getTokenFromAddress(token1Address);
+  const usdValue = await calculateUSDLocked(token0, amount0, token1, amount1);
 
   createLiquidity({
     amount0,
@@ -115,22 +111,23 @@ export const processLiquidity = async (params: {
   });
 };
 
-const calculateSwapValue = async (
-  pairInfo: {
-    tokenInAddress: string;
-    tokenOutAddress: string;
-    binStep: number;
-  },
-  swapPayload: ReturnType<typeof decodeSwapEvents>
-) => {
-  const { tokenInAddress, tokenOutAddress, binStep } = pairInfo;
-  const { amountIn, totalFees, binId } = swapPayload;
-  const valueIn = await getTokenValue(tokenInAddress, false);
+export const calculateSwapValue = async (params: {
+  tokenInAddress: string;
+  tokenOutAddress: string;
+  binStep: number;
+  amountIn: bigint;
+  totalFees: bigint;
+  binId: number;
+}) => {
+  // prettier-ignore
+  const { tokenInAddress, tokenOutAddress, binStep, amountIn, totalFees, binId } = params;
   const tokenIn = await getTokenFromAddress(tokenInAddress);
   const tokenOut = await getTokenFromAddress(tokenOutAddress);
   const [token0, token1] = sortTokens(tokenIn, tokenOut);
   const price = getPriceFromId(binId, binStep);
   const priceAdjusted = adjustPrice(price, token0.decimals, token1.decimals);
+
+  const valueIn = await getTokenValue(tokenInAddress, true);
   const volume = Number(
     new TokenAmount(tokenIn, amountIn)
       .multiply(toFraction(valueIn))
@@ -144,24 +141,4 @@ const calculateSwapValue = async (
   );
 
   return { volume, fees, priceAdjusted };
-};
-
-const calculateLiquidityValue = async (
-  token0Address: string,
-  token1Address: string,
-  amount0: bigint,
-  amount1: bigint
-) => {
-  const token0 = await getTokenFromAddress(token0Address);
-  const token1 = await getTokenFromAddress(token1Address);
-
-  const token0Value = await getTokenValue(token0Address, false);
-  const token1Value = await getTokenValue(token1Address, false);
-
-  return Number(
-    new TokenAmount(token0, amount0)
-      .multiply(toFraction(token0Value))
-      .add(new TokenAmount(token1, amount1).multiply(toFraction(token1Value)))
-      .toSignificant(6)
-  );
 };
