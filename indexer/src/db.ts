@@ -41,7 +41,7 @@ export const createLiquidity = async (
 ) => {
   // prettier-ignore
   const { poolAddress, userAddress, amount0, amount1, lowerBound, upperBound, timestamp, txHash, usdValue, indexInSlot } = payload;
-  prisma.liquidity.create({
+  await prisma.liquidity.create({
     data: {
       pool: {
         connect: {
@@ -115,7 +115,7 @@ export const updateVolumeAndPrice = async (
   if (price > curr.high) data.high = price;
   if (price < curr.low) data.low = price;
 
-  prisma.analytics.update({
+  await prisma.analytics.update({
     where: {
       poolAddress_date: {
         poolAddress,
