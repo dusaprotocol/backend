@@ -1,10 +1,11 @@
-import { Args, strToBytes } from "@massalabs/massa-web3";
+import { Args, ArrayTypes, strToBytes } from "@massalabs/massa-web3";
 import { CHAIN_ID, web3Client } from "./client";
 import { factorySC, USDC, WMAS } from "./contracts";
 import logger from "./logger";
 import {
   Bin,
   ChainId,
+  DCA_MANAGER_ADDRESS,
   EventDecoder,
   Fraction,
   IERC20,
@@ -19,6 +20,7 @@ import {
 } from "@dusalabs/sdk";
 import { prisma } from "./db";
 import { createAnalytic } from "../indexer/src/db";
+import { DCA, Status } from "@prisma/client";
 
 export const getPriceFromId = Bin.getPriceFromId;
 export const getIdFromPrice = Bin.getIdFromPrice;
@@ -164,6 +166,47 @@ export const getTokenFromAddress = async (
     token.symbol,
     token.name
   );
+};
+
+export const fetchDCA = async (
+  id: number,
+  userAddress: string
+): Promise<DCA> => {
+  return web3Client
+    .publicApi()
+    .getDatastoreEntries([
+      {
+        address: DCA_MANAGER_ADDRESS[CHAIN_ID],
+        key: strToBytes(userAddress.concat(id.toString())),
+      },
+    ])
+    .then((res) => {
+      if (!res[0].candidate_value) throw new Error("No DCA found");
+      const args = new Args(res[0].candidate_value);
+      const amountEachDCA = args.nextU256();
+      const interval = Number(args.nextU64());
+      const nbOfDCA = Number(args.nextU64());
+      const tokenPathStr: string[] = args.nextArray(ArrayTypes.STRING);
+      const tokenIn = tokenPathStr[0];
+      const tokenOut = tokenPathStr[tokenPathStr.length - 1];
+      const startTime = new Date(Number(args.nextU64()));
+      const endTime = new Date(Number(args.nextU64()));
+
+      const dca: DCA = {
+        id,
+        amountEachDCA,
+        interval,
+        nbOfDCA,
+        tokenIn,
+        tokenOut,
+        startTime,
+        endTime,
+        userAddress,
+        status: Status.ACTIVE,
+        txHash: "",
+      };
+      return dca;
+    });
 };
 
 export const fetchTokenFromAddress = async (

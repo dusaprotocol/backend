@@ -8,7 +8,7 @@ import {
 import { bytesToStr, withTimeoutRejection } from "@massalabs/massa-web3";
 import { dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { prisma } from "../../common/db";
-import { fetchPairAddress, getCallee } from "../../common/methods";
+import { fetchDCA, fetchPairAddress, getCallee } from "../../common/methods";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import { decodeDcaTx, decodeSwapTx, decodeLiquidityTx } from "./decoder";
 import { processSwap, processLiquidity } from "./socket";
@@ -47,18 +47,17 @@ export async function handleNewSlotExecutionOutputs(
 
         // handle dca execution
         if (eventData.startsWith("DCA_EXECUTED:")) {
-          const { amountOut, id } = EventDecoder.decodeDCAExecution(eventData);
-          const dca: DCA = await findDCA(id).catch((err) => {
-            // console.log("waiting");
-            return (
-              wait(ONE_MINUTE)
-                // .then(() => console.log("retrying"))
-                .then(() => findDCA(id))
-                .catch(() => {
-                  throw new Error(`DCA ${id} not found`);
-                })
-            );
+          const { amountOut, id, user } =
+            EventDecoder.decodeDCAExecution(eventData);
+          const dca: DCA | undefined = await findDCA(id).catch((err) => {
+            return wait(ONE_MINUTE)
+              .then(() => fetchDCA(id, user))
+              .catch(() => {
+                logger.warn(`DCA ${id} not found`);
+                return undefined;
+              });
           });
+          if (!dca) return; // TODO: fetch dca from datastore or wait 1 min and retry
 
           await prisma.dCAExecution.create({
             data: {
