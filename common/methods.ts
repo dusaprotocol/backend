@@ -190,7 +190,8 @@ export const fetchDCA = async (
       const tokenIn = tokenPathStr[0];
       const tokenOut = tokenPathStr[tokenPathStr.length - 1];
       const startTime = new Date(Number(args.nextU64()));
-      const endTime = new Date(Number(args.nextU64()));
+      const endTime =
+        nbOfDCA == 0 ? startTime : new Date(Number(args.nextU64()));
 
       const dca: DCA = {
         id,

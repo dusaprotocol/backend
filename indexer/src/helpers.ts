@@ -54,18 +54,23 @@ export async function handleNewSlotExecutionOutputs(
         if (eventData.startsWith("DCA_EXECUTED:")) {
           const { amountOut, id, user } =
             EventDecoder.decodeDCAExecution(eventData);
-          const dca: DCA | undefined = await findDCA(id).catch(async () => {
-            logger.warn(`DCA ${id} not found, fetching from db in 1 min`);
-            await wait(ONE_MINUTE);
+          const dca = await findDCA(id).catch(async () => {
+            logger.warn(
+              `DCA ${id} not found in db, fetching datastore in 30 sec`
+            );
+            await wait(ONE_MINUTE / 2);
             return fetchDCA(id, user)
               .then(async (_dca) => {
-                logger.info(`DCA ${id} fetched from db`);
-                await createDCA(_dca);
+                console.log({ _dca });
+                logger.info(`DCA ${id} fetched from datastore`);
+                await createDCA(_dca).catch(() => {
+                  logger.warn(`Insert DCA ${id} went wrong`);
+                });
                 return _dca;
               })
-              .catch(() => {
+              .catch((err) => {
                 logger.warn(`DCA ${id} not found`);
-                return undefined;
+                throw err;
               });
           });
           if (!dca) return; // TODO: fetch dca from datastore or wait 1 min and retry
