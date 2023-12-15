@@ -8,6 +8,7 @@ import {
   TokenAmount,
   EventDecoder,
   SwapRouterMethod,
+  LimitOrder,
 } from "@dusalabs/sdk";
 import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
@@ -181,6 +182,29 @@ export const decodeDcaTx = (
     tokenOut,
     startTime: new Date(startTime),
     endTime: new Date(endTime),
+  };
+};
+
+type ExtractPropertiesKeys<T> = {
+  [P in keyof T]-?: T[P] extends Function ? never : P;
+}[keyof T];
+type ExtractPropertiesIntoObject<T> = {
+  [P in ExtractPropertiesKeys<T>]: T[P];
+};
+
+type LimitOrderProperties = ExtractPropertiesIntoObject<LimitOrder>;
+
+export const decodeOrderTx = (
+  params: Uint8Array
+): Omit<LimitOrderProperties, "pair" | "deadline"> & {
+  poolAddress: string;
+  deadline: Date;
+} => {
+  const order = new Args(params).nextSerializable(LimitOrder);
+  return {
+    ...order,
+    poolAddress: order.pair,
+    deadline: new Date(Number(order.deadline)),
   };
 };
 

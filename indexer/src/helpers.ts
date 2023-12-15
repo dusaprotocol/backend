@@ -10,14 +10,19 @@ import { dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { prisma } from "../../common/db";
 import { fetchDCA, fetchPairAddress, getCallee } from "../../common/methods";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
-import { decodeDcaTx, decodeSwapTx, decodeLiquidityTx } from "./decoder";
+import {
+  decodeDcaTx,
+  decodeSwapTx,
+  decodeLiquidityTx,
+  decodeOrderTx,
+} from "./decoder";
 import { processSwap, processLiquidity } from "./socket";
 import {
   NewOperationsResponse,
   NewSlotExecutionOutputsResponse,
 } from "../gen/ts/massa/api/v1/public";
 import { pollAsyncEvents } from "./eventPoller";
-import { findDCA, updateDCAStatus } from "./db";
+import { createDCA, findDCA, updateDCAStatus } from "./db";
 import { DCA, Status } from "@prisma/client";
 import logger from "../../common/logger";
 
@@ -49,9 +54,15 @@ export async function handleNewSlotExecutionOutputs(
         if (eventData.startsWith("DCA_EXECUTED:")) {
           const { amountOut, id, user } =
             EventDecoder.decodeDCAExecution(eventData);
-          const dca: DCA | undefined = await findDCA(id).catch((err) => {
-            return wait(ONE_MINUTE)
-              .then(() => fetchDCA(id, user))
+          const dca: DCA | undefined = await findDCA(id).catch(async () => {
+            logger.warn(`DCA ${id} not found, fetching from db in 1 min`);
+            await wait(ONE_MINUTE);
+            return fetchDCA(id, user)
+              .then(async (_dca) => {
+                logger.info(`DCA ${id} fetched from db`);
+                await createDCA(_dca);
+                return _dca;
+              })
               .catch(() => {
                 logger.warn(`DCA ${id} not found`);
                 return undefined;
@@ -106,6 +117,14 @@ export async function handleNewSlotExecutionOutputs(
               blockId,
             },
           });
+          await prisma.order.update({
+            where: {
+              id,
+            },
+            data: {
+              status: "ENDED",
+            },
+          });
         }
       } else return;
     } catch (err: any) {
@@ -147,15 +166,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         const id = EventDecoder.decodeDCA(event).id;
         if (!dca || !id) return;
 
-        await prisma.dCA.create({
-          data: {
-            ...dca,
-            userAddress,
-            txHash,
-            id,
-            status: Status.ACTIVE,
-          },
-        });
+        createDCA({ ...dca, userAddress, txHash, id, status: "ACTIVE" });
         break;
       }
       case "stopDCA": {
@@ -175,6 +186,8 @@ export async function handleNewOperations(message: NewOperationsResponse) {
   } else if (targetAddress === orderSC) {
     switch (targetFunction) {
       case "addLimitOrder": {
+        const order = decodeOrderTx(parameter);
+
         const event = events.find((e) =>
           e.data.startsWith("NEW_LIMIT_ORDER:")
         )?.data;
@@ -182,6 +195,16 @@ export async function handleNewOperations(message: NewOperationsResponse) {
 
         const { id } = EventDecoder.decodeLimitOrder(event);
         if (!id) return;
+
+        await prisma.order.create({
+          data: {
+            ...order,
+            id,
+            userAddress,
+            txHash,
+            status: "ACTIVE",
+          },
+        });
         break;
       }
       case "removeLimitOrder":
@@ -192,6 +215,15 @@ export async function handleNewOperations(message: NewOperationsResponse) {
 
         const { id } = EventDecoder.decodeLimitOrder(event);
         if (!id) return;
+
+        await prisma.order.update({
+          where: {
+            id,
+          },
+          data: {
+            status: "STOPPED",
+          },
+        });
         break;
       default:
         break;

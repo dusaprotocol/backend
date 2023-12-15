@@ -1,4 +1,4 @@
-import { Prisma, Status } from "@prisma/client";
+import { DCA, Prisma, Status } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { getClosestTick } from "../../common/utils";
@@ -84,6 +84,13 @@ export const findDCA = async (id: number) =>
   await prisma.dCA.findUniqueOrThrow({
     where: {
       id,
+    },
+  });
+
+export const createDCA = async (dca: DCA) =>
+  await prisma.dCA.create({
+    data: {
+      ...dca,
     },
   });
 

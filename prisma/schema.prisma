@@ -125,6 +125,7 @@ model Order {
   amountIn       BigInt
   amountOutMin   BigInt
   deadline       DateTime
+  status         Status
   userAddress    String
   User           User            @relation(fields: [userAddress], references: [address])
   Pool           Pool            @relation(fields: [poolAddress], references: [address])
