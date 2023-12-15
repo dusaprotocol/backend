@@ -90,17 +90,17 @@ export const appRouter = t.router({
             acc += analytic.volume;
           });
 
-          const nbEntriesToFill = take / 24 - res.length;
-          const emptyEntries: Volume[] = Array.from(
-            { length: nbEntriesToFill },
-            (_, i) => ({
-              volume: 0,
-              date: new Date(
-                res[res.length - 1].date.getTime() - ONE_DAY * (i + 1)
-              ),
-            })
-          );
-          return res.concat(emptyEntries).reverse();
+          // const nbEntriesToFill = take / 24 - res.length;
+          // const emptyEntries: Volume[] = Array.from(
+          //   { length: nbEntriesToFill },
+          //   (_, i) => ({
+          //     volume: 0,
+          //     date: new Date(
+          //       res[res.length - 1].date.getTime() - ONE_DAY * (i + 1)
+          //     ),
+          //   })
+          // );
+          return res.reverse();
         })
         .catch((err): Volume[] => {
           logger.error(err);
@@ -511,6 +511,9 @@ export const appRouter = t.router({
         .findMany({
           where: {
             userAddress,
+          },
+          include: {
+            OrderExecution: true,
           },
         })
         .catch((err) => {

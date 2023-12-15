@@ -158,25 +158,8 @@ const generateDataset = async (poolAddress: string) => {
   //   binStep: 20,
   // };
   // createPair(pair).then(() => generateDataset(pair.address));
-  // createPools();
+  createPools();
 
   // prisma.dCA.deleteMany({}).then(console.log).catch(console.error);
   // prisma.order.deleteMany({}).then(console.log).catch(console.error);
-
-  await prisma.swap
-    .create({
-      data: {
-        amountIn: 0n,
-        amountOut: 0n,
-        binId: 0,
-        timestamp: new Date(),
-        usdValue: 0,
-        poolAddress: "AS1sBxofCbHKS2c1y6FqBk48YfQvT46ZdxBzzW5rZB12zpdHCkS3",
-        swapForY: false,
-        txHash: "",
-        userAddress: "0x0000000",
-      },
-    })
-    .then(console.log)
-    .catch(console.error);
 })();
