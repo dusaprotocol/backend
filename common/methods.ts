@@ -261,30 +261,21 @@ export const fetchNewAnalytics = async (
       };
     });
 
-  const open = adjustPrice(
-    getPriceFromId(pairInfo.activeId, binStep),
-    token0.decimals,
-    token1.decimals
-  );
-  const close = await prisma.swap
+  const openId = pairInfo.activeId;
+  const closeId = await prisma.swap
     .findFirst({
       where: {
         poolAddress,
+        timestamp: {
+          gte: new Date(Date.now() - TIME_BETWEEN_TICKS),
+        },
       },
       orderBy: {
         timestamp: "desc",
       },
     })
-    .then((res) =>
-      res
-        ? adjustPrice(
-            getPriceFromId(res.binId, binStep),
-            token0.decimals,
-            token1.decimals
-          )
-        : 0
-    );
-  const { high, low } = await prisma.swap
+    .then((res) => res?.binId || openId);
+  const { highId, lowId } = await prisma.swap
     .aggregate({
       where: {
         poolAddress,
@@ -301,22 +292,13 @@ export const fetchNewAnalytics = async (
     })
     .then((res) => {
       return {
-        high: res._max.binId
-          ? adjustPrice(
-              getPriceFromId(res._max.binId, binStep),
-              token0.decimals,
-              token1.decimals
-            )
-          : 0,
-        low: res._min.binId
-          ? adjustPrice(
-              getPriceFromId(res._min.binId, binStep),
-              token0.decimals,
-              token1.decimals
-            )
-          : 0,
+        highId: res._max.binId || openId,
+        lowId: res._min.binId || openId,
       };
     });
+  const [open, close, high, low] = [openId, closeId, highId, lowId].map(
+    (binId) => getPriceFromId(binId, binStep)
+  );
 
   if (!open) throw new Error("Price is 0");
 
