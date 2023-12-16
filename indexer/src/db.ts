@@ -6,7 +6,7 @@ import { fetchNewAnalytics } from "../../common/methods";
 
 export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
   // prettier-ignore
-  const { poolAddress, userAddress, amountIn, amountOut, swapForY, binId, timestamp, txHash, usdValue, indexInSlot } = payload;
+  const { poolAddress, userAddress, amountIn, amountOut, feesIn, swapForY, binId, timestamp, txHash, usdValue, feesUsdValue, indexInSlot } = payload;
   await prisma.swap.create({
     data: {
       pool: {
@@ -26,10 +26,12 @@ export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
       },
       amountIn,
       amountOut,
+      feesIn,
       binId,
       timestamp,
       txHash,
       usdValue,
+      feesUsdValue,
       indexInSlot,
       swapForY,
     },
@@ -70,16 +72,6 @@ export const createLiquidity = async (
   });
 };
 
-const findAnalytic = async (poolAddress: string, date: Date) =>
-  await prisma.analytics.findUniqueOrThrow({
-    where: {
-      poolAddress_date: {
-        poolAddress,
-        date,
-      },
-    },
-  });
-
 export const findDCA = async (id: number) =>
   await prisma.dCA.findUniqueOrThrow({
     where: {
@@ -94,46 +86,6 @@ export const createDCA = async (dca: DCA) =>
     },
   });
 
-export const updateVolumeAndPrice = async (
-  poolAddress: string,
-  binStep: number,
-  volume: number,
-  fees: number,
-  price: number
-) => {
-  const date = getClosestTick();
-  const curr = await findAnalytic(poolAddress, date).catch(async () => {
-    logger.warn(
-      `No analytics entry found for ${poolAddress} at ${date.toString()}`
-    );
-    return fetchNewAnalytics(poolAddress, binStep);
-  });
-
-  const data: Prisma.AnalyticsUpdateInput = {
-    close: price,
-  };
-  if (price > curr.high) data.high = price;
-  if (price < curr.low) data.low = price;
-
-  await prisma.analytics.update({
-    where: {
-      poolAddress_date: {
-        poolAddress,
-        date,
-      },
-    },
-    data: {
-      volume: {
-        increment: volume,
-      },
-      fees: {
-        increment: fees,
-      },
-      ...data,
-    },
-  });
-};
-
 export const updateDCAStatus = async (id: number, status: Status) => {
   await prisma.dCA.update({
     where: {
@@ -146,7 +98,7 @@ export const updateDCAStatus = async (id: number, status: Status) => {
 };
 
 export const createAnalytic = async (
-  args: Omit<Prisma.AnalyticsUncheckedCreateInput, "date" | "volume" | "fees">
+  args: Omit<Prisma.AnalyticsUncheckedCreateInput, "date">
 ) => {
   const date = getClosestTick();
 
@@ -154,8 +106,6 @@ export const createAnalytic = async (
     data: {
       ...args,
       date,
-      volume: 0,
-      fees: 0,
     },
   });
 };

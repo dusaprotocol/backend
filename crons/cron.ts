@@ -11,9 +11,7 @@ const fillAnalytics = async () => {
   const pools = await prisma.pool.findMany();
   pools.forEach(async (pool) => {
     await fetchNewAnalytics(pool.address, pool.binStep)
-      .then(() => {
-        logger.silly(`fetched new analytics for ${pool.address}`);
-      })
+      .then(() => logger.silly(`fetched new analytics for ${pool.address}`))
       .catch((e) => logger.warn(e));
   });
 };

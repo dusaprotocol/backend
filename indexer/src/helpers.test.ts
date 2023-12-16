@@ -27,9 +27,6 @@ const maxGas = 0n;
 
 const fn = () => Promise.resolve();
 const spyCreateSwap = vi.spyOn(db, "createSwap").mockImplementation(fn);
-const spyUpdateVolumePrice = vi
-  .spyOn(db, "updateVolumeAndPrice")
-  .mockImplementation(fn);
 const spyCreateLiquidity = vi
   .spyOn(db, "createLiquidity")
   .mockImplementation(fn);
@@ -55,7 +52,6 @@ describe("handleNewOperations", () => {
     handleNewOperations(message);
 
     expect(spyCreateSwap).not.toBeCalled();
-    expect(spyUpdateVolumePrice).not.toBeCalled();
     expect(spyCreateLiquidity).not.toBeCalled();
   });
   it("should call createSwap & updateVolumeAndPrice for a swap tx", async () => {
@@ -88,6 +84,5 @@ describe("handleNewOperations", () => {
     await handleNewOperations(message);
 
     expect(spyCreateSwap).toBeCalled();
-    expect(spyUpdateVolumePrice).toBeCalled();
   });
 });

@@ -248,11 +248,11 @@ export const decodeSwapEvents = (events: string[]) => {
       prev.swapForY = swapForY;
       prev.amountIn += amountInToBin + feesTotal;
       prev.amountOut += amountOutOfBin;
-      prev.totalFees += feesTotal;
+      prev.feesIn += feesTotal;
 
       return prev;
     },
-    { binId: 0, swapForY: false, amountIn: 0n, amountOut: 0n, totalFees: 0n }
+    { binId: 0, swapForY: false, amountIn: 0n, amountOut: 0n, feesIn: 0n }
   );
 };
 

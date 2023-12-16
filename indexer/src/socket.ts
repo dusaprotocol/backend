@@ -11,7 +11,7 @@ import {
 } from "../../common/methods";
 import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
 import { ILBPair, TokenAmount } from "@dusalabs/sdk";
-import { updateVolumeAndPrice, createSwap, createLiquidity } from "./db";
+import { createSwap, createLiquidity } from "./db";
 import { web3Client } from "../../common/client";
 import { getTimestamp } from "../../common/utils";
 import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
@@ -59,20 +59,20 @@ export const processSwap = async (params: {
   swapParams?: SwapParams;
 }) => {
   // prettier-ignore
-  const { txHash, userAddress, timestamp, poolAddress, binStep, swapEvents, indexInSlot } = params;
+  const { txHash, userAddress, timestamp, poolAddress, swapEvents, indexInSlot } = params;
   const swapPayload = decodeSwapEvents(swapEvents);
 
-  const { volume, fees, priceAdjusted } = await calculateSwapValue({
+  const { volume, fees } = await calculateSwapValue({
     ...params,
     ...swapPayload,
   });
 
-  updateVolumeAndPrice(poolAddress, binStep, volume, fees, priceAdjusted);
   createSwap({
     ...swapPayload,
     timestamp,
     txHash,
     usdValue: volume,
+    feesUsdValue: fees,
     poolAddress,
     userAddress,
     indexInSlot,
@@ -116,11 +116,11 @@ export const calculateSwapValue = async (params: {
   tokenOutAddress: string;
   binStep: number;
   amountIn: bigint;
-  totalFees: bigint;
+  feesIn: bigint;
   binId: number;
 }) => {
   // prettier-ignore
-  const { tokenInAddress, tokenOutAddress, binStep, amountIn, totalFees, binId } = params;
+  const { tokenInAddress, tokenOutAddress, binStep, amountIn, feesIn, binId } = params;
   const tokenIn = await getTokenFromAddress(tokenInAddress);
   const tokenOut = await getTokenFromAddress(tokenOutAddress);
   const [token0, token1] = sortTokens(tokenIn, tokenOut);
@@ -135,7 +135,7 @@ export const calculateSwapValue = async (params: {
   );
   // fees are stored in cents
   const fees = Number(
-    new TokenAmount(tokenIn, totalFees)
+    new TokenAmount(tokenIn, feesIn)
       .multiply(toFraction(valueIn))
       .toSignificant(6)
   );

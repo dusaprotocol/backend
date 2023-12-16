@@ -21,6 +21,7 @@ import {
 import { prisma } from "./db";
 import { createAnalytic } from "../indexer/src/db";
 import { DCA, Status } from "@prisma/client";
+import { TIME_BETWEEN_TICKS } from "./utils";
 
 export const getPriceFromId = Bin.getPriceFromId;
 export const getIdFromPrice = Bin.getIdFromPrice;
@@ -134,9 +135,9 @@ export const sortTokens = (tokenA: Token, tokenB: Token): [Token, Token] =>
 
 export const adjustPrice = (
   price: number,
-  token0Decimals: number,
-  token1Decimals: number
-): number => price * 10 ** (token0Decimals - token1Decimals);
+  decimals0: number,
+  decimals1: number
+): number => price * 10 ** (decimals0 - decimals1);
 
 export const toFraction = (price: number): Fraction => {
   const value = BigInt(Math.round((price || 1) * 1e18));
@@ -240,22 +241,96 @@ export const fetchNewAnalytics = async (
     token1Locked
   );
 
-  const adjustedPrice = adjustPrice(
+  const { volume, fees } = await prisma.swap
+    .aggregate({
+      where: {
+        poolAddress,
+        timestamp: {
+          gte: new Date(Date.now() - TIME_BETWEEN_TICKS),
+        },
+      },
+      _sum: {
+        usdValue: true,
+        feesUsdValue: true,
+      },
+    })
+    .then((res) => {
+      return {
+        volume: res._sum.usdValue || 0,
+        fees: res._sum.feesUsdValue || 0,
+      };
+    });
+
+  const open = adjustPrice(
     getPriceFromId(pairInfo.activeId, binStep),
     token0.decimals,
     token1.decimals
   );
-  if (!adjustedPrice) throw new Error("Price is 0");
+  const close = await prisma.swap
+    .findFirst({
+      where: {
+        poolAddress,
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+    })
+    .then((res) =>
+      res
+        ? adjustPrice(
+            getPriceFromId(res.binId, binStep),
+            token0.decimals,
+            token1.decimals
+          )
+        : 0
+    );
+  const { high, low } = await prisma.swap
+    .aggregate({
+      where: {
+        poolAddress,
+        timestamp: {
+          gte: new Date(Date.now() - TIME_BETWEEN_TICKS),
+        },
+      },
+      _max: {
+        binId: true,
+      },
+      _min: {
+        binId: true,
+      },
+    })
+    .then((res) => {
+      return {
+        high: res._max.binId
+          ? adjustPrice(
+              getPriceFromId(res._max.binId, binStep),
+              token0.decimals,
+              token1.decimals
+            )
+          : 0,
+        low: res._min.binId
+          ? adjustPrice(
+              getPriceFromId(res._min.binId, binStep),
+              token0.decimals,
+              token1.decimals
+            )
+          : 0,
+      };
+    });
+
+  if (!open) throw new Error("Price is 0");
 
   return await createAnalytic({
     poolAddress,
     token0Locked: token0Locked.toString(),
     token1Locked: token1Locked.toString(),
     usdLocked,
-    close: adjustedPrice,
-    high: adjustedPrice,
-    low: adjustedPrice,
-    open: adjustedPrice,
+    volume,
+    fees,
+    close,
+    open,
+    high,
+    low,
   });
 };
 

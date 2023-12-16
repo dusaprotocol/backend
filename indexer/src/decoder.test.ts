@@ -113,8 +113,8 @@ describe("event decoder", () => {
 
     const decoded = decodeSwapEvents(swapEvents);
 
-    expect(decoded.totalFees).toStrictEqual(283n * 3n);
-    expect(decoded.amountIn).toStrictEqual(999717n * 3n + decoded.totalFees);
+    expect(decoded.feesIn).toStrictEqual(283n * 3n);
+    expect(decoded.amountIn).toStrictEqual(999717n * 3n + decoded.feesIn);
     expect(decoded.amountOut).toStrictEqual(199222843n * 3n);
     expect(decoded.binId).toStrictEqual(8391260);
   });

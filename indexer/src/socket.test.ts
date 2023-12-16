@@ -21,9 +21,6 @@ describe("socket", () => {
     const spyCreateSwap = vi
       .spyOn(db, "createSwap")
       .mockImplementation(() => Promise.resolve());
-    const spy2 = vi
-      .spyOn(db, "updateVolumeAndPrice")
-      .mockImplementation(() => Promise.resolve());
 
     const tokenInAddress = inputToken.address;
     const tokenOutAddress = outputToken.address;
@@ -46,7 +43,6 @@ describe("socket", () => {
     });
 
     // expect(spyToken).toHaveBeenCalledTimes(2);
-    expect(spy2).toHaveBeenCalledTimes(1);
     expect(spyCreateSwap).toHaveBeenCalledTimes(1);
   });
   it("should process a liquidity tx", async () => {
@@ -99,7 +95,7 @@ describe("helpers", async () => {
       tokenOutAddress: tokenOut.address,
       binStep,
       amountIn: parseUnits("1", tokenIn.decimals),
-      totalFees: parseUnits("0.01", tokenIn.decimals),
+      feesIn: parseUnits("0.01", tokenIn.decimals),
       binId: activeId,
     };
 
@@ -127,7 +123,7 @@ describe("helpers", async () => {
       tokenOutAddress: tokenOut.address,
       binStep,
       amountIn: parseUnits("1", tokenIn.decimals),
-      totalFees: parseUnits("0.01", tokenIn.decimals),
+      feesIn: parseUnits("0.01", tokenIn.decimals),
       binId: activeId,
     };
 
