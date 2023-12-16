@@ -10,7 +10,7 @@ import {
   toFraction,
 } from "../../common/methods";
 import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
-import { ILBPair, TokenAmount } from "@dusalabs/sdk";
+import { EventDecoder, ILBPair, TokenAmount } from "@dusalabs/sdk";
 import { createSwap, createLiquidity } from "./db";
 import { web3Client } from "../../common/client";
 import { getTimestamp } from "../../common/utils";
@@ -26,10 +26,10 @@ export const processInnerSwap = async (params: {
   const { event, callStack, blockId, i } = params;
   const eventData = bytesToStr(event.data);
   const poolAddress = getCallee(callStack);
-  const [tokenInAddress, tokenOutAddress] = await new ILBPair(
-    poolAddress,
-    web3Client
-  ).getTokens();
+  const tokens = await new ILBPair(poolAddress, web3Client).getTokens();
+  const swapForY = EventDecoder.decodeSwap(eventData).swapForY;
+  const tokenInAddress = swapForY ? tokens[0] : tokens[1];
+  const tokenOutAddress = swapForY ? tokens[1] : tokens[0];
   const binStep = await getBinStep(poolAddress);
   const userAddress = callStack[0];
 
