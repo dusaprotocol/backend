@@ -22,6 +22,7 @@ import { prisma } from "./db";
 import { createAnalytic } from "../indexer/src/db";
 import { DCA, Status } from "@prisma/client";
 import { TIME_BETWEEN_TICKS } from "./utils";
+import { decodeDcaTx } from "../indexer/src/decoder";
 
 export const getPriceFromId = Bin.getPriceFromId;
 export const getIdFromPrice = Bin.getIdFromPrice;
@@ -183,31 +184,16 @@ export const fetchDCA = async (
     ])
     .then((res) => {
       if (!res[0].candidate_value) throw new Error("No DCA found");
-      const args = new Args(res[0].candidate_value);
-      const amountEachDCA = args.nextU256();
-      const interval = Number(args.nextU64());
-      const nbOfDCA = Number(args.nextU64());
-      const tokenPathStr: string[] = args.nextArray(ArrayTypes.STRING);
-      const tokenIn = tokenPathStr[0];
-      const tokenOut = tokenPathStr[tokenPathStr.length - 1];
-      const startTime = new Date(Number(args.nextU64()));
-      const endTime =
-        nbOfDCA == 0 ? startTime : new Date(Number(args.nextU64()));
 
-      const dca: DCA = {
+      const dca = decodeDcaTx(res[0].candidate_value);
+
+      return {
+        ...dca,
         id,
-        amountEachDCA,
-        interval,
-        nbOfDCA,
-        tokenIn,
-        tokenOut,
-        startTime,
-        endTime,
         userAddress,
         status: Status.ACTIVE,
         txHash: "",
       };
-      return dca;
     });
 };
 

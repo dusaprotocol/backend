@@ -60,14 +60,14 @@ model Swap {
   poolAddress  String
   swapForY     Boolean
   binId        Int
-  amountIn     BigInt
-  amountOut    BigInt
+  amountIn     String
+  amountOut    String
   timestamp    DateTime
   txHash       String
   usdValue     Float
   userAddress  String
   indexInSlot  Int
-  feesIn       BigInt
+  feesIn       String
   feesUsdValue Float
   pool         Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
   user         User     @relation(fields: [userAddress], references: [address])
@@ -77,8 +77,8 @@ model Swap {
 
 model Liquidity {
   poolAddress String
-  amount0     BigInt
-  amount1     BigInt
+  amount0     String
+  amount1     String
   timestamp   DateTime
   txHash      String
   lowerBound  Int
@@ -97,7 +97,7 @@ model DCA {
   txHash        String
   userAddress   String
   status        Status
-  amountEachDCA BigInt
+  amountEachDCA String
   endTime       DateTime
   interval      Int
   nbOfDCA       Int
@@ -110,8 +110,8 @@ model DCA {
 
 model DCAExecution {
   id        Int    @id @default(autoincrement())
-  amountIn  BigInt
-  amountOut BigInt
+  amountIn  String
+  amountOut String
   thread    Int
   period    Int
   dCAId     Int
@@ -124,8 +124,8 @@ model Order {
   txHash         String
   poolAddress    String
   swapForY       Boolean
-  amountIn       BigInt
-  amountOutMin   BigInt
+  amountIn       String
+  amountOutMin   String
   deadline       DateTime
   userAddress    String
   status         Status
@@ -137,8 +137,8 @@ model Order {
 
 model OrderExecution {
   id        Int    @id @default(autoincrement())
-  amountIn  BigInt
-  amountOut BigInt
+  amountIn  String
+  amountOut String
   thread    Int
   period    Int
   orderId   Int    @unique

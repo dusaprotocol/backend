@@ -76,7 +76,7 @@ export async function handleNewSlotExecutionOutputs(
           await prisma.dCAExecution.create({
             data: {
               amountIn: dca.amountEachDCA,
-              amountOut,
+              amountOut: amountOut.toString(),
               dCAId: id,
               period,
               thread,
@@ -111,7 +111,7 @@ export async function handleNewSlotExecutionOutputs(
           await prisma.orderExecution.create({
             data: {
               amountIn: order.amountIn,
-              amountOut,
+              amountOut: amountOut.toString(),
               orderId: id,
               period,
               thread,

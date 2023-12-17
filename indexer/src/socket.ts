@@ -76,6 +76,9 @@ export const processSwap = async (params: {
     poolAddress,
     userAddress,
     indexInSlot,
+    amountIn: swapPayload.amountIn.toString(),
+    amountOut: swapPayload.amountOut.toString(),
+    feesIn: swapPayload.feesIn.toString(),
   });
 };
 
@@ -99,8 +102,8 @@ export const processLiquidity = async (params: {
   const usdValue = await calculateUSDLocked(token0, amount0, token1, amount1);
 
   createLiquidity({
-    amount0,
-    amount1,
+    amount0: amount0.toString(),
+    amount1: amount1.toString(),
     upperBound,
     lowerBound,
     timestamp,
