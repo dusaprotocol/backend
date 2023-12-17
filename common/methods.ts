@@ -283,7 +283,12 @@ export const fetchNewAnalytics = async (
       };
     });
   const [open, close, high, low] = [openId, closeId, highId, lowId].map(
-    (binId) => getPriceFromId(binId, binStep)
+    (binId) =>
+      adjustPrice(
+        getPriceFromId(binId, binStep),
+        token0.decimals,
+        token1.decimals
+      )
   );
 
   if (!open) throw new Error("Price is 0");
