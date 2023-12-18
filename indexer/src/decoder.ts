@@ -12,6 +12,7 @@ import {
 } from "@dusalabs/sdk";
 import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
+import { WMAS } from "../../common/contracts";
 
 // TODO: move to sdk
 export interface SwapParams {
@@ -97,9 +98,10 @@ export const decodeLiquidityTx = (
   params: Uint8Array,
   coins: NativeAmount | undefined
 ): DecodedLiquidity => {
+  const isRemoveMAS = !isAdd && coins;
   const args = new Args(params);
   const token0 = args.nextString();
-  const token1 = args.nextString();
+  const token1 = isRemoveMAS ? WMAS.address : args.nextString();
   const binStep = args.nextU32();
 
   if (isAdd) {

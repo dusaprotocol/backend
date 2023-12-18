@@ -102,6 +102,34 @@ describe("tx decoder", () => {
     expect(decoded.deadline).toStrictEqual(1);
     expect(decoded.to).toStrictEqual("");
   });
+  it("should decode without deserialization errors", () => {
+    const arr = [
+      53, 0, 0, 0, 65, 83, 49, 50, 100, 70, 83, 104, 75, 51, 86, 52, 106, 83,
+      57, 78, 74, 65, 49, 49, 68, 109, 87, 89, 120, 50, 83, 69, 97, 55, 55, 51,
+      54, 87, 52, 115, 71, 81, 76, 87, 89, 99, 66, 99, 55, 75, 106, 76, 69, 104,
+      54, 66, 51, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 70, 72, 59, 70, 23, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      24, 0, 0, 0, 254, 28, 128, 0, 0, 0, 0, 0, 255, 28, 128, 0, 0, 0, 0, 0, 0,
+      29, 128, 0, 0, 0, 0, 0, 96, 0, 0, 0, 85, 147, 180, 240, 1, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 168,
+      217, 12, 103, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 195, 182, 114, 241, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 52, 0, 0, 0, 65, 85,
+      49, 99, 66, 105, 114, 84, 110, 111, 49, 70, 114, 77, 86, 112, 85, 77, 84,
+      57, 54, 75, 105, 81, 57, 55, 119, 66, 113, 113, 77, 49, 122, 57, 117, 74,
+      76, 114, 51, 88, 90, 75, 81, 119, 74, 106, 70, 76, 80, 69, 97, 114, 237,
+      243, 137, 122, 140, 1, 0, 0,
+    ];
+
+    const fn = () =>
+      decodeLiquidityTx(false, Uint8Array.from(arr), {
+        mantissa: 0n,
+        scale: 0,
+      });
+
+    expect(fn).not.toThrow();
+  });
 });
 describe("event decoder", () => {
   it("should decode a simple swap", async () => {
@@ -118,7 +146,7 @@ describe("event decoder", () => {
     expect(decoded.amountOut).toStrictEqual(199222843n * 3n);
     expect(decoded.binId).toStrictEqual(8391260);
   });
-  it("should decode a simple liquidity", async () => {
+  it("should decode events for a simple add liquidity ", async () => {
     const liqEvents = [
       "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391258,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
       "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391259,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
@@ -131,5 +159,17 @@ describe("event decoder", () => {
     expect(decoded.amountY).toStrictEqual(4561880455n * 3n);
     expect(decoded.upperBound).toStrictEqual(8391260);
     expect(decoded.lowerBound).toStrictEqual(8391258);
+  });
+  it("should decode events for a simple remove liquidity MAS ", async () => {
+    const liqEvents = [
+      "WITHDRAWN_FROM_BIN:AS1YqRd4gDMaJ1Udkd1TsMFXEhAbaRoQvMURPgHYs9w8zc1egrNQ,8391239,\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,�ٌ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+      "WITHDRAWN_FROM_BIN:AS1YqRd4gDMaJ1Udkd1TsMFXEhAbaRoQvMURPgHYs9w8zc1egrNQ,8391245,\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,ᆤِ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+      "WITHDRAWN_FROM_BIN:AS1YqRd4gDMaJ1Udkd1TsMFXEhAbaRoQvMURPgHYs9w8zc1egrNQ,8391259,債捗\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+    ];
+
+    const decoded = decodeLiquidityEvents(liqEvents);
+
+    expect(decoded.upperBound).toStrictEqual(8391259);
+    expect(decoded.lowerBound).toStrictEqual(8391239);
   });
 });
