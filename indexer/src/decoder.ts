@@ -10,9 +10,10 @@ import {
   SwapRouterMethod,
   LimitOrder,
 } from "@dusalabs/sdk";
-import { getPriceFromId, getTokenFromAddress } from "../../common/methods";
+import { getTokenFromAddress } from "../../common/methods";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
 import { WMAS } from "../../common/contracts";
+import { DCA, Order } from "@prisma/client";
 
 // TODO: move to sdk
 export interface SwapParams {
@@ -157,56 +158,36 @@ export const decodeLiquidityTx = (
 
 export const decodeDcaTx = (
   params: Uint8Array
-): Omit<StartDCAParameters, "startIn" | "tokenPath"> & {
-  tokenIn: string;
-  tokenOut: string;
-  startTime: Date;
-  endTime: Date;
-} => {
+): Omit<DCA, "userAddress" | "txHash" | "id" | "status"> => {
   const args = new Args(params);
   const amountEachDCA = args.nextU256();
   const interval = Number(args.nextU64());
   const nbOfDCA = Number(args.nextU64());
-  const tokenPath: Address[] = args.nextSerializableObjectArray(Address);
-  const tokenIn = tokenPath[0].str;
-  const tokenOut = tokenPath[tokenPath.length - 1].str;
-  const startIn = Number(args.nextU64());
-
-  const startTime = Date.now() + startIn;
-  const endTime =
-    nbOfDCA == 0 ? Infinity : startTime + (interval * (2 * nbOfDCA - 1)) / 2;
+  const tokenPathStr: string[] = args.nextArray(ArrayTypes.STRING);
+  const tokenIn = tokenPathStr[0];
+  const tokenOut = tokenPathStr[tokenPathStr.length - 1];
+  const startTime = new Date(Number(args.nextU64()));
+  const endTime = nbOfDCA == 0 ? startTime : new Date(Number(args.nextU64()));
 
   return {
-    amountEachDCA,
+    amountEachDCA: amountEachDCA.toString(),
     interval,
     nbOfDCA,
     tokenIn,
     tokenOut,
-    startTime: new Date(startTime),
-    endTime: new Date(endTime),
+    startTime,
+    endTime,
   };
 };
 
-type ExtractPropertiesKeys<T> = {
-  [P in keyof T]-?: T[P] extends Function ? never : P;
-}[keyof T];
-type ExtractPropertiesIntoObject<T> = {
-  [P in ExtractPropertiesKeys<T>]: T[P];
-};
-
-type LimitOrderProperties = ExtractPropertiesIntoObject<LimitOrder>;
-
 export const decodeOrderTx = (
   params: Uint8Array
-): Omit<LimitOrderProperties, "id" | "deadline" | "pair" | "to"> & {
-  poolAddress: string;
-  deadline: Date;
-} => {
+): Omit<Order, "userAddress" | "txHash" | "id" | "status"> => {
   // prettier-ignore
   const {amountIn, amountOutMin, binId, pair: poolAddress, deadline, swapForY} = new Args(params).nextSerializable(LimitOrder);
   return {
-    amountIn,
-    amountOutMin,
+    amountIn: amountIn.toString(),
+    amountOutMin: amountOutMin.toString(),
     poolAddress,
     deadline: new Date(Number(deadline)),
     binId,
