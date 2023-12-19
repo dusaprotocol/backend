@@ -4,38 +4,38 @@ import logger from "../../common/logger";
 import { getClosestTick } from "../../common/utils";
 import { fetchNewAnalytics } from "../../common/methods";
 
+const coc = (address: string) => ({
+  connectOrCreate: {
+    where: { address },
+    create: { address },
+  },
+});
+
+const co = (address: string) => ({
+  connect: { address },
+});
+
 export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
   // prettier-ignore
   const { poolAddress, userAddress, amountIn, amountOut, feesIn, swapForY, binId, timestamp, txHash, usdValue, feesUsdValue, indexInSlot } = payload;
-  await prisma.swap.create({
-    data: {
-      pool: {
-        connect: {
-          address: poolAddress,
-        },
+  await prisma.swap
+    .create({
+      data: {
+        pool: co(poolAddress),
+        user: coc(userAddress),
+        amountIn,
+        amountOut,
+        feesIn,
+        binId,
+        timestamp,
+        txHash,
+        usdValue,
+        feesUsdValue,
+        indexInSlot,
+        swapForY,
       },
-      user: {
-        connectOrCreate: {
-          where: {
-            address: userAddress,
-          },
-          create: {
-            address: userAddress,
-          },
-        },
-      },
-      amountIn,
-      amountOut,
-      feesIn,
-      binId,
-      timestamp,
-      txHash,
-      usdValue,
-      feesUsdValue,
-      indexInSlot,
-      swapForY,
-    },
-  });
+    })
+    .catch(() => logger.warn("createSwap failed", payload));
 };
 
 export const createLiquidity = async (
@@ -43,33 +43,22 @@ export const createLiquidity = async (
 ) => {
   // prettier-ignore
   const { poolAddress, userAddress, amount0, amount1, lowerBound, upperBound, timestamp, txHash, usdValue, indexInSlot } = payload;
-  await prisma.liquidity.create({
-    data: {
-      pool: {
-        connect: {
-          address: poolAddress,
-        },
+  await prisma.liquidity
+    .create({
+      data: {
+        pool: co(poolAddress),
+        user: coc(userAddress),
+        amount0,
+        amount1,
+        lowerBound,
+        upperBound,
+        timestamp,
+        txHash,
+        usdValue,
+        indexInSlot,
       },
-      user: {
-        connectOrCreate: {
-          where: {
-            address: userAddress,
-          },
-          create: {
-            address: userAddress,
-          },
-        },
-      },
-      amount0,
-      amount1,
-      lowerBound,
-      upperBound,
-      timestamp,
-      txHash,
-      usdValue,
-      indexInSlot,
-    },
-  });
+    })
+    .catch(() => logger.warn("createLiquidity failed", payload));
 };
 
 export const findDCA = async (id: number) =>
@@ -83,6 +72,8 @@ export const createDCA = async (dca: DCA) =>
   await prisma.dCA.create({
     data: {
       ...dca,
+      userAddress: undefined,
+      User: coc(dca.userAddress),
     },
   });
 
