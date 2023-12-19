@@ -160,11 +160,14 @@ export const decodeDcaTx = (
   const amountEachDCA = args.nextU256();
   const interval = Number(args.nextU64());
   const nbOfDCA = Number(args.nextU64());
+
   const tokenPathStr: string[] = args.nextArray(ArrayTypes.STRING);
   const tokenIn = tokenPathStr[0];
   const tokenOut = tokenPathStr[tokenPathStr.length - 1];
-  const startTime = new Date(Number(args.nextU64()));
-  const endTime = nbOfDCA == 0 ? startTime : new Date(Number(args.nextU64()));
+
+  const startTimestamp = Number(args.nextU64());
+  const endTimestamp =
+    startTimestamp + (nbOfDCA == 0 ? 0 : (interval * (2 * nbOfDCA - 1)) / 2);
 
   return {
     amountEachDCA: amountEachDCA.toString(),
@@ -172,8 +175,8 @@ export const decodeDcaTx = (
     nbOfDCA,
     tokenIn,
     tokenOut,
-    startTime,
-    endTime,
+    startTime: new Date(startTimestamp),
+    endTime: new Date(endTimestamp),
   };
 };
 
