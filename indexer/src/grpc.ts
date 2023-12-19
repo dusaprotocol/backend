@@ -47,7 +47,6 @@ const subscribe = async (
     handler(message).catch((err: Error) => {
       logger.warn(err.message);
       logger.warn(err.stack);
-      logger.warn(err.name);
     });
   }
 

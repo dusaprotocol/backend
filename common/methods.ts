@@ -183,7 +183,7 @@ export const fetchDCA = async (
       },
     ])
     .then((res) => {
-      if (!res[0].candidate_value) throw new Error("No DCA found");
+      if (!res[0].candidate_value) throw new Error(`DCA ${id} not found`);
 
       const dca = decodeDcaTx(res[0].candidate_value);
 

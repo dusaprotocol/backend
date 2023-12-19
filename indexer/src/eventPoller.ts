@@ -8,6 +8,7 @@ import {
 } from "@massalabs/massa-web3";
 import { web3Client } from "../../common/client";
 import { nullFilters } from "../../common/utils";
+import logger from "../../common/logger";
 
 interface IEventPollerResult {
   isError: boolean;
@@ -51,11 +52,11 @@ export const pollAsyncEvents = async (
           events,
         });
       } else {
-        console.log("No events emitted");
+        logger.info("No events emitted");
       }
     });
     eventPoller.on(ON_MASSA_EVENT_ERROR, (error: Error) => {
-      console.log("Event Data Error:", error);
+      logger.warn("Event Data Error:", error);
       return reject(error);
     });
   });

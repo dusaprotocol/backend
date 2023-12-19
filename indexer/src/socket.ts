@@ -1,6 +1,7 @@
 import {
   adjustPrice,
   calculateUSDLocked,
+  fetchDCA,
   getBinStep,
   getCallee,
   getPriceFromId,
@@ -11,11 +12,20 @@ import {
 } from "../../common/methods";
 import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
 import { EventDecoder, ILBPair, TokenAmount } from "@dusalabs/sdk";
-import { createSwap, createLiquidity } from "./db";
+import {
+  createSwap,
+  createLiquidity,
+  createDCA,
+  findDCA,
+  updateDCAStatus,
+} from "./db";
 import { web3Client } from "../../common/client";
-import { getTimestamp } from "../../common/utils";
+import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
 import { bytesToStr } from "@massalabs/massa-web3";
+import { Status } from "@prisma/client";
+import { prisma } from "../../common/db";
+import logger from "../../common/logger";
 
 export const processInnerSwap = async (params: {
   event: ScExecutionEvent;
@@ -144,4 +154,78 @@ export const calculateSwapValue = async (params: {
   );
 
   return { volume, fees, priceAdjusted };
+};
+
+export const processDCAExecution = async (
+  eventData: string,
+  blockInfo: { thread: number; period: number; blockId: string }
+) => {
+  if (eventData.startsWith("DCA_EXECUTED:")) {
+    const { amountOut, id, user } = EventDecoder.decodeDCAExecution(eventData);
+    const dca = await findDCA(id).then(async (res) => {
+      if (res) return res;
+
+      logger.warn(`DCA ${id} not found in db, retrying in 30 sec`);
+      await wait(ONE_MINUTE / 2);
+      const resRetry = await findDCA(id);
+      if (resRetry) return resRetry;
+
+      logger.warn(`DCA ${id} not found in db, fetching from datastore`);
+      return fetchDCA(id, user).then(async (_dca) => {
+        logger.info(`DCA ${id} fetched from datastore`);
+        await createDCA(_dca).catch(() => {
+          logger.warn(`Insert DCA ${id} went wrong`);
+        });
+        return _dca;
+      });
+    });
+    if (!dca) return;
+
+    await prisma.dCAExecution.create({
+      data: {
+        ...blockInfo,
+        amountIn: dca.amountEachDCA,
+        amountOut: amountOut.toString(),
+        dCAId: id,
+      },
+    });
+
+    const nbOfExecutions = await prisma.dCAExecution.count({
+      where: {
+        dCAId: id,
+      },
+    });
+
+    if (dca.nbOfDCA === nbOfExecutions) updateDCAStatus(id, Status.ENDED);
+  }
+};
+
+export const processOrderExecution = async (
+  eventData: string,
+  blockInfo: { thread: number; period: number; blockId: string }
+) => {
+  const { id, amountOut } = EventDecoder.decodeLimitOrderExecution(eventData);
+  const order = await prisma.order.findUnique({
+    where: {
+      id,
+    },
+  });
+  if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
+
+  await prisma.orderExecution.create({
+    data: {
+      ...blockInfo,
+      amountIn: order.amountIn,
+      amountOut: amountOut.toString(),
+      orderId: id,
+    },
+  });
+  await prisma.order.update({
+    where: {
+      id,
+    },
+    data: {
+      status: "ENDED",
+    },
+  });
 };

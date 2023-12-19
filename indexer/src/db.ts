@@ -73,7 +73,7 @@ export const createLiquidity = async (
 };
 
 export const findDCA = async (id: number) =>
-  await prisma.dCA.findUniqueOrThrow({
+  await prisma.dCA.findUnique({
     where: {
       id,
     },
