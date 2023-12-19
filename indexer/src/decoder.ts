@@ -2,10 +2,7 @@ import { Args, ArrayTypes } from "@massalabs/massa-web3";
 import {
   AddLiquidityParameters,
   Address,
-  StartDCAParameters,
   RemoveLiquidityParameters,
-  Token,
-  TokenAmount,
   EventDecoder,
   SwapRouterMethod,
   LimitOrder,
@@ -192,27 +189,6 @@ export const decodeOrderTx = (
     deadline: new Date(Number(deadline)),
     binId,
     swapForY,
-  };
-};
-
-const toLog = async (params: SwapParams) => {
-  const tokenInAddress = params.path[0].str;
-  const tokenOutAddress = params.path[params.path.length - 1].str;
-  const tokenIn = await getTokenFromAddress(tokenInAddress);
-  const tokenOut = await getTokenFromAddress(tokenOutAddress);
-  if (!tokenIn || !tokenOut) return;
-
-  const parsedAmountIn = new TokenAmount(tokenIn, params.amountIn);
-  const parsedAmountOut = new TokenAmount(tokenOut, params.amountOut);
-
-  return {
-    route: params.path.map((token) => `${token.str}`).join(", "),
-    inputAmount: `${parsedAmountIn.toSignificant(6)} ${
-      parsedAmountIn.currency.symbol
-    }`,
-    outputAmount: `${parsedAmountOut.toSignificant(6)} ${
-      parsedAmountOut.currency.symbol
-    }`,
   };
 };
 

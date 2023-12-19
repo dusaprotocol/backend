@@ -67,7 +67,7 @@ export const processSwap = async (params: {
     ...swapPayload,
   });
 
-  createSwap({
+  await createSwap({
     ...swapPayload,
     timestamp,
     txHash,
@@ -101,7 +101,7 @@ export const processLiquidity = async (params: {
   const token1 = await getTokenFromAddress(token1Address);
   const usdValue = await calculateUSDLocked(token0, amount0, token1, amount1);
 
-  createLiquidity({
+  await createLiquidity({
     amount0: amount0.toString(),
     amount1: amount1.toString(),
     upperBound,

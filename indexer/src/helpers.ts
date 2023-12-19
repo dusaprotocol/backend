@@ -47,7 +47,7 @@ export async function handleNewSlotExecutionOutputs(
       if (callStack.includes(dcaSC)) {
         // handle inner swap
         if (eventData.startsWith("SWAP:"))
-          processInnerSwap({ event, callStack, blockId, i });
+          await processInnerSwap({ event, callStack, blockId, i });
 
         // handle dca execution
         if (eventData.startsWith("DCA_EXECUTED:")) {
@@ -95,7 +95,7 @@ export async function handleNewSlotExecutionOutputs(
       } else if (callStack.includes(orderSC)) {
         // handle inner swap
         if (eventData.startsWith("SWAP:"))
-          processInnerSwap({ event, callStack, blockId, i });
+          await processInnerSwap({ event, callStack, blockId, i });
 
         // handle limit order execution
         if (eventData.startsWith("EXECUTE_LIMIT_ORDER:")) {
@@ -250,7 +250,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
             e.data.startsWith("SWAP:")
         );
 
-        processSwap({
+        await processSwap({
           txHash,
           indexInSlot: i,
           userAddress,
@@ -277,7 +277,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
           )
       );
 
-      processLiquidity({
+      await processLiquidity({
         txHash,
         userAddress,
         timestamp,

@@ -44,8 +44,10 @@ const subscribe = async (
   logger.info(`${method}:${new Date().toString()}`);
 
   for await (let message of stream.responses) {
-    handler(message).catch((err: any) => {
-      logger.error(err.message);
+    handler(message).catch((err: Error) => {
+      logger.warn(err.message);
+      logger.warn(err.stack);
+      logger.warn(err.name);
     });
   }
 
