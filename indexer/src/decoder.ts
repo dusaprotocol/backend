@@ -165,9 +165,9 @@ export const decodeDcaTx = (
   const tokenIn = tokenPathStr[0];
   const tokenOut = tokenPathStr[tokenPathStr.length - 1];
 
-  const startTimestamp = Number(args.nextU64());
-  const endTimestamp =
-    startTimestamp + (nbOfDCA == 0 ? 0 : (interval * (2 * nbOfDCA - 1)) / 2);
+  const startTimestamp = Date.now() + Number(args.nextU64());
+  const duration = nbOfDCA == 0 ? 0 : (interval * (2 * nbOfDCA - 1)) / 2;
+  const endTimestamp = startTimestamp + duration;
 
   return {
     amountEachDCA: amountEachDCA.toString(),

@@ -150,16 +150,15 @@ export const getTokenFromAddress = async (
 ): Promise<Token> => {
   const address = tokenAddress.replace("_", ""); // TEMP: handle MAS/WMAS
 
-  const token = await prisma.token
-    .findUniqueOrThrow({
-      where: {
-        address,
-      },
-    })
-    .catch(() => {
-      return fetchTokenFromAddress(address);
-    });
-  if (!token) throw new Error(`Token not found: ${address}`);
+  const token = await prisma.token.findUnique({
+    where: {
+      address,
+    },
+  });
+  if (!token) {
+    logger.warn(`Token ${address} not found in DB`);
+    return fetchTokenFromAddress(address);
+  }
 
   return new Token(
     CHAIN_ID,
