@@ -84,11 +84,12 @@ export async function handleNewOperations(message: NewOperationsResponse) {
   const indexedSC = [dcaSC, orderSC, routerSC];
   if (!indexedSC.includes(targetAddress)) return;
 
-  const { events, eventPoller } = await withTimeoutRejection(
+  const { events, eventPoller, isError } = await withTimeoutRejection(
     pollAsyncEvents(txHash),
     ONE_MINUTE
   );
   eventPoller.stopPolling();
+  if (isError) return;
 
   try {
     // PERIPHERY CONTRACTS
@@ -191,6 +192,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
               getCallee(e.context.call_stack) === poolAddress &&
               e.data.startsWith("SWAP:")
           );
+          if (!swapEvents.length) continue;
 
           await processSwap({
             txHash,
@@ -218,6 +220,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
               e.data.startsWith.bind(e.data)
             )
         );
+        if (!liqEvents.length) return;
 
         await processLiquidity({
           txHash,
