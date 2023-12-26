@@ -6,13 +6,13 @@ import { Pool, Prisma } from "@prisma/client";
 import { EVERY_TICK, getClosestTick } from "../common/utils";
 
 const fillAnalytics = async () => {
-  logger.silly(`running the analytics task at ${new Date().toString()}`);
+  logger.silly(`[${new Date().toISOString()}]: running the analytics task`);
 
   const pools = await prisma.pool.findMany();
   pools.forEach(async (pool) => {
-    await fetchNewAnalytics(pool.address, pool.binStep)
-      .then(() => logger.silly(`fetched new analytics for ${pool.address}`))
-      .catch((e) => logger.warn(e));
+    await fetchNewAnalytics(pool.address, pool.binStep).catch((e) =>
+      logger.warn(e)
+    );
   });
 };
 

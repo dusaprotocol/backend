@@ -114,10 +114,8 @@ const generateDataset = async (poolAddress: string) => {
 
   for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
     const date = getClosestTick(Date.now() - i * TIME_BETWEEN_TICKS);
-    const reserveX = pairInfo.reserveX - (pairInfo.reserveX / 100n) * BigInt(i);
-    const reserveY = pairInfo.reserveY - (pairInfo.reserveY / 100n) * BigInt(i);
 
-    const price = prevPrice * (1 + Math.random() * 0.1 - 0.05);
+    const price = prevPrice * (1 + Math.random() * 0.02 - 0.01);
     const open = price;
     const close = prevPrice;
     const high =
@@ -132,8 +130,8 @@ const generateDataset = async (poolAddress: string) => {
 
     data.push({
       poolAddress: pool.address,
-      token0Locked: reserveX.toString(),
-      token1Locked: reserveY.toString(),
+      token0Locked: "0",
+      token1Locked: "0",
       usdLocked: 0,
       close,
       high,
@@ -159,7 +157,4 @@ const generateDataset = async (poolAddress: string) => {
   // };
   // createPair(pair).then(() => generateDataset(pair.address));
   createPools();
-
-  // prisma.dCA.deleteMany({}).then(console.log).catch(console.error);
-  // prisma.order.deleteMany({}).then(console.log).catch(console.error);
 })();

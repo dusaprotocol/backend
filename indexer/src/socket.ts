@@ -165,17 +165,14 @@ export const processDCAExecution = async (
     const dca = await findDCA(id).then(async (res) => {
       if (res) return res;
 
-      logger.warn(`DCA ${id} not found in db, retrying in 30 sec`);
       await wait(ONE_MINUTE / 2);
       const resRetry = await findDCA(id);
       if (resRetry) return resRetry;
 
-      logger.warn(`DCA ${id} not found in db, fetching from datastore`);
       return fetchDCA(id, user).then(async (_dca) => {
-        logger.info(`DCA ${id} fetched from datastore`);
-        await createDCA(_dca).catch(() => {
-          logger.warn(`Insert DCA ${id} went wrong`);
-        });
+        await createDCA(_dca).catch(() =>
+          logger.warn("createDCA failed", _dca)
+        );
         return _dca;
       });
     });
