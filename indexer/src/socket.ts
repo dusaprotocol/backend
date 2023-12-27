@@ -140,7 +140,7 @@ export const calculateSwapValue = async (params: {
   const price = getPriceFromId(binId, binStep);
   const priceAdjusted = adjustPrice(price, token0.decimals, token1.decimals);
 
-  const valueIn = await getTokenValue(tokenInAddress, true);
+  const valueIn = await getTokenValue(tokenIn);
   const volume = Number(
     new TokenAmount(tokenIn, amountIn)
       .multiply(toFraction(valueIn))

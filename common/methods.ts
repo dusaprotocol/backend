@@ -58,11 +58,9 @@ export const fetchPairAddress = async (
     .then((res) => res.LBPair);
 
 export const getTokenValueUsingQuoter = async (
-  tokenAddress: string
+  tokenIn: Token
 ): Promise<number> => {
-  const tokenIn = await getTokenFromAddress(tokenAddress);
   const amountOut = new TokenAmount(USDC, parseUnits("1", USDC.decimals));
-
   const bestTrade = await QuoterHelper.findBestPath(
     tokenIn,
     tokenIn.equals(WMAS),
@@ -81,49 +79,22 @@ export const getTokenValueUsingQuoter = async (
   }
 };
 
-export const getTokenValue = async (
+export const getTokenAddressValue = async (
   _tokenAddress: string,
-  // CHAIN_ID: ChainId
-  adjusted = true,
-  opts?: {
-    poolAddress: string;
-    binStep: number;
-  }
+  adjusted = true
 ): Promise<number> => {
   const tokenAddress = _tokenAddress.replace("_", ""); // TEMP: handle MAS/WMAS
+  const token = await getTokenFromAddress(tokenAddress);
+  return getTokenValue(token, adjusted);
+};
 
-  const factory = new IFactory(LB_FACTORY_ADDRESS[CHAIN_ID], web3Client);
-  if (tokenAddress === USDC.address) return 1;
-
-  const binStep = opts
-    ? opts.binStep
-    : await factory
-        .getAvailableLBPairBinSteps(tokenAddress, USDC.address)
-        .then((r) => r[0])
-        .catch(() => undefined);
-  if (!binStep) return getTokenValueUsingQuoter(tokenAddress);
-
-  const pairAddress = opts
-    ? opts.poolAddress
-    : await factory
-        .getLBPairInformation(tokenAddress, USDC.address, binStep)
-        .then((r) => r.LBPair)
-        .catch(() => undefined);
-  if (!pairAddress) return getTokenValueUsingQuoter(tokenAddress);
-
-  const pairInfo = await PairV2.getLBPairReservesAndId(pairAddress, web3Client);
-  const price = getPriceFromId(pairInfo.activeId, binStep);
-
-  if (!adjusted) return price;
-
-  const [token0Address, token1Address] = sortTokenAddresses(
-    tokenAddress,
-    USDC.address
-  );
-  const token0Decimals = await new IERC20(token0Address, web3Client).decimals();
-  const token1Decimals = await new IERC20(token1Address, web3Client).decimals();
-  const priceAdjusted = adjustPrice(price, token0Decimals, token1Decimals);
-  return tokenAddress < USDC.address ? priceAdjusted : 1 / priceAdjusted;
+export const getTokenValue = async (
+  token: Token,
+  // CHAIN_ID: ChainId
+  adjusted = true
+): Promise<number> => {
+  if (token.equals(USDC)) return 1;
+  return getTokenValueUsingQuoter(token);
 };
 
 export const sortTokenAddresses = (
@@ -313,7 +284,7 @@ export const calculateUSDLocked = async (
   token1Locked: bigint
 ): Promise<number> => {
   const [token0Value, token1Value] = await Promise.all(
-    [token0, token1].map((token) => getTokenValue(token.address, true))
+    [token0, token1].map((token) => getTokenValue(token))
   );
   const usdLocked = new TokenAmount(token0, token0Locked)
     .multiply(toFraction(token0Value))
