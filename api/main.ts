@@ -8,13 +8,13 @@ import {
   resolveSymbol,
   searchSymbols,
 } from "./src/tradingview";
-import { middleware } from "apicache";
+import apicache from "apicache";
 
 // Start TRPC server
 
 const app = express();
 app.use(cors());
-app.use(middleware("5 minutes"));
+app.use(apicache.middleware("5 minutes"));
 app.use("/trpc", expressMiddleware);
 
 // Health check
