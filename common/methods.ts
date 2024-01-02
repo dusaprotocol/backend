@@ -1,4 +1,4 @@
-import { Args, ArrayTypes, strToBytes } from "@massalabs/massa-web3";
+import { Args, ArrayTypes, IEvent, strToBytes } from "@massalabs/massa-web3";
 import { CHAIN_ID, web3Client } from "./client";
 import { factorySC, USDC, WMAS } from "./contracts";
 import logger from "./logger";
@@ -30,6 +30,15 @@ export const getIdFromPrice = Bin.getIdFromPrice;
 export const getCallee = (callStack: string[]): string => {
   return callStack[callStack.length - 1];
 };
+
+export const isLiquidityEvent = (event: IEvent, poolAddress: string): boolean =>
+  getCallee(event.context.call_stack) === poolAddress &&
+  (event.data.startsWith("WITHDRAWN_FROM_BIN:") ||
+    event.data.startsWith("DEPOSITED_INTO_BIN:"));
+
+export const isSwapEvent = (event: IEvent, poolAddress: string): boolean =>
+  getCallee(event.context.call_stack) === poolAddress &&
+  event.data.startsWith("SWAP:");
 
 export const getBinStep = (pairAddress: string): Promise<number> =>
   web3Client

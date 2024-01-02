@@ -1,6 +1,12 @@
+import { IEvent } from "@massalabs/massa-web3";
 import { CHAIN_ID } from "./client";
 import { USDC, WMAS } from "./contracts";
-import { getTokenValue, radius } from "./methods";
+import {
+  getTokenValue,
+  isLiquidityEvent,
+  isSwapEvent,
+  radius,
+} from "./methods";
 import { WETH as _WETH, WBTC as _WBTC, USDT as _USDT } from "@dusalabs/sdk";
 import { describe, expect, it } from "vitest";
 
@@ -32,5 +38,21 @@ describe("getTokenValue", () => {
     const [min, max] = radius(30000, 25);
     expect(value).toBeGreaterThan(min);
     expect(value).toBeLessThan(max);
+  });
+});
+describe("isEvent", () => {
+  let x: IEvent["context"];
+  const context: typeof x = {} as any;
+  it("returns true for remove liquidity event", () => {
+    const poolAddress = "0x";
+    const event: IEvent = {
+      context: {
+        ...context,
+        call_stack: [poolAddress],
+      },
+      data: "WITHDRAWN_FROM_BIN:AS1YqRd4gDMaJ1Udkd1TsMFXEhAbaRoQvMURPgHYs9w8zc1egrNQ,8391236,̸\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,ŏ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+    };
+
+    expect(isLiquidityEvent(event, poolAddress)).toBe(true);
   });
 });

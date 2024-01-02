@@ -8,7 +8,11 @@ import {
 import { bytesToStr, withTimeoutRejection } from "@massalabs/massa-web3";
 import { dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { prisma } from "../../common/db";
-import { fetchDCA, fetchPairAddress, getCallee } from "../../common/methods";
+import {
+  fetchPairAddress,
+  isLiquidityEvent,
+  isSwapEvent,
+} from "../../common/methods";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import {
   decodeDcaTx,
@@ -187,11 +191,7 @@ export async function handleNewOperations(message: NewOperationsResponse) {
             binStep
           );
 
-          const swapEvents = events.filter(
-            (e) =>
-              getCallee(e.context.call_stack) === poolAddress &&
-              e.data.startsWith("SWAP:")
-          );
+          const swapEvents = events.filter((e) => isSwapEvent(e, poolAddress));
           if (!swapEvents.length) continue;
 
           await processSwap({
@@ -213,12 +213,8 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         const { token0, token1, binStep } = liquidityParams;
         const poolAddress = await fetchPairAddress(token0, token1, binStep);
 
-        const liqEvents = events.filter(
-          (e) =>
-            getCallee(e.context.call_stack) === poolAddress &&
-            ["DEPOSITED_TO_BIN:", "WITHDRAWN_FROM_BIN:"].some(
-              e.data.startsWith.bind(e.data)
-            )
+        const liqEvents = events.filter((e) =>
+          isLiquidityEvent(e, poolAddress)
         );
         if (!liqEvents.length) return;
 
