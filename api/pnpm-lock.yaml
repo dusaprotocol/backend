@@ -8,6 +8,9 @@ dependencies:
   '@trpc/server':
     specifier: ^10.29.1
     version: 10.29.1
+  apicache:
+    specifier: ^1.6.3
+    version: 1.6.3
   cors:
     specifier: ^2.8.5
     version: 2.8.5
@@ -19,6 +22,9 @@ dependencies:
     version: 3.21.4
 
 devDependencies:
+  '@types/apicache':
+    specifier: ^1.6.6
+    version: 1.6.6
   '@types/cors':
     specifier: ^2.8.13
     version: 2.8.13
@@ -31,6 +37,13 @@ packages:
   /@trpc/server@10.29.1:
     resolution: {integrity: sha512-kNXgMh5ya+awuz2tB4eIyVrRs7nVtqGXwSGabzH3l5ZLWz7rbKJquOJ7h6bjvIfWUpaFG62HJNWxxGUtXCRgRw==}
     dev: false
+
+  /@types/apicache@1.6.6:
+    resolution: {integrity: sha512-RLeWpWG8QmXS2DshAMIm3HAtmUivFTSzdppppQgvNvbPYfi4871Ec4cXGySAlC9qqmciAZSVCWZPKAwNKwGATA==}
+    dependencies:
+      '@types/express': 4.17.17
+      '@types/redis': 2.8.32
+    dev: true
 
   /@types/body-parser@1.19.2:
     resolution: {integrity: sha512-ALYone6pm6QmwZoAgeyNksccT9Q4AWZQ6PvfwR37GT6r6FWUPguq6sUmNGSMV2Wr761oQoBxwGGa6DR5o1DC9g==}
@@ -89,6 +102,12 @@ packages:
     resolution: {integrity: sha512-EEhsLsD6UsDM1yFhAvy0Cjr6VwmpMWqFBCb9w07wVugF7w9nfajxLuVmngTIpgS6svCnm6Vaw+MZhoDCKnOfsw==}
     dev: true
 
+  /@types/redis@2.8.32:
+    resolution: {integrity: sha512-7jkMKxcGq9p242exlbsVzuJb57KqHRhNl4dHoQu2Y5v9bCAbtIXXH0R3HleSQW4CTOqpHIYUW3t6tpUj4BVQ+w==}
+    dependencies:
+      '@types/node': 20.2.5
+    dev: true
+
   /@types/send@0.17.1:
     resolution: {integrity: sha512-Cwo8LE/0rnvX7kIIa3QHCkcuF21c05Ayb0ZfxPiv0W8VRiZiNW/WuRupHKpqqGVGf7SUA44QSOUKaEd9lIrd/Q==}
     dependencies:
@@ -109,6 +128,11 @@ packages:
     dependencies:
       mime-types: 2.1.35
       negotiator: 0.6.3
+    dev: false
+
+  /apicache@1.6.3:
+    resolution: {integrity: sha512-jS3VfUFpQ9BesFQZcdd1vVYg3ZsO2kGPmTJHqycIYPAQs54r74CRiyj8DuzJpwzLwIfCBYzh4dy9Jt8xYbo27w==}
+    engines: {node: '>=8'}
     dev: false
 
   /array-flatten@1.1.1:
