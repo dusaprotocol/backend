@@ -187,13 +187,11 @@ export const processDCAExecution = async (
       },
     });
 
-    const nbOfExecutions = await prisma.dCAExecution.count({
-      where: {
-        dCAId: id,
-      },
-    });
-
-    if (dca.nbOfDCA === nbOfExecutions) updateDCAStatus(id, Status.ENDED);
+    if (
+      dca.endTime.getTime() !== dca.startTime.getTime() &&
+      dca.endTime.getTime() < Date.now()
+    )
+      updateDCAStatus(id, Status.ENDED);
   }
 };
 
