@@ -10,11 +10,15 @@ import {
 } from "./src/tradingview";
 import apicache from "apicache";
 
-// Start TRPC server
+const cache = apicache.options({
+  headers: {
+    "cache-control": "no-cache",
+  },
+}).middleware;
 
 const app = express();
 app.use(cors());
-app.use(apicache.middleware("5 minutes"));
+app.use(cache("5 minutes"));
 app.use("/trpc", expressMiddleware);
 
 // Health check
