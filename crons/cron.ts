@@ -8,11 +8,13 @@ import { EVERY_TICK, getClosestTick } from "../common/utils";
 const fillAnalytics = async () => {
   logger.silly(`[${new Date().toISOString()}]: running the analytics task`);
 
-  const pools = await prisma.pool.findMany();
+  const pools = await prisma.pool.findMany({
+    include: { token0: true, token1: true },
+  });
   pools.forEach(async (pool) => {
-    await fetchNewAnalytics(pool.address, pool.binStep).catch((e) =>
-      logger.warn(e)
-    );
+    await fetchNewAnalytics(pool).catch((e) => {
+      logger.warn(e.message);
+    });
   });
 };
 

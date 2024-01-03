@@ -20,7 +20,7 @@ import {
 } from "@dusalabs/sdk";
 import { prisma } from "./db";
 import { createAnalytic } from "../indexer/src/db";
-import { DCA, Status } from "@prisma/client";
+import { DCA, Prisma, Status } from "@prisma/client";
 import { TIME_BETWEEN_TICKS } from "./utils";
 import { decodeDcaTx } from "../indexer/src/decoder";
 
@@ -190,13 +190,13 @@ export const fetchTokenFromAddress = async (
 };
 
 export const fetchNewAnalytics = async (
-  poolAddress: string,
-  binStep: number
+  pool: Prisma.PoolGetPayload<{ include: { token0: true; token1: true } }>
 ) => {
+  const { address: poolAddress, binStep } = pool;
+  const [token0, token1] = [pool.token0, pool.token1].map((token) => {
+    return new Token(CHAIN_ID, token.address, token.decimals);
+  });
   const pairInfo = await PairV2.getLBPairReservesAndId(poolAddress, web3Client);
-
-  const tokens = await new ILBPair(poolAddress, web3Client).getTokens();
-  const [token0, token1] = await Promise.all(tokens.map(getTokenFromAddress));
 
   const { reserveX: token0Locked, reserveY: token1Locked } = pairInfo;
   const usdLocked = await calculateUSDLocked(

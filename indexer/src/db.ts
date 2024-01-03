@@ -69,13 +69,15 @@ export const findDCA = async (id: number) =>
   });
 
 export const createDCA = async (dca: DCA) =>
-  await prisma.dCA.create({
-    data: {
-      ...dca,
-      userAddress: undefined,
-      User: coc(dca.userAddress),
-    },
-  });
+  await prisma.dCA
+    .create({
+      data: {
+        ...dca,
+        userAddress: undefined,
+        User: coc(dca.userAddress),
+      },
+    })
+    .catch(() => logger.warn("createDCA failed", dca));
 
 export const updateDCAStatus = async (id: number, status: Status) => {
   await prisma.dCA.update({
