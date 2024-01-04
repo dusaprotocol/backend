@@ -103,29 +103,39 @@ const generateDataset = async (poolAddress: string) => {
     pool.address,
     web3Client
   );
-  const price = adjustPrice(
+  let prevPrice = adjustPrice(
     getPriceFromId(pairInfo.activeId, pool.binStep),
     pool.token0.decimals,
     pool.token1.decimals
   );
 
   const data: Prisma.AnalyticsCreateManyArgs["data"] = [];
-  let prevPrice = price;
-
   for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
     const date = getClosestTick(Date.now() - i * TIME_BETWEEN_TICKS);
+    if (prevPrice === 1) {
+      data.push({
+        poolAddress: pool.address,
+        token0Locked: "0",
+        token1Locked: "0",
+        usdLocked: 0,
+        close: 1,
+        high: 1,
+        low: 1,
+        open: 1,
+        date,
+        fees: 0,
+        volume: 0,
+      });
+      continue;
+    }
 
-    const price = prevPrice * (1 + Math.random() * 0.02 - 0.01);
+    const price = prevPrice * (1 + rand());
     const open = price;
     const close = prevPrice;
-    const high =
-      Math.random() > 0.5
-        ? Math.max(prevPrice, price) * (1 + Math.random() * 0.05)
-        : Math.max(prevPrice, price);
-    const low =
-      Math.random() > 0.5
-        ? Math.min(prevPrice, price) * (1 - Math.random() * 0.05)
-        : Math.min(prevPrice, price);
+    const max = Math.max(prevPrice, price);
+    const min = Math.min(prevPrice, price);
+    const high = Math.random() > 0.5 ? max * (1 + rand()) : max;
+    const low = Math.random() > 0.5 ? min * (1 - rand()) : min;
     prevPrice = price;
 
     data.push({
@@ -149,12 +159,8 @@ const generateDataset = async (poolAddress: string) => {
     .catch(console.error);
 };
 
+const rand = () => Math.random() * 0.02 - 0.01;
+
 (async () => {
-  // // pool Aya
-  // const pair = {
-  //   address: "AS1sBxofCbHKS2c1y6FqBk48YfQvT46ZdxBzzW5rZB12zpdHCkS3",
-  //   binStep: 20,
-  // };
-  // createPair(pair).then(() => generateDataset(pair.address));
   createPools();
 })();
