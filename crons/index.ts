@@ -1,3 +1,7 @@
-import { analyticsCron } from "./cron";
+import { prisma } from "../common/db";
+import { fillAnalytics } from "./cron";
 
-analyticsCron.start();
+(async () => {
+  await fillAnalytics();
+  prisma.$disconnect();
+})();

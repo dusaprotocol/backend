@@ -5,7 +5,7 @@ import { fetchNewAnalytics } from "../common/methods";
 import { Pool, Prisma } from "@prisma/client";
 import { EVERY_TICK, getClosestTick } from "../common/utils";
 
-const fillAnalytics = async () => {
+export const fillAnalytics = async () => {
   logger.silly(`[${new Date().toISOString()}]: running the analytics task`);
 
   const pools = await prisma.pool.findMany({
@@ -17,8 +17,3 @@ const fillAnalytics = async () => {
     });
   });
 };
-
-if (!cron.validate(EVERY_TICK)) throw new Error("Invalid cron expression");
-export const analyticsCron = cron.schedule(EVERY_TICK, fillAnalytics, {
-  scheduled: false,
-});
