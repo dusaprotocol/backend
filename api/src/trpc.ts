@@ -50,10 +50,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         address: z.string(),
-        take: z.union([
-          z.literal(7 * TICKS_PER_DAY),
-          z.literal(30 * TICKS_PER_DAY),
-        ]),
+        take: z.union([z.literal(7), z.literal(30)]),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -70,7 +67,7 @@ export const appRouter = t.router({
           orderBy: {
             date: "desc",
           },
-          take,
+          take: take * TICKS_PER_DAY,
         })
         .then((analytics) => {
           if (analytics.length === 0) return [];
@@ -113,10 +110,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         address: z.string(),
-        take: z.union([
-          z.literal(7 * TICKS_PER_DAY),
-          z.literal(30 * TICKS_PER_DAY),
-        ]),
+        take: z.union([z.literal(7), z.literal(30)]),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -133,7 +127,7 @@ export const appRouter = t.router({
           orderBy: {
             date: "desc",
           },
-          take,
+          take: take * TICKS_PER_DAY,
         })
         .then((analytics) => {
           if (analytics.length === 0) return [];
@@ -369,7 +363,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         poolAddress: z.string(),
-        take: z.number(),
+        take: z.number().lte(100),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -393,7 +387,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         poolAddress: z.string(),
-        take: z.number(),
+        take: z.number().lte(100),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -417,11 +411,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         poolAddress: z.string(),
-        take: z.union([
-          z.literal(1 * TICKS_PER_DAY),
-          z.literal(7 * TICKS_PER_DAY),
-          z.literal(30 * TICKS_PER_DAY),
-        ]),
+        take: z.union([z.literal(1), z.literal(7), z.literal(30)]),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -441,7 +431,7 @@ export const appRouter = t.router({
           orderBy: {
             date: "desc",
           },
-          take,
+          take: take * TICKS_PER_DAY,
         })
         .then((prices) => {
           const res: Price[] = [];
@@ -450,9 +440,9 @@ export const appRouter = t.router({
           // if take is 7 days, we want 4 points per day (28 total)
           // if take is 30 days, we want 1 point per day (30 total)
           const threshold =
-            take === 1 * TICKS_PER_DAY
+            take === 1
               ? TICKS_PER_DAY / 24
-              : take === 7 * TICKS_PER_DAY
+              : take === 7
               ? (7 * TICKS_PER_DAY) / 28
               : (30 * TICKS_PER_DAY) / 30;
 
@@ -523,26 +513,38 @@ export const appRouter = t.router({
           return [];
         });
     }),
-  getGlobalMetrics: t.procedure
-    .input(
-      z.object({ take: z.union([z.literal(1), z.literal(7), z.literal(30)]) })
-    )
-    // .output(z.object({ volume: z.number() }))
+  getGlobalVolume: t.procedure
+    .input(z.object({ take: z.union([z.literal(7), z.literal(30)]) }))
     .query(async ({ input, ctx }) => {
       const { take } = input;
-      const x = await ctx.prisma.analytics.groupBy({
-        by: "poolAddress",
-        _sum: {
-          volume: true,
-          fees: true,
-        },
-        where: {
-          date: {
-            gt: new Date(Date.now() - ONE_DAY * take),
-          },
-        },
-      });
-      return x;
+      // return ctx.prisma.analytics
+      //   .aggregate({
+      //     _sum: {
+      //       volume: true,
+      //       fees: true,
+      //     },
+      //     where: {
+      //       date: {
+      //         gt: new Date(Date.now() - ONE_DAY * take),
+      //       },
+      //     },
+      //   })
+      //   .then((res) => {
+      //     return {
+      //       volume: res._sum.volume || 0,
+      //       fees: res._sum.fees || 0,
+      //     };
+      //   });
+      return ctx.prisma.$queryRaw<
+        Volume & { poolAddress: string }
+      >`SELECT SUM(volume), DATE(date), poolAddress FROM Analytics GROUP BY DATE(Analytics.date), poolAddress;`;
+    }),
+  getGlobalTVL: t.procedure
+    .input(z.object({ take: z.union([z.literal(7), z.literal(30)]) }))
+    .query(async ({ input, ctx }) => {
+      const { take } = input;
+      return ctx.prisma
+        .$queryRaw`SELECT SUM(volume), DATE(date), poolAddress FROM Analytics GROUP BY DATE(Analytics.date), poolAddress;`;
     }),
   getTokenValue: t.procedure
     .input(
