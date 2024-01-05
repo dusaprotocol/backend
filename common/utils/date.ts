@@ -37,7 +37,7 @@ export const parseTimestamp = (
   };
 };
 
-export const genesisTimestamp = 1689847403682;
+export const genesisTimestamp = 1704289800000;
 
 export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
   if (!event.context) return new Date();
