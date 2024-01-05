@@ -10,8 +10,4 @@
       "target": "es2022",
     },
     "experimentalDecorators": true,
-    "ts-node": {
-      "esm": true,
-      "experimentalSpecifierResolution": "node"
-    }
   }

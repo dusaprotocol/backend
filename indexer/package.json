@@ -5,8 +5,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node main.ts",
-    "dev": "nodemon main.ts",
+    "start": "tsx main.ts",
+    "dev": "tsx watch main.ts",
     "postinstall": "buf generate"
   },
   "dependencies": {
