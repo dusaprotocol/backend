@@ -9,6 +9,13 @@ import { getTokenAddressValue, getTokenValue } from "../../common/methods";
 import { Token } from "@dusalabs/sdk";
 import { CHAIN_ID } from "../../common/client";
 
+const DayWindow = z.union([
+  z.literal(7),
+  z.literal(30),
+  z.literal(90),
+  z.literal(180),
+]);
+
 type Volume = Prisma.AnalyticsGetPayload<{
   select: {
     volume: true;
@@ -50,7 +57,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         address: z.string(),
-        take: z.union([z.literal(7), z.literal(30)]),
+        take: DayWindow,
       })
     )
     .query(async ({ input, ctx }) => {
@@ -110,7 +117,7 @@ export const appRouter = t.router({
     .input(
       z.object({
         address: z.string(),
-        take: z.union([z.literal(7), z.literal(30)]),
+        take: DayWindow,
       })
     )
     .query(async ({ input, ctx }) => {
@@ -514,37 +521,80 @@ export const appRouter = t.router({
         });
     }),
   getGlobalVolume: t.procedure
-    .input(z.object({ take: z.union([z.literal(7), z.literal(30)]) }))
+    .input(z.object({ take: DayWindow }))
     .query(async ({ input, ctx }) => {
       const { take } = input;
-      // return ctx.prisma.analytics
-      //   .aggregate({
-      //     _sum: {
-      //       volume: true,
-      //       fees: true,
-      //     },
-      //     where: {
-      //       date: {
-      //         gt: new Date(Date.now() - ONE_DAY * take),
-      //       },
-      //     },
-      //   })
-      //   .then((res) => {
-      //     return {
-      //       volume: res._sum.volume || 0,
-      //       fees: res._sum.fees || 0,
-      //     };
-      //   });
-      return ctx.prisma.$queryRaw<
-        Volume & { poolAddress: string }
-      >`SELECT SUM(volume), DATE(date), poolAddress FROM Analytics GROUP BY DATE(Analytics.date), poolAddress;`;
+      return ctx.prisma.$queryRaw`
+          SELECT SUM(volume) as volume, DATE(date) as date
+          FROM Analytics
+          WHERE date > DATE_SUB(NOW(), INTERVAL ${take} DAY)
+          GROUP BY DATE(Analytics.date);`;
     }),
   getGlobalTVL: t.procedure
-    .input(z.object({ take: z.union([z.literal(7), z.literal(30)]) }))
+    .input(z.object({ take: DayWindow }))
     .query(async ({ input, ctx }) => {
       const { take } = input;
-      return ctx.prisma
-        .$queryRaw`SELECT SUM(volume), DATE(date), poolAddress FROM Analytics GROUP BY DATE(Analytics.date), poolAddress;`;
+      return ctx.prisma.$queryRaw`
+        SELECT date, SUM(usdLocked) AS usdLocked
+        FROM (
+          SELECT date, poolAddress, usdLocked, ROW_NUMBER() OVER (PARTITION BY poolAddress, DATE(date) ORDER BY date DESC) as rn
+          FROM Analytics
+        ) AS ranked
+        WHERE rn = 1
+        GROUP BY date;`;
+    }),
+  getDashboard: t.procedure
+    .input(z.object({}).optional())
+    .query(async ({ input, ctx }) => {
+      // WALLETS
+      const uniqueWallets = await ctx.prisma.$queryRaw<
+        { count: number }[]
+      >`SELECT COUNT(DISTINCT address) as count FROM User;`.then(
+        (res) => res[0].count
+      );
+
+      // VOLUME/FEES
+      const { volume: totalVolume, fees: totalFees } = await getVolumeFees();
+      const { volume: weeklyVolume, fees: weeklyFees } = await getVolumeFees(
+        new Date(Date.now() - ONE_DAY * 7)
+      );
+      const { volume: dailyVolume, fees: dailyFees } = await getVolumeFees(
+        new Date(Date.now() - ONE_DAY)
+      );
+
+      // TVL
+      const totalTVL = await ctx.prisma.$queryRaw<{ totalTVL: number }[]>`
+        SELECT SUM(sub.usdLocked) AS totalTVL
+        FROM (
+            SELECT poolAddress, usdLocked
+            FROM Analytics
+            WHERE (poolAddress, date) IN (
+                SELECT poolAddress, MAX(date) AS latest_date
+                FROM Analytics
+                GROUP BY poolAddress
+            )
+        ) AS sub;
+      `.then((res) => res[0].totalTVL);
+      const athTVL = await ctx.prisma.$queryRaw<{ athTVL: number }[]>`
+      SELECT MAX(daily_sum_usdLocked) AS athTVL
+FROM (
+    SELECT date, SUM(usdLocked) AS daily_sum_usdLocked
+    FROM Analytics
+    GROUP BY date
+) AS sub;
+      `.then((res) => res[0].athTVL);
+
+      return {
+        uniqueWallets,
+        athTVL,
+        totalTVL,
+        totalVolume,
+        totalFees,
+        weeklyVolume,
+        weeklyFees,
+        dailyVolume,
+        dailyFees,
+      };
     }),
   getTokenValue: t.procedure
     .input(
@@ -564,9 +614,31 @@ export const appRouter = t.router({
       const { tokenAddress, tokenDecimals } = input;
       // const token = new Token(CHAIN_ID, tokenAddress, tokenDecimals);
       // return getTokenValue(tokenAddress, tokenDecimals);
+      return 1;
       return getTokenAddressValue(tokenAddress);
     }),
 });
+
+const getVolumeFees = async (date?: Date) => {
+  return prisma.analytics
+    .aggregate({
+      _sum: {
+        volume: true,
+        fees: true,
+      },
+      where: {
+        date: {
+          gt: date,
+        },
+      },
+    })
+    .then((res) => {
+      return {
+        volume: res._sum.volume || 0,
+        fees: res._sum.fees || 0,
+      };
+    });
+};
 
 export const expressMiddleware = trpcExpress.createExpressMiddleware({
   router: appRouter,
