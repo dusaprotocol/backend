@@ -7,8 +7,6 @@ import {
 } from "./decoder";
 import { Args, ArrayTypes } from "@massalabs/massa-web3";
 import { Address } from "@dusalabs/sdk";
-import { CHAIN_ID, web3Client } from "../../common/client";
-import { ONE_MINUTE, convertMsToSec } from "../../common/utils";
 import { WMAS, USDC } from "../../common/contracts";
 import { swapParams, swapOptions, bestTrade } from "./__tests__/placeholder";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
@@ -46,6 +44,7 @@ const params = new Args()
   .serialize();
 
 describe("tx decoder", () => {
+  const toSec = (ms: number) => Math.floor(ms / 1000);
   it("should decode a simple swap", async () => {
     const decoded = decodeSwapTx(
       "swapExactTokensForTokens",
@@ -58,8 +57,8 @@ describe("tx decoder", () => {
     expect(decoded.path).toStrictEqual(
       bestTrade.route.pathToStrArr().map((str) => new Address(str))
     );
-    expect(convertMsToSec(decoded.deadline)).toStrictEqual(
-      convertMsToSec(Date.now() + swapOptions.ttl)
+    expect(toSec(decoded.deadline)).toStrictEqual(
+      toSec(Date.now() + swapOptions.ttl)
     );
     expect(decoded.to).toStrictEqual(swapOptions.recipient);
   });
