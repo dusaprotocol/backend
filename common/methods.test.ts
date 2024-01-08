@@ -55,4 +55,28 @@ describe("isEvent", () => {
 
     expect(isLiquidityEvent(event, poolAddress)).toBe(true);
   });
+  it("returns true for add liquidity event", () => {
+    const poolAddress = "0x";
+    const event: IEvent = {
+      context: {
+        ...context,
+        call_stack: [poolAddress],
+      },
+      data: "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391258,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+    };
+
+    expect(isLiquidityEvent(event, poolAddress)).toBe(true);
+  });
+  it("returns true for remove liquidity event", () => {
+    const poolAddress = "0x";
+    const event: IEvent = {
+      context: {
+        ...context,
+        call_stack: [poolAddress],
+      },
+      data: "SWAP:AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar,8391258,true,䄥\x0F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,௟\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,0,ě\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+    };
+
+    expect(isLiquidityEvent(event, poolAddress)).toBe(false);
+  });
 });

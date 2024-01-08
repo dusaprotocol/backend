@@ -34,7 +34,7 @@ export const getCallee = (callStack: string[]): string => {
 export const isLiquidityEvent = (event: IEvent, poolAddress: string): boolean =>
   getCallee(event.context.call_stack) === poolAddress &&
   (event.data.startsWith("WITHDRAWN_FROM_BIN:") ||
-    event.data.startsWith("DEPOSITED_INTO_BIN:"));
+    event.data.startsWith("DEPOSITED_TO_BIN:"));
 
 export const isSwapEvent = (event: IEvent, poolAddress: string): boolean =>
   getCallee(event.context.call_stack) === poolAddress &&
