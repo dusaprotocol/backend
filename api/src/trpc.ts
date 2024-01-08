@@ -540,18 +540,15 @@ export const appRouter = t.router({
           SELECT date, poolAddress, usdLocked, ROW_NUMBER() OVER (PARTITION BY poolAddress, DATE(date) ORDER BY date DESC) as rn
           FROM Analytics
         ) AS ranked
-        WHERE rn = 1
+        WHERE rn = 1 AND date > DATE_SUB(NOW(), INTERVAL ${take} DAY)
         GROUP BY date;`;
     }),
   getDashboard: t.procedure
     .input(z.object({}).optional())
     .query(async ({ input, ctx }) => {
       // WALLETS
-      const uniqueWallets = await ctx.prisma.$queryRaw<
-        { count: number }[]
-      >`SELECT COUNT(DISTINCT address) as count FROM User;`.then(
-        (res) => res[0].count
-      );
+
+      const uniqueWallets = 0; //swapWallets + liquidityWallets;
 
       // VOLUME/FEES
       const { volume: totalVolume, fees: totalFees } = await getVolumeFees();
