@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   '@dusalabs/sdk':
-    specifier: ^0.4.18
-    version: 0.4.18
+    specifier: ^0.4.19
+    version: 0.4.19
   '@massalabs/massa-web3':
     specifier: 3.0.2
     version: 3.0.2
@@ -60,8 +60,8 @@ packages:
       kuler: 2.0.0
     dev: false
 
-  /@dusalabs/sdk@0.4.18:
-    resolution: {integrity: sha512-uqd8VJJnvZlRtv9F6/ZhGwgiq68Dn1QW/C73qjJ9BPvPIAKhz64xyR64WGPHwNA01mUgMPeF9dn+Eqw/F0KOzQ==}
+  /@dusalabs/sdk@0.4.19:
+    resolution: {integrity: sha512-W22MO4vYOcn9QyJ9ucnPzkwgR6c5IVXF9o7tELRWbhbHEgCSDwWvvyqjuVPgny12A2CNp9sE4wAy8pE+VZKlng==}
     engines: {node: '>=10'}
     dependencies:
       '@massalabs/massa-web3': 3.0.2
