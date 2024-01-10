@@ -60,13 +60,8 @@ packages:
       kuler: 2.0.0
     dev: false
 
-<<<<<<< Updated upstream
-  /@dusalabs/sdk@0.4.21:
-    resolution: {integrity: sha512-MsiIdynXoBNazjhGARmpxXyRYtIsBzqhx/O7Xn+bshzPGJ5M7NF304Hv72gTHkhaCctTYamTlnsGlMfsqV1kug==}
-=======
   /@dusalabs/sdk@0.4.23:
     resolution: {integrity: sha512-k9FNhClLPuQp3ohWjXmxAUceHqqMWR/hljMkzLstA6iJ7feZIQGnND6OM+yQ/xRly+AcaFYDxoJj9YiDHLQHBw==}
->>>>>>> Stashed changes
     engines: {node: '>=10'}
     dependencies:
       '@massalabs/massa-web3': 3.0.2
