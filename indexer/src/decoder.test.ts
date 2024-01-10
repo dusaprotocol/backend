@@ -8,7 +8,14 @@ import {
 import { Args, ArrayTypes } from "@massalabs/massa-web3";
 import { Address } from "@dusalabs/sdk";
 import { WMAS, USDC } from "../../common/contracts";
-import { swapParams, swapOptions, bestTrade } from "./__tests__/placeholder";
+import {
+  swapParams,
+  swapOptions,
+  bestTrade,
+  swapEvents,
+  withdrawEvents,
+  depositEvents,
+} from "./__tests__/placeholder";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
 
 const inputToken = USDC;
@@ -132,12 +139,6 @@ describe("tx decoder", () => {
 });
 describe("event decoder", () => {
   it("should decode a simple swap", async () => {
-    const swapEvents = [
-      "SWAP:AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar,8391258,true,䄥\x0F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,௟\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,0,ě\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-      "SWAP:AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar,8391259,true,䄥\x0F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,௟\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,0,ě\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-      "SWAP:AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar,8391260,true,䄥\x0F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,௟\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,0,ě\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-    ];
-
     const decoded = decodeSwapEvents(swapEvents);
 
     expect(decoded.feesIn).toStrictEqual(283n * 3n);
@@ -146,13 +147,7 @@ describe("event decoder", () => {
     expect(decoded.binId).toStrictEqual(8391260);
   });
   it("should decode events for a simple add liquidity ", async () => {
-    const liqEvents = [
-      "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391258,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
-      "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391259,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
-      "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391260,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
-    ];
-
-    const decoded = decodeLiquidityEvents(liqEvents);
+    const decoded = decodeLiquidityEvents(depositEvents);
 
     expect(decoded.amountX).toStrictEqual(917501n * 3n);
     expect(decoded.amountY).toStrictEqual(4561880455n * 3n);
@@ -160,13 +155,7 @@ describe("event decoder", () => {
     expect(decoded.lowerBound).toStrictEqual(8391258);
   });
   it("should decode events for a simple remove liquidity MAS ", async () => {
-    const liqEvents = [
-      "WITHDRAWN_FROM_BIN:AS1YqRd4gDMaJ1Udkd1TsMFXEhAbaRoQvMURPgHYs9w8zc1egrNQ,8391239,\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,�ٌ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-      "WITHDRAWN_FROM_BIN:AS1YqRd4gDMaJ1Udkd1TsMFXEhAbaRoQvMURPgHYs9w8zc1egrNQ,8391245,\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,ᆤِ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-      "WITHDRAWN_FROM_BIN:AS1YqRd4gDMaJ1Udkd1TsMFXEhAbaRoQvMURPgHYs9w8zc1egrNQ,8391259,債捗\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-    ];
-
-    const decoded = decodeLiquidityEvents(liqEvents);
+    const decoded = decodeLiquidityEvents(withdrawEvents);
 
     expect(decoded.upperBound).toStrictEqual(8391259);
     expect(decoded.lowerBound).toStrictEqual(8391239);
