@@ -101,14 +101,12 @@ export async function handleNewOperations(message: NewOperationsResponse) {
     if (targetAddress === dcaSC) {
       switch (targetFunction) {
         case "startDCA": {
-          const dca = decodeDcaTx(parameter);
-
-          const event = events.find((e) =>
-            e.data.startsWith("DCA_ADDED:")
-          )?.data;
+          const event = events.find((e) => e.data.startsWith("DCA_ADDED:"));
           if (!event) return;
 
-          const id = EventDecoder.decodeDCA(event).id;
+          const dca = decodeDcaTx(parameter);
+
+          const id = EventDecoder.decodeDCA(event.data).id;
           if (!dca || !id) return;
 
           createDCA({ ...dca, userAddress, txHash, id, status: "ACTIVE" });

@@ -9,7 +9,10 @@ import {
 } from "./methods";
 import { WETH as _WETH, WBTC as _WBTC, USDT as _USDT } from "@dusalabs/sdk";
 import { describe, expect, it } from "vitest";
-import { withdrawEvents } from "../indexer/src/__tests__/placeholder";
+import {
+  swapEvents,
+  withdrawEvents,
+} from "../indexer/src/__tests__/placeholder";
 
 describe("getTokenValue", () => {
   it("returns 1 for USDC", async () => {
@@ -75,7 +78,7 @@ describe("isEvent", () => {
         ...context,
         call_stack: [poolAddress],
       },
-      data: "SWAP:AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar,8391258,true,䄥\x0F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,௟\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,0,ě\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+      data: swapEvents[0],
     };
 
     expect(isLiquidityEvent(event, poolAddress)).toBe(false);
