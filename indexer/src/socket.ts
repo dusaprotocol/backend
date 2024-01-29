@@ -4,25 +4,37 @@ import {
   fetchDCA,
   getBinStep,
   getCallee,
+  getDatastoreKeys,
   getPriceFromId,
   getTokenFromAddress,
   getTokenValue,
   sortTokens,
   toFraction,
 } from "../../common/methods";
-import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
-import { EventDecoder, ILBPair, TokenAmount } from "@dusalabs/sdk";
+import {
+  SwapParams,
+  decodeLiquidityEvents,
+  decodeSwapBins,
+  decodeSwapEvents,
+} from "./decoder";
+import { EventDecoder, Fraction, ILBPair, TokenAmount } from "@dusalabs/sdk";
 import {
   createSwap,
   createLiquidity,
   createDCA,
   findDCA,
   updateDCAStatus,
+  updateMakerFees,
 } from "./db";
 import { web3Client } from "../../common/client";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
-import { bytesToStr } from "@massalabs/massa-web3";
+import {
+  Args,
+  bytesToStr,
+  bytesToU256,
+  strToBytes,
+} from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
@@ -72,7 +84,7 @@ export const processSwap = async (params: {
   const { txHash, userAddress, timestamp, poolAddress, swapEvents, indexInSlot } = params;
   const swapPayload = decodeSwapEvents(swapEvents);
 
-  const { volume, fees } = await calculateSwapValue({
+  const { volume, fees, priceAdjusted } = await calculateSwapValue({
     ...params,
     ...swapPayload,
   });
@@ -89,6 +101,43 @@ export const processSwap = async (params: {
     amountIn: swapPayload.amountIn.toString(),
     amountOut: swapPayload.amountOut.toString(),
     feesIn: swapPayload.feesIn.toString(),
+  });
+
+  const crossedBins = decodeSwapBins(swapEvents);
+  const pair = new ILBPair(poolAddress, web3Client);
+  crossedBins.forEach(async (binId) => {
+    const binSupply = await pair.getSupplies([binId]).then((r) => r[0]);
+    const makers = await getDatastoreKeys(poolAddress).then((r) =>
+      r
+        .filter((k) => k.startsWith(`balances::${binId}`)) // only user addresses, no smart contracts
+        .map((k) => k.split(`::${binId}`)[1])
+    );
+    const balances = await pair.balanceOfBatch(
+      makers,
+      Array.from({ length: makers.length }, () => binId)
+    );
+    makers.forEach(async (maker, i) => {
+      const share = new Fraction(balances[i] * 100n).divide(binSupply);
+      const shareFormatted = Number(
+        new Fraction(balances[i] * 100n).divide(binSupply).toSignificant(6)
+      );
+
+      const accruedFeesX = swapPayload.swapForY ? swapPayload.feesIn : 0n;
+      const accruedFeesY = swapPayload.swapForY ? 0n : swapPayload.feesIn;
+      const price = getPriceFromId(binId, params.binStep);
+      const accruedFeesL = swapPayload.swapForY
+        ? new Fraction(accruedFeesX).multiply(toFraction(price)).quotient
+        : accruedFeesY;
+      //console.log({ accruedFeesL, accruedFeesX, accruedFeesY });
+      await updateMakerFees({
+        accruedFeesL: accruedFeesL.toString(),
+        accruedFeesUSD: 0,
+        accruedFeesX: accruedFeesX.toString(),
+        accruedFeesY: accruedFeesY.toString(),
+        address: maker,
+        poolAddress,
+      });
+    });
   });
 };
 

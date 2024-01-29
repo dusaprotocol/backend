@@ -196,7 +196,10 @@ export const fetchNewAnalytics = async (
   const [token0, token1] = [pool.token0, pool.token1].map((token) => {
     return new Token(CHAIN_ID, token.address, token.decimals);
   });
-  const pairInfo = await PairV2.getLBPairReservesAndId(poolAddress, web3Client);
+  const pairInfo = await new ILBPair(
+    poolAddress,
+    web3Client
+  ).getReservesAndId();
 
   const { reserveX: token0Locked, reserveY: token1Locked } = pairInfo;
   const usdLocked = await calculateUSDLocked(
@@ -303,6 +306,14 @@ export const calculateUSDLocked = async (
     .toSignificant(6);
   return Number(usdLocked);
 };
+
+export const getDatastoreKeys = async (address: string): Promise<string[]> =>
+  web3Client
+    .publicApi()
+    .getAddresses([address])
+    .then((r) =>
+      r[0].candidate_datastore_keys.map((v) => String.fromCharCode(...v))
+    );
 
 // TESTING PURPOSE
 
