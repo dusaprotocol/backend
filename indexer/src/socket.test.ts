@@ -4,6 +4,7 @@ import * as Methods from "../../common/methods";
 import * as db from "./db";
 import {
   IFactory,
+  ILBPair,
   PairV2,
   REAL_ID_SHIFT,
   WBTC,
@@ -80,10 +81,9 @@ describe("helpers", async () => {
     inputToken.address,
     binStep
   );
-  const activeId = await PairV2.getLBPairReservesAndId(
-    poolAddress,
-    web3Client
-  ).then((res) => res.activeId);
+  const activeId = await new ILBPair(poolAddress, web3Client)
+    .getReservesAndId()
+    .then((res) => res.activeId);
 
   // const getOppositeBinId = (binId: number) => REAL_ID_SHIFT * 2 - binId;
 
@@ -91,8 +91,8 @@ describe("helpers", async () => {
     const tokenIn = inputToken; // USDC
     const tokenOut = outputToken; // MAS
     const params: Parameters<typeof Socket.calculateSwapValue>["0"] = {
-      tokenInAddress: tokenIn.address,
-      tokenOutAddress: tokenOut.address,
+      tokenIn: tokenIn,
+      tokenOut: tokenOut,
       binStep,
       amountIn: parseUnits("1", tokenIn.decimals),
       feesIn: parseUnits("0.01", tokenIn.decimals),
@@ -119,8 +119,8 @@ describe("helpers", async () => {
     const tokenIn = outputToken; // MAS
     const tokenOut = inputToken; // USDC
     const params: Parameters<typeof Socket.calculateSwapValue>["0"] = {
-      tokenInAddress: tokenIn.address,
-      tokenOutAddress: tokenOut.address,
+      tokenIn: tokenIn,
+      tokenOut: tokenOut,
       binStep,
       amountIn: parseUnits("1", tokenIn.decimals),
       feesIn: parseUnits("0.01", tokenIn.decimals),

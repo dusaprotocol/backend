@@ -17,7 +17,13 @@ import {
   decodeSwapBins,
   decodeSwapEvents,
 } from "./decoder";
-import { EventDecoder, Fraction, ILBPair, TokenAmount } from "@dusalabs/sdk";
+import {
+  EventDecoder,
+  Fraction,
+  ILBPair,
+  Token,
+  TokenAmount,
+} from "@dusalabs/sdk";
 import {
   createSwap,
   createLiquidity,
@@ -84,7 +90,16 @@ export const processSwap = async (params: {
   const { txHash, userAddress, timestamp, poolAddress, swapEvents, indexInSlot } = params;
   const swapPayload = decodeSwapEvents(swapEvents);
 
+  const [tokenIn, tokenOut] = await Promise.all(
+    [params.tokenInAddress, params.tokenOutAddress].map((address) =>
+      getTokenFromAddress(address)
+    )
+  );
+  const [_, tokenY] = sortTokens(tokenIn, tokenOut);
+
   const { volume, fees, priceAdjusted } = await calculateSwapValue({
+    tokenIn,
+    tokenOut,
     ...params,
     ...swapPayload,
   });
@@ -116,22 +131,28 @@ export const processSwap = async (params: {
       makers,
       Array.from({ length: makers.length }, () => binId)
     );
+    const tokenYValue = await getTokenValue(tokenY);
     makers.forEach(async (maker, i) => {
-      const share = new Fraction(balances[i] * 100n).divide(binSupply);
+      const share = new Fraction(balances[i]).divide(binSupply);
       const shareFormatted = Number(
-        new Fraction(balances[i] * 100n).divide(binSupply).toSignificant(6)
+        new Fraction(balances[i]).divide(binSupply).toSignificant(6)
       );
+      const accruedFees = share.multiply(swapPayload.feesIn).quotient;
 
-      const accruedFeesX = swapPayload.swapForY ? swapPayload.feesIn : 0n;
-      const accruedFeesY = swapPayload.swapForY ? 0n : swapPayload.feesIn;
+      const accruedFeesX = swapPayload.swapForY ? accruedFees : 0n;
+      const accruedFeesY = swapPayload.swapForY ? 0n : accruedFees;
       const price = getPriceFromId(binId, params.binStep);
       const accruedFeesL = swapPayload.swapForY
         ? new Fraction(accruedFeesX).multiply(toFraction(price)).quotient
         : accruedFeesY;
-      //console.log({ accruedFeesL, accruedFeesX, accruedFeesY });
+      const accruedFeesUSD = Number(
+        new TokenAmount(tokenY, accruedFeesL)
+          .multiply(toFraction(tokenYValue))
+          .toSignificant(6)
+      );
       await updateMakerFees({
         accruedFeesL: accruedFeesL.toString(),
-        accruedFeesUSD: 0,
+        accruedFeesUSD,
         accruedFeesX: accruedFeesX.toString(),
         accruedFeesY: accruedFeesY.toString(),
         address: maker,
@@ -140,6 +161,8 @@ export const processSwap = async (params: {
     });
   });
 };
+
+export const processRewards = async (params: {}) => {};
 
 export const processLiquidity = async (params: {
   txHash: string;
@@ -174,17 +197,16 @@ export const processLiquidity = async (params: {
 };
 
 export const calculateSwapValue = async (params: {
-  tokenInAddress: string;
-  tokenOutAddress: string;
+  tokenIn: Token;
+  tokenOut: Token;
   binStep: number;
   amountIn: bigint;
   feesIn: bigint;
   binId: number;
 }) => {
   // prettier-ignore
-  const { tokenInAddress, tokenOutAddress, binStep, amountIn, feesIn, binId } = params;
-  const tokenIn = await getTokenFromAddress(tokenInAddress);
-  const tokenOut = await getTokenFromAddress(tokenOutAddress);
+  const { tokenIn, tokenOut, binStep, amountIn, feesIn, binId } = params;
+
   const [token0, token1] = sortTokens(tokenIn, tokenOut);
   const price = getPriceFromId(binId, binStep);
   const priceAdjusted = adjustPrice(price, token0.decimals, token1.decimals);
