@@ -16,7 +16,6 @@ import {
   withdrawEvents,
   depositEvents,
 } from "./__tests__/placeholder";
-import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
 
 const inputToken = USDC;
 const outputToken = WMAS;
@@ -146,7 +145,7 @@ describe("event decoder", () => {
     expect(decoded.amountOut).toStrictEqual(199222843n * 3n);
     expect(decoded.binId).toStrictEqual(8391260);
   });
-  it("should decode events for a simple add liquidity ", async () => {
+  it("should decode events for a simple add liquidity", async () => {
     const decoded = decodeLiquidityEvents(depositEvents);
 
     expect(decoded.amountX).toStrictEqual(917501n * 3n);
@@ -154,7 +153,7 @@ describe("event decoder", () => {
     expect(decoded.upperBound).toStrictEqual(8391260);
     expect(decoded.lowerBound).toStrictEqual(8391258);
   });
-  it("should decode events for a simple remove liquidity MAS ", async () => {
+  it("should decode events for a simple remove liquidity MAS", async () => {
     const decoded = decodeLiquidityEvents(withdrawEvents);
 
     expect(decoded.upperBound).toStrictEqual(8391259);

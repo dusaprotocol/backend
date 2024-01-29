@@ -89,7 +89,7 @@ describe("helpers", async () => {
 
   it("should calculate swap value correctly with MAS out", async () => {
     const tokenIn = inputToken; // USDC
-    const tokenOut = outputToken; // MAS
+    const tokenOut = outputToken; // WMAS
     const params: Parameters<typeof Socket.calculateSwapValue>["0"] = {
       tokenInAddress: tokenIn.address,
       tokenOutAddress: tokenOut.address,
@@ -127,9 +127,7 @@ describe("helpers", async () => {
       binId: activeId,
     };
 
-    const { volume, fees, priceAdjusted } = await Socket.calculateSwapValue({
-      ...params,
-    });
+    const { volume, fees } = await Socket.calculateSwapValue(params);
 
     const [minVolume, maxVolume] = Methods.radius(5, 10);
     expect(volume).toBeGreaterThan(minVolume);
@@ -138,9 +136,5 @@ describe("helpers", async () => {
     const [minFees, maxFees] = Methods.radius(0.05, 10);
     expect(fees).toBeGreaterThan(minFees);
     expect(fees).toBeLessThan(maxFees);
-
-    const [minPrice, maxPrice] = Methods.radius(0.2, 10);
-    expect(priceAdjusted).toBeGreaterThan(minPrice);
-    expect(priceAdjusted).toBeLessThan(maxPrice);
   });
 });

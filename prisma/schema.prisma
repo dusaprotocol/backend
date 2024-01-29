@@ -53,6 +53,7 @@ model Analytics {
   pool         Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
 
   @@id([poolAddress, date])
+  @@index([date], map: "date")
 }
 
 model Swap {
