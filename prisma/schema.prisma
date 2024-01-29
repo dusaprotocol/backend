@@ -146,21 +146,20 @@ model OrderExecution {
   Order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
-enum Status {
-  ACTIVE
-  STOPPED
-  ENDED
-}
-
 model Maker {
-  address     String
-  epoch       Int
-  poolAddress String
-
+  address        String
+  epoch          Int
+  poolAddress    String
   accruedFeesX   String
   accruedFeesY   String
   accruedFeesL   String
   accruedFeesUSD Int
 
   @@id([address, poolAddress, epoch])
+}
+
+enum Status {
+  ACTIVE
+  STOPPED
+  ENDED
 }

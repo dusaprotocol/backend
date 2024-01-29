@@ -1,7 +1,7 @@
 import * as trpcExpress from "@trpc/server/adapters/express";
 import { inferAsyncReturnType, initTRPC } from "@trpc/server";
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
+import type { Liquidity, Prisma, Swap } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
@@ -30,6 +30,13 @@ type Price = Prisma.AnalyticsGetPayload<{
     high: true;
     low: true;
     date: true;
+  };
+}>;
+
+type Leaderboard = Prisma.MakerGetPayload<{
+  select: {
+    address: true;
+    accruedFeesUSD: true;
   };
 }>;
 
@@ -73,8 +80,8 @@ export const appRouter = t.router({
           take,
         })
         .then((analytics) => {
-          if (analytics.length === 0) return [];
           const res: Volume[] = [];
+          if (analytics.length === 0) return res;
 
           let acc = 0;
           let date = analytics[0].date;
@@ -136,8 +143,8 @@ export const appRouter = t.router({
           take,
         })
         .then((analytics) => {
-          if (analytics.length === 0) return [];
           const res: TVL[] = [];
+          if (analytics.length === 0) return res;
 
           analytics.forEach((analytic, i) => {
             if (i % TICKS_PER_DAY === 0) {
@@ -147,7 +154,7 @@ export const appRouter = t.router({
 
           return res.reverse();
         })
-        .catch((err) => {
+        .catch((err): TVL[] => {
           logger.error(err);
           return [];
         });
@@ -384,7 +391,7 @@ export const appRouter = t.router({
           },
           take,
         })
-        .catch((err) => {
+        .catch((err): Swap[] => {
           logger.error(err);
           return [];
         });
@@ -408,7 +415,7 @@ export const appRouter = t.router({
           },
           take,
         })
-        .catch((err) => {
+        .catch((err): Liquidity[] => {
           logger.error(err);
           return [];
         });
@@ -474,7 +481,7 @@ export const appRouter = t.router({
 
           return res.reverse();
         })
-        .catch((err) => {
+        .catch((err): Price[] => {
           logger.error(err);
           return [];
         });
@@ -496,10 +503,12 @@ export const appRouter = t.router({
             execution: true,
           },
         })
-        .catch((err) => {
-          logger.error(err);
-          return [];
-        });
+        .catch(
+          (err): Prisma.DCAGetPayload<{ include: { execution: true } }>[] => {
+            logger.error(err);
+            return [];
+          }
+        );
     }),
   getOrders: t.procedure
     .input(
@@ -518,10 +527,16 @@ export const appRouter = t.router({
             OrderExecution: true,
           },
         })
-        .catch((err) => {
-          logger.error(err);
-          return [];
-        });
+        .catch(
+          (
+            err
+          ): Prisma.OrderGetPayload<{
+            include: { OrderExecution: true };
+          }>[] => {
+            logger.error(err);
+            return [];
+          }
+        );
     }),
   getGlobalMetrics: t.procedure
     .input(
@@ -563,6 +578,30 @@ export const appRouter = t.router({
       // const token = new Token(CHAIN_ID, tokenAddress, tokenDecimals);
       // return getTokenValue(tokenAddress, tokenDecimals);
       return getTokenAddressValue(tokenAddress);
+    }),
+  getLeaderboard: t.procedure
+    .input(
+      z.object({
+        take: z.number().min(1).max(100),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { take } = input;
+      return ctx.prisma.maker
+        .findMany({
+          select: {
+            address: true,
+            accruedFeesUSD: true,
+          },
+          orderBy: {
+            accruedFeesUSD: "desc",
+          },
+          take,
+        })
+        .catch((err): Leaderboard[] => {
+          logger.error(err);
+          return [];
+        });
     }),
 });
 
