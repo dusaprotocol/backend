@@ -50,3 +50,6 @@ export const getClosestTick = (timestamp: number = Date.now()): Date => {
   const ticks = Math.floor(timestamp / TIME_BETWEEN_TICKS) * TIME_BETWEEN_TICKS;
   return new Date(ticks);
 };
+
+// used for rewards
+export const getCurrentEpoch = () => 1;

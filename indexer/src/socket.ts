@@ -4,25 +4,43 @@ import {
   fetchDCA,
   getBinStep,
   getCallee,
+  getDatastoreKeys,
   getPriceFromId,
   getTokenFromAddress,
   getTokenValue,
   sortTokens,
   toFraction,
 } from "../../common/methods";
-import { SwapParams, decodeLiquidityEvents, decodeSwapEvents } from "./decoder";
-import { EventDecoder, ILBPair, TokenAmount } from "@dusalabs/sdk";
+import {
+  SwapParams,
+  decodeLiquidityEvents,
+  decodeSwapBins,
+  decodeSwapEvents,
+} from "./decoder";
+import {
+  EventDecoder,
+  Fraction,
+  ILBPair,
+  Token,
+  TokenAmount,
+} from "@dusalabs/sdk";
 import {
   createSwap,
   createLiquidity,
   createDCA,
   findDCA,
   updateDCAStatus,
+  updateMakerFees,
 } from "./db";
 import { web3Client } from "../../common/client";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
-import { bytesToStr } from "@massalabs/massa-web3";
+import {
+  Args,
+  bytesToStr,
+  bytesToU256,
+  strToBytes,
+} from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
@@ -72,7 +90,16 @@ export const processSwap = async (params: {
   const { txHash, userAddress, timestamp, poolAddress, swapEvents, indexInSlot } = params;
   const swapPayload = decodeSwapEvents(swapEvents);
 
-  const { volume, fees } = await calculateSwapValue({
+  const [tokenIn, tokenOut] = await Promise.all(
+    [params.tokenInAddress, params.tokenOutAddress].map((address) =>
+      getTokenFromAddress(address)
+    )
+  );
+  const [_, tokenY] = sortTokens(tokenIn, tokenOut);
+
+  const { volume, fees, priceAdjusted } = await calculateSwapValue({
+    tokenIn,
+    tokenOut,
     ...params,
     ...swapPayload,
   });
@@ -90,7 +117,52 @@ export const processSwap = async (params: {
     amountOut: swapPayload.amountOut.toString(),
     feesIn: swapPayload.feesIn.toString(),
   });
+
+  const crossedBins = decodeSwapBins(swapEvents);
+  const pair = new ILBPair(poolAddress, web3Client);
+  crossedBins.forEach(async (binId) => {
+    const binSupply = await pair.getSupplies([binId]).then((r) => r[0]);
+    const makers = await getDatastoreKeys(poolAddress).then((r) =>
+      r
+        .filter((k) => k.startsWith(`balances::${binId}`)) // only user addresses, no smart contracts
+        .map((k) => k.split(`::${binId}`)[1])
+    );
+    const balances = await pair.balanceOfBatch(
+      makers,
+      Array.from({ length: makers.length }, () => binId)
+    );
+    const tokenYValue = await getTokenValue(tokenY);
+    makers.forEach(async (maker, i) => {
+      const share = new Fraction(balances[i]).divide(binSupply);
+      const shareFormatted = Number(
+        new Fraction(balances[i]).divide(binSupply).toSignificant(6)
+      );
+      const accruedFees = share.multiply(swapPayload.feesIn).quotient;
+
+      const accruedFeesX = swapPayload.swapForY ? accruedFees : 0n;
+      const accruedFeesY = swapPayload.swapForY ? 0n : accruedFees;
+      const price = getPriceFromId(binId, params.binStep);
+      const accruedFeesL = swapPayload.swapForY
+        ? new Fraction(accruedFeesX).multiply(toFraction(price)).quotient
+        : accruedFeesY;
+      const accruedFeesUSD = Number(
+        new TokenAmount(tokenY, accruedFeesL)
+          .multiply(toFraction(tokenYValue))
+          .toSignificant(6)
+      );
+      await updateMakerFees({
+        accruedFeesL: accruedFeesL.toString(),
+        accruedFeesUSD,
+        accruedFeesX: accruedFeesX.toString(),
+        accruedFeesY: accruedFeesY.toString(),
+        address: maker,
+        poolAddress,
+      });
+    });
+  });
 };
+
+export const processRewards = async (params: {}) => {};
 
 export const processLiquidity = async (params: {
   txHash: string;
@@ -125,17 +197,16 @@ export const processLiquidity = async (params: {
 };
 
 export const calculateSwapValue = async (params: {
-  tokenInAddress: string;
-  tokenOutAddress: string;
+  tokenIn: Token;
+  tokenOut: Token;
   binStep: number;
   amountIn: bigint;
   feesIn: bigint;
   binId: number;
 }) => {
   // prettier-ignore
-  const { tokenInAddress, tokenOutAddress, binStep, amountIn, feesIn, binId } = params;
-  const tokenIn = await getTokenFromAddress(tokenInAddress);
-  const tokenOut = await getTokenFromAddress(tokenOutAddress);
+  const { tokenIn, tokenOut, binStep, amountIn, feesIn, binId } = params;
+
   const [token0, token1] = sortTokens(tokenIn, tokenOut);
   const price = getPriceFromId(binId, binStep);
   const priceAdjusted = adjustPrice(price, token0.decimals, token1.decimals);

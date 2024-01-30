@@ -218,6 +218,10 @@ export const decodeSwapEvents = (events: string[]) => {
   );
 };
 
+export const decodeSwapBins = (events: string[]) => {
+  return events.map((e) => EventDecoder.decodeSwap(e).activeId);
+};
+
 /**
  * Decode liquidity events
  * @param events - string array starting with DEPOSITED_TO_BIN/WITHDRAWN_FROM_BIN
