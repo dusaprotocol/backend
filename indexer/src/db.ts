@@ -110,7 +110,7 @@ export const updateMakerFees = async (
   const {
     address,
     poolAddress,
-    accruedFeesUSD,
+    accruedFeesUsd,
     accruedFeesX,
     accruedFeesY,
     accruedFeesL,
@@ -125,7 +125,7 @@ export const updateMakerFees = async (
         },
       },
       select: {
-        accruedFeesUSD: true,
+        accruedFeesUsd: true,
         accruedFeesX: true,
         accruedFeesY: true,
         accruedFeesL: true,
@@ -137,7 +137,7 @@ export const updateMakerFees = async (
           accruedFeesX: "0",
           accruedFeesY: "0",
           accruedFeesL: "0",
-          accruedFeesUSD: 0,
+          accruedFeesUsd: 0,
         }
     );
 
@@ -150,7 +150,7 @@ export const updateMakerFees = async (
       },
     },
     update: {
-      accruedFeesUSD: { increment: accruedFeesUSD },
+      accruedFeesUsd: { increment: accruedFeesUsd },
       accruedFeesX: (
         BigInt(accruedFeesX) + BigInt(prev.accruedFeesX)
       ).toString(),
@@ -165,7 +165,7 @@ export const updateMakerFees = async (
       address,
       poolAddress,
       epoch,
-      accruedFeesUSD,
+      accruedFeesUsd,
       accruedFeesX,
       accruedFeesY,
       accruedFeesL,

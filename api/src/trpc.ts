@@ -36,7 +36,9 @@ type Price = Prisma.AnalyticsGetPayload<{
 type Leaderboard = Prisma.MakerGetPayload<{
   select: {
     address: true;
-    accruedFeesUSD: true;
+    accruedFeesUsd: true;
+    accruedFeesX: true;
+    accruedFeesY: true;
   };
 }>;
 
@@ -582,19 +584,27 @@ export const appRouter = t.router({
   getLeaderboard: t.procedure
     .input(
       z.object({
+        epoch: z.number().min(0),
+        poolAddress: z.string(),
         take: z.number().min(1).max(100),
       })
     )
     .query(async ({ input, ctx }) => {
-      const { take } = input;
+      const { poolAddress, epoch, take } = input;
       return ctx.prisma.maker
         .findMany({
+          where: {
+            poolAddress,
+            epoch,
+          },
           select: {
             address: true,
-            accruedFeesUSD: true,
+            accruedFeesUsd: true,
+            accruedFeesX: true,
+            accruedFeesY: true,
           },
           orderBy: {
-            accruedFeesUSD: "desc",
+            accruedFeesUsd: "desc",
           },
           take,
         })

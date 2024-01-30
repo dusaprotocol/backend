@@ -134,25 +134,23 @@ export const processSwap = async (params: {
     const tokenYValue = await getTokenValue(tokenY);
     makers.forEach(async (maker, i) => {
       const share = new Fraction(balances[i]).divide(binSupply);
-      const shareFormatted = Number(
-        new Fraction(balances[i]).divide(binSupply).toSignificant(6)
-      );
       const accruedFees = share.multiply(swapPayload.feesIn).quotient;
-
       const accruedFeesX = swapPayload.swapForY ? accruedFees : 0n;
       const accruedFeesY = swapPayload.swapForY ? 0n : accruedFees;
       const price = getPriceFromId(binId, params.binStep);
       const accruedFeesL = swapPayload.swapForY
         ? new Fraction(accruedFeesX).multiply(toFraction(price)).quotient
         : accruedFeesY;
-      const accruedFeesUSD = Number(
+      const accruedFeesUsd = Number(
         new TokenAmount(tokenY, accruedFeesL)
           .multiply(toFraction(tokenYValue))
           .toSignificant(6)
       );
+      if (accruedFeesUsd === 0) return;
+
       await updateMakerFees({
         accruedFeesL: accruedFeesL.toString(),
-        accruedFeesUSD,
+        accruedFeesUsd,
         accruedFeesX: accruedFeesX.toString(),
         accruedFeesY: accruedFeesY.toString(),
         address: maker,
