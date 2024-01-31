@@ -9,6 +9,10 @@ import {
 } from "./methods";
 import { WETH as _WETH, WBTC as _WBTC, USDT as _USDT } from "@dusalabs/sdk";
 import { describe, expect, it } from "vitest";
+import {
+  swapEvents,
+  withdrawEvents,
+} from "../indexer/src/__tests__/placeholder";
 
 describe("getTokenValue", () => {
   it("returns 1 for USDC", async () => {
@@ -50,9 +54,33 @@ describe("isEvent", () => {
         ...context,
         call_stack: [poolAddress],
       },
-      data: "WITHDRAWN_FROM_BIN:AS1YqRd4gDMaJ1Udkd1TsMFXEhAbaRoQvMURPgHYs9w8zc1egrNQ,8391236,̸\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,ŏ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+      data: withdrawEvents[0],
     };
 
     expect(isLiquidityEvent(event, poolAddress)).toBe(true);
+  });
+  it("returns true for add liquidity event", () => {
+    const poolAddress = "0x";
+    const event: IEvent = {
+      context: {
+        ...context,
+        call_stack: [poolAddress],
+      },
+      data: "DEPOSITED_TO_BIN:AU1Rtd4BFRN8syiGigCwruJMtMhHWebvBqnYFyPDc3SVctnJqvYX,8391258,�\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,얇࿨\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+    };
+
+    expect(isLiquidityEvent(event, poolAddress)).toBe(true);
+  });
+  it("returns true for remove liquidity event", () => {
+    const poolAddress = "0x";
+    const event: IEvent = {
+      context: {
+        ...context,
+        call_stack: [poolAddress],
+      },
+      data: swapEvents[0],
+    };
+
+    expect(isLiquidityEvent(event, poolAddress)).toBe(false);
   });
 });

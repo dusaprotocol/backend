@@ -17,10 +17,7 @@ export const TICKS_PER_DAY = ONE_DAY / TIME_BETWEEN_TICKS;
 export const EVERY_TICK = "*/5 * * * *" as const;
 export const EVERY_PERIOD = "*/16 * * * * *" as const;
 
-export const parseSlot = (
-  slot: Slot | ISlot,
-  genesisTimestamp: number
-): number =>
+export const parseSlot = (slot: Slot | ISlot): number =>
   genesisTimestamp +
   Number(slot.period) * ONE_PERIOD +
   (slot.thread / 2) * 1000;
@@ -46,12 +43,13 @@ export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
     "slot" in event.context ? event.context.slot : event.context.originSlot;
   if (!slot) return new Date();
 
-  return new Date(parseSlot(slot, genesisTimestamp));
+  return new Date(parseSlot(slot));
 };
-
-export const convertMsToSec = (ms: number): number => Math.floor(ms / 1000);
 
 export const getClosestTick = (timestamp: number = Date.now()): Date => {
   const ticks = Math.floor(timestamp / TIME_BETWEEN_TICKS) * TIME_BETWEEN_TICKS;
   return new Date(ticks);
 };
+
+// used for rewards
+export const getCurrentEpoch = () => 1;

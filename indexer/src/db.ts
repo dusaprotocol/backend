@@ -1,7 +1,7 @@
 import { DCA, Prisma, Status } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
-import { getClosestTick } from "../../common/utils";
+import { getClosestTick, getCurrentEpoch } from "../../common/utils";
 import { fetchNewAnalytics } from "../../common/methods";
 
 const coc = (address: string) => ({
@@ -99,6 +99,76 @@ export const createAnalytic = async (
     data: {
       ...args,
       date,
+    },
+  });
+};
+
+export const updateMakerFees = async (
+  params: Omit<Prisma.MakerUncheckedCreateInput, "epoch">
+) => {
+  const epoch = getCurrentEpoch();
+  const {
+    address,
+    poolAddress,
+    accruedFeesUsd,
+    accruedFeesX,
+    accruedFeesY,
+    accruedFeesL,
+  } = params;
+  const prev = await prisma.maker
+    .findUnique({
+      where: {
+        address_poolAddress_epoch: {
+          address,
+          poolAddress,
+          epoch,
+        },
+      },
+      select: {
+        accruedFeesUsd: true,
+        accruedFeesX: true,
+        accruedFeesY: true,
+        accruedFeesL: true,
+      },
+    })
+    .then(
+      (res) =>
+        res || {
+          accruedFeesX: "0",
+          accruedFeesY: "0",
+          accruedFeesL: "0",
+          accruedFeesUsd: 0,
+        }
+    );
+
+  await prisma.maker.upsert({
+    where: {
+      address_poolAddress_epoch: {
+        address,
+        poolAddress,
+        epoch,
+      },
+    },
+    update: {
+      accruedFeesUsd: { increment: accruedFeesUsd },
+      accruedFeesX: (
+        BigInt(accruedFeesX) + BigInt(prev.accruedFeesX)
+      ).toString(),
+      accruedFeesY: (
+        BigInt(accruedFeesY) + BigInt(prev.accruedFeesY)
+      ).toString(),
+      accruedFeesL: (
+        BigInt(accruedFeesL) + BigInt(prev.accruedFeesL)
+      ).toString(),
+    },
+    create: {
+      address,
+      poolAddress,
+      epoch,
+      accruedFeesUsd,
+      accruedFeesX,
+      accruedFeesY,
+      accruedFeesL,
     },
   });
 };

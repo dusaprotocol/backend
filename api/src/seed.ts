@@ -99,10 +99,10 @@ const generateDataset = async (poolAddress: string) => {
     where: { address: poolAddress },
     include: { token0: true, token1: true },
   });
-  const pairInfo = await PairV2.getLBPairReservesAndId(
+  const pairInfo = await new ILBPair(
     pool.address,
     web3Client
-  );
+  ).getReservesAndId();
   let prevPrice = adjustPrice(
     getPriceFromId(pairInfo.activeId, pool.binStep),
     pool.token0.decimals,
