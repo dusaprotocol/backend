@@ -34,7 +34,10 @@ export const parseTimestamp = (
   };
 };
 
-export const genesisTimestamp = 1704289800000;
+export const genesisTimestamp = await web3Client
+  .publicApi()
+  .getNodeStatus()
+  .then((r) => r.config.genesis_timestamp);
 
 export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
   if (!event.context) return new Date();
