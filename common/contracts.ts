@@ -6,7 +6,7 @@ import {
   USDC as _USDC,
   WMAS as _WMAS,
 } from "@dusalabs/sdk";
-import { CHAIN_ID } from "./client";
+import { CHAIN_ID } from "./config";
 
 export const routerSC = LB_ROUTER_ADDRESS[CHAIN_ID];
 export const factorySC = LB_FACTORY_ADDRESS[CHAIN_ID];

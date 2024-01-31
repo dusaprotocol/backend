@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { calculateUSDLocked, radius } from "../common/methods";
 import { USDC, WMAS } from "../common/contracts";
 import { Token, WETH as _WETH, parseUnits } from "@dusalabs/sdk";
-import { CHAIN_ID } from "../common/client";
+import { CHAIN_ID } from "../common/config";
 
 describe("calculateUSDLocked", () => {
   it("handle valid pool", async () => {

@@ -1,5 +1,6 @@
 import { Args, ArrayTypes, IEvent, strToBytes } from "@massalabs/massa-web3";
-import { CHAIN_ID, web3Client } from "./client";
+import { CHAIN_ID } from "./config";
+import { web3Client } from "./client";
 import { factorySC, USDC, WMAS } from "./contracts";
 import logger from "./logger";
 import {

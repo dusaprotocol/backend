@@ -6,8 +6,6 @@ import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
 import { getTokenAddressValue, getTokenValue } from "../../common/methods";
-import { Token } from "@dusalabs/sdk";
-import { CHAIN_ID } from "../../common/client";
 
 const DayWindow = z.union([
   z.literal(7),
@@ -541,7 +539,7 @@ export const appRouter = t.router({
     .input(z.object({ take: DayWindow }))
     .query(async ({ input, ctx }) => {
       const { take } = input;
-      return ctx.prisma.$queryRaw`
+      return ctx.prisma.$queryRaw<Volume[]>`
           SELECT SUM(volume) as volume, DATE(date) as date
           FROM Analytics
           WHERE date > DATE_SUB(NOW(), INTERVAL ${take} DAY)
@@ -551,7 +549,7 @@ export const appRouter = t.router({
     .input(z.object({ take: DayWindow }))
     .query(async ({ input, ctx }) => {
       const { take } = input;
-      return ctx.prisma.$queryRaw`
+      return ctx.prisma.$queryRaw<TVL[]>`
         SELECT date, SUM(usdLocked) AS usdLocked
         FROM (
           SELECT date, poolAddress, usdLocked, ROW_NUMBER() OVER (PARTITION BY poolAddress, DATE(date) ORDER BY date DESC) as rn

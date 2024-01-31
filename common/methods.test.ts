@@ -1,5 +1,5 @@
 import { IEvent } from "@massalabs/massa-web3";
-import { CHAIN_ID } from "./client";
+import { CHAIN_ID } from "./config";
 import { USDC, WMAS } from "./contracts";
 import {
   getTokenValue,

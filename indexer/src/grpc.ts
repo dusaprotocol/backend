@@ -10,9 +10,7 @@ import { PublicServiceClient as MassaServiceClient } from "../gen/ts/massa/api/v
 import { ExecutionOutputStatus } from "../gen/ts/massa/model/v1/execution";
 import { handleNewOperations, handleNewSlotExecutionOutputs } from "./helpers";
 import { RpcOptions, DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
-
-const grpcDefaultHost = "buildnet-explorer.massa.net";
-const grpcPort = 33037;
+import { grpcDefaultHost, grpcPort } from "../../common/config";
 
 const createClient = (host: string = grpcDefaultHost) =>
   new MassaServiceClient(

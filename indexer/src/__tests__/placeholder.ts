@@ -1,6 +1,7 @@
 import { Percent, QuoterHelper, TokenAmount, parseUnits } from "@dusalabs/sdk";
 import { WMAS, USDC } from "../../../common/contracts";
-import { web3Client, CHAIN_ID } from "../../../common/client";
+import { CHAIN_ID } from "../../../common/config";
+import { web3Client } from "../../../common/client";
 import { ONE_MINUTE } from "../../../common/utils";
 
 export const inputToken = USDC;
