@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "ts-node main.ts",
-    "dev": "nodemon main.ts"
+    "start": "tsx main.ts",
+    "dev": "tsx watch main.ts"
   },
   "keywords": [],
   "author": "",
