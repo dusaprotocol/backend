@@ -11,7 +11,7 @@ if (
   throw new Error("environment variables not set");
 
 export const CHAIN_URL = process.env.CHAIN_URL;
-export const CHAIN_ID = process.env.CHAIN_ID as any as ChainId;
+export const CHAIN_ID = Number(process.env.CHAIN_ID) as ChainId;
 
 export const grpcDefaultHost = process.env.GRPC_HOST;
-export const grpcPort = process.env.GRPC_PORT;
+export const grpcPort = Number(process.env.GRPC_PORT);
