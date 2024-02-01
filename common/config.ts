@@ -1,6 +1,6 @@
 import { ChainId } from "@dusalabs/sdk";
 import dotenv from "dotenv";
-dotenv.config(); // loads env variables
+dotenv.config({ path: "../.env" }); // loads env variables
 
 if (
   !process.env.CHAIN_ID ||
