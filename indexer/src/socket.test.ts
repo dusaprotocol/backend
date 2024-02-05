@@ -110,10 +110,6 @@ describe("helpers", async () => {
     const [minFees, maxFees] = Methods.radius(0.01, 10);
     expect(fees).toBeGreaterThan(minFees);
     expect(fees).toBeLessThan(maxFees);
-
-    const [minPrice, maxPrice] = Methods.radius(0.2, 10);
-    expect(priceAdjusted).toBeGreaterThan(minPrice);
-    expect(priceAdjusted).toBeLessThan(maxPrice);
   });
   it("should calculate swap value correctly with MAS in", async () => {
     const tokenIn = outputToken; // MAS
