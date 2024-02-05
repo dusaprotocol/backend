@@ -6,6 +6,8 @@ import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
 import { getTokenAddressValue, getTokenValue } from "../../common/methods";
+import { Token } from "@dusalabs/sdk";
+import { CHAIN_ID } from "../../common/config";
 
 const DayWindow = z.union([
   z.literal(7),
@@ -612,22 +614,13 @@ FROM (
     .input(
       z.object({
         tokenAddress: z.string(),
-        tokenDecimals: z.number().optional(),
-        opts: z.optional(
-          z.object({
-            poolAddress: z.string(),
-            binStep: z.number(),
-          })
-        ),
-        // chainId: z.number(),
+        tokenDecimals: z.number(),
       })
     )
     .query(async ({ input }) => {
       const { tokenAddress, tokenDecimals } = input;
-      // const token = new Token(CHAIN_ID, tokenAddress, tokenDecimals);
-      // return getTokenValue(tokenAddress, tokenDecimals);
-      return 1;
-      return getTokenAddressValue(tokenAddress);
+      const token = new Token(CHAIN_ID, tokenAddress, tokenDecimals);
+      return getTokenValue(token);
     }),
   getLeaderboard: t.procedure
     .input(
