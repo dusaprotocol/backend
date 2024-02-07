@@ -215,8 +215,8 @@ export const fetchNewAnalytics = async (
     })
     .then((res) => {
       return {
-        volume: res._sum.usdValue || 0,
-        fees: res._sum.feesUsdValue || 0,
+        volume: Math.round(res._sum.usdValue || 0),
+        fees: Math.round(res._sum.feesUsdValue || 0),
       };
     });
 
