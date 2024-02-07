@@ -31,6 +31,7 @@ import {
   findDCA,
   updateDCAStatus,
   updateMakerFees,
+  updateBin,
 } from "./db";
 import { web3Client } from "../../common/client";
 import {
@@ -137,37 +138,13 @@ export const processSwap = async (params: {
     const { activeId: binId, swapForY, feesTotal } = swapEvent;
 
     // update bin volume
-    const date = getClosestTick();
     const { volume: volumeUsd, fees: feesUsd } = await calculateSwapValue({
       tokenIn,
       valueIn: tokenInValue,
       ...params,
       ...swapPayload,
     });
-    await prisma.bin.upsert({
-      create: {
-        date,
-        binId,
-        feesUsd,
-        volumeUsd,
-        poolAddress,
-      },
-      update: {
-        feesUsd: {
-          increment: feesUsd,
-        },
-        volumeUsd: {
-          increment: volumeUsd,
-        },
-      },
-      where: {
-        poolAddress_binId_date: {
-          binId,
-          date,
-          poolAddress,
-        },
-      },
-    });
+    await updateBin({ binId, feesUsd, volumeUsd, poolAddress });
 
     // update maker rewards
     const makers = await getDatastoreKeys(poolAddress).then((r) =>

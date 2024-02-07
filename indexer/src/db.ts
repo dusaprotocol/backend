@@ -61,6 +61,43 @@ export const createLiquidity = async (
     .catch(() => logger.warn("createLiquidity failed", payload));
 };
 
+export const updateBin = async (
+  params: Omit<Prisma.BinUpsertArgs["create"], "date">
+) => {
+  // prettier-ignore
+  const { binId, feesUsd, volumeUsd, poolAddress } = params;
+
+  const date = getClosestTick();
+  await prisma.bin
+    .upsert({
+      create: {
+        date,
+        binId,
+        feesUsd,
+        volumeUsd,
+        poolAddress,
+      },
+      update: {
+        feesUsd: {
+          increment: feesUsd,
+        },
+        volumeUsd: {
+          increment: volumeUsd,
+        },
+      },
+      where: {
+        poolAddress_binId_date: {
+          binId,
+          date,
+          poolAddress,
+        },
+      },
+    })
+    .catch(() =>
+      logger.warn("bin upsert failed", { binId, poolAddress, date })
+    );
+};
+
 export const findDCA = async (id: number) =>
   await prisma.dCA.findUnique({
     where: {
