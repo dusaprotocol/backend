@@ -10,7 +10,12 @@ import {
   WBTC,
   parseUnits,
 } from "@dusalabs/sdk";
-import { binStep, inputToken, outputToken } from "./__tests__/placeholder";
+import {
+  binStep,
+  inputToken,
+  outputToken,
+  swapEvents,
+} from "./__tests__/placeholder";
 import { web3Client } from "../../common/client";
 
 // const spyToken = vi
@@ -39,7 +44,7 @@ describe("socket", () => {
       tokenOutAddress,
       binStep,
       poolAddress,
-      swapEvents: [],
+      swapEvents: swapEvents,
       timestamp: new Date(),
     });
 
@@ -90,16 +95,15 @@ describe("helpers", async () => {
   it("should calculate swap value correctly with MAS out", async () => {
     const tokenIn = inputToken; // USDC
     const tokenOut = outputToken; // WMAS
+    const valueIn = await Methods.getTokenValue(tokenIn);
     const params: Parameters<typeof Socket.calculateSwapValue>["0"] = {
       tokenIn: tokenIn,
-      tokenOut: tokenOut,
-      binStep,
+      valueIn,
       amountIn: parseUnits("1", tokenIn.decimals),
       feesIn: parseUnits("0.01", tokenIn.decimals),
-      binId: activeId,
     };
 
-    const { volume, fees, priceAdjusted } = await Socket.calculateSwapValue({
+    const { volume, fees } = await Socket.calculateSwapValue({
       ...params,
     });
 
@@ -114,13 +118,12 @@ describe("helpers", async () => {
   it("should calculate swap value correctly with MAS in", async () => {
     const tokenIn = outputToken; // MAS
     const tokenOut = inputToken; // USDC
+    const valueIn = await Methods.getTokenValue(tokenIn);
     const params: Parameters<typeof Socket.calculateSwapValue>["0"] = {
       tokenIn: tokenIn,
-      tokenOut: tokenOut,
-      binStep,
+      valueIn,
       amountIn: parseUnits("1", tokenIn.decimals),
       feesIn: parseUnits("0.01", tokenIn.decimals),
-      binId: activeId,
     };
 
     const { volume, fees } = await Socket.calculateSwapValue(params);

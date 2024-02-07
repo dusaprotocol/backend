@@ -13,8 +13,8 @@ import {
 } from "../../common/methods";
 import {
   SwapParams,
+  computeSwapPayload,
   decodeLiquidityEvents,
-  decodeSwapBins,
   decodeSwapEvents,
 } from "./decoder";
 import {
@@ -33,7 +33,12 @@ import {
   updateMakerFees,
 } from "./db";
 import { web3Client } from "../../common/client";
-import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
+import {
+  ONE_MINUTE,
+  getClosestTick,
+  getTimestamp,
+  wait,
+} from "../../common/utils";
 import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
 import {
   Args,
@@ -88,7 +93,8 @@ export const processSwap = async (params: {
 }) => {
   // prettier-ignore
   const { txHash, userAddress, timestamp, poolAddress, swapEvents, indexInSlot } = params;
-  const swapPayload = decodeSwapEvents(swapEvents);
+  const decodedEvents = decodeSwapEvents(swapEvents);
+  const swapPayload = computeSwapPayload(decodedEvents);
 
   const [tokenIn, tokenOut] = await Promise.all(
     [params.tokenInAddress, params.tokenOutAddress].map((address) =>
@@ -96,10 +102,12 @@ export const processSwap = async (params: {
     )
   );
   const [_, tokenY] = sortTokens(tokenIn, tokenOut);
+  const tokenInValue = await getTokenValue(tokenIn);
+  const tokenYValue = await getTokenValue(tokenY);
 
-  const { volume, fees, priceAdjusted } = await calculateSwapValue({
+  const { volume, fees } = await calculateSwapValue({
     tokenIn,
-    tokenOut,
+    valueIn: tokenInValue,
     ...params,
     ...swapPayload,
   });
@@ -118,10 +126,50 @@ export const processSwap = async (params: {
     feesIn: swapPayload.feesIn.toString(),
   });
 
-  const crossedBins = decodeSwapBins(swapEvents);
+  // update maker fees
   const pair = new ILBPair(poolAddress, web3Client);
-  crossedBins.forEach(async (binId) => {
-    const binSupply = await pair.getSupplies([binId]).then((r) => r[0]);
+  const binSupplies = await pair.getSupplies(
+    decodedEvents.map((d) => d.activeId)
+  );
+
+  decodedEvents.forEach(async (swapEvent, i) => {
+    const binSupply = binSupplies[i];
+    const { activeId: binId, swapForY, feesTotal } = swapEvent;
+
+    // update bin volume
+    const date = getClosestTick();
+    const { volume: volumeUsd, fees: feesUsd } = await calculateSwapValue({
+      tokenIn,
+      valueIn: tokenInValue,
+      ...params,
+      ...swapPayload,
+    });
+    await prisma.bin.upsert({
+      create: {
+        date,
+        binId,
+        feesUsd,
+        volumeUsd,
+        poolAddress,
+      },
+      update: {
+        feesUsd: {
+          increment: feesUsd,
+        },
+        volumeUsd: {
+          increment: volumeUsd,
+        },
+      },
+      where: {
+        poolAddress_binId_date: {
+          binId,
+          date,
+          poolAddress,
+        },
+      },
+    });
+
+    // update maker rewards
     const makers = await getDatastoreKeys(poolAddress).then((r) =>
       r
         .filter((k) => k.startsWith(`balances::${binId}`)) // only user addresses, no smart contracts
@@ -131,14 +179,14 @@ export const processSwap = async (params: {
       makers,
       Array.from({ length: makers.length }, () => binId)
     );
-    const tokenYValue = await getTokenValue(tokenY);
-    makers.forEach(async (maker, i) => {
-      const share = new Fraction(balances[i]).divide(binSupply);
-      const accruedFees = share.multiply(swapPayload.feesIn).quotient;
-      const accruedFeesX = swapPayload.swapForY ? accruedFees : 0n;
-      const accruedFeesY = swapPayload.swapForY ? 0n : accruedFees;
+
+    makers.forEach(async (maker, j) => {
+      const share = new Fraction(balances[j]).divide(binSupply);
+      const accruedFees = share.multiply(feesTotal).quotient;
+      const accruedFeesX = swapForY ? accruedFees : 0n;
+      const accruedFeesY = swapForY ? 0n : accruedFees;
       const price = getPriceFromId(binId, params.binStep);
-      const accruedFeesL = swapPayload.swapForY
+      const accruedFeesL = swapForY
         ? new Fraction(accruedFeesX).multiply(toFraction(price)).quotient
         : accruedFeesY;
       const accruedFeesUsd = Number(
@@ -196,33 +244,25 @@ export const processLiquidity = async (params: {
 
 export const calculateSwapValue = async (params: {
   tokenIn: Token;
-  tokenOut: Token;
-  binStep: number;
+  valueIn: number;
   amountIn: bigint;
   feesIn: bigint;
-  binId: number;
 }) => {
   // prettier-ignore
-  const { tokenIn, tokenOut, binStep, amountIn, feesIn, binId } = params;
+  const { tokenIn, valueIn, amountIn, feesIn } = params;
 
-  const [token0, token1] = sortTokens(tokenIn, tokenOut);
-  const price = getPriceFromId(binId, binStep);
-  const priceAdjusted = adjustPrice(price, token0.decimals, token1.decimals);
-
-  const valueIn = await getTokenValue(tokenIn);
   const volume = Number(
     new TokenAmount(tokenIn, amountIn)
       .multiply(toFraction(valueIn))
       .toSignificant(6)
   );
-  // fees are stored in cents
   const fees = Number(
     new TokenAmount(tokenIn, feesIn)
       .multiply(toFraction(valueIn))
       .toSignificant(6)
   );
 
-  return { volume, fees, priceAdjusted };
+  return { volume, fees };
 };
 
 export const processDCAExecution = async (

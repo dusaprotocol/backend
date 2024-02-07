@@ -159,6 +159,16 @@ model Maker {
   @@id([address, poolAddress, epoch])
 }
 
+model Bin {
+  date        DateTime
+  binId       Int
+  poolAddress String
+  volumeUsd   Float
+  feesUsd     Float
+
+  @@id([poolAddress, binId, date])
+}
+
 enum Status {
   ACTIVE
   STOPPED

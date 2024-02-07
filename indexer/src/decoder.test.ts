@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  computeSwapPayload,
   decodeLiquidityEvents,
   decodeLiquidityTx,
   decodeSwapEvents,
@@ -139,11 +140,12 @@ describe("tx decoder", () => {
 describe("event decoder", () => {
   it("should decode a simple swap", async () => {
     const decoded = decodeSwapEvents(swapEvents);
+    const { feesIn, amountIn, amountOut, binId } = computeSwapPayload(decoded);
 
-    expect(decoded.feesIn).toStrictEqual(283n * 3n);
-    expect(decoded.amountIn).toStrictEqual(999717n * 3n + decoded.feesIn);
-    expect(decoded.amountOut).toStrictEqual(199222843n * 3n);
-    expect(decoded.binId).toStrictEqual(8391260);
+    expect(feesIn).toStrictEqual(283n * 3n);
+    expect(amountIn).toStrictEqual(999717n * 3n + feesIn);
+    expect(amountOut).toStrictEqual(199222843n * 3n);
+    expect(binId).toStrictEqual(8391260);
   });
   it("should decode events for a simple add liquidity", async () => {
     const decoded = decodeLiquidityEvents(depositEvents);

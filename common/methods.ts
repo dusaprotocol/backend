@@ -89,18 +89,8 @@ export const getTokenValueUsingQuoter = async (
   }
 };
 
-export const getTokenAddressValue = async (
-  _tokenAddress: string,
-  adjusted = true
-): Promise<number> => {
-  const tokenAddress = _tokenAddress.replace("_", ""); // TEMP: handle MAS/WMAS
-  const token = await getTokenFromAddress(tokenAddress);
-  return getTokenValue(token, adjusted);
-};
-
 export const getTokenValue = async (
   token: Token,
-  // CHAIN_ID: ChainId
   adjusted = true
 ): Promise<number> => {
   if (token.equals(USDC)) return 1;

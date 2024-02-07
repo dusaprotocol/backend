@@ -6,6 +6,7 @@ import {
   EventDecoder,
   SwapRouterMethod,
   LimitOrder,
+  SwapEvent,
 } from "@dusalabs/sdk";
 import { getTokenFromAddress } from "../../common/methods";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
@@ -200,26 +201,37 @@ export const decodeOrderTx = (
  * @param events - string array starting with SWAP
  * @returns
  */
-export const decodeSwapEvents = (events: string[]) => {
-  return events.reduce(
-    (prev, event) => {
-      const { activeId, swapForY, amountInToBin, amountOutOfBin, feesTotal } =
-        EventDecoder.decodeSwap(event);
-
-      prev.binId = activeId;
-      prev.swapForY = swapForY;
-      prev.amountIn += amountInToBin + feesTotal;
-      prev.amountOut += amountOutOfBin;
-      prev.feesIn += feesTotal;
-
-      return prev;
-    },
-    { binId: 0, swapForY: false, amountIn: 0n, amountOut: 0n, feesIn: 0n }
-  );
+export const decodeSwapEvents = (events: string[]): SwapEvent[] => {
+  return events.reduce((prev, event) => {
+    prev.push(EventDecoder.decodeSwap(event));
+    return prev;
+  }, [] as SwapEvent[]);
 };
 
-export const decodeSwapBins = (events: string[]) => {
-  return events.map((e) => EventDecoder.decodeSwap(e).activeId);
+export const computeSwapPayload = (swapEvents: SwapEvent[]) => {
+  const binId = swapEvents[swapEvents.length - 1].activeId;
+  const swapForY = swapEvents[swapEvents.length - 1].swapForY;
+  const feesIn = swapEvents.reduce((prev, event) => prev + event.feesTotal, 0n);
+  const amountIn = swapEvents.reduce(
+    (prev, event) => prev + event.amountInToBin,
+    feesIn
+  );
+  const amountOut = swapEvents.reduce(
+    (prev, event) => prev + event.amountOutOfBin,
+    0n
+  );
+  const volatilityAccumulated = swapEvents.reduce(
+    (prev, event) => prev + event.volatilityAccumulated,
+    0
+  );
+  return {
+    binId,
+    swapForY,
+    amountIn,
+    amountOut,
+    feesIn,
+    volatilityAccumulated,
+  };
 };
 
 /**

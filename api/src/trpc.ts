@@ -5,7 +5,7 @@ import type { Liquidity, Prisma, Swap } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
-import { getTokenAddressValue, getTokenValue } from "../../common/methods";
+import { getTokenValue } from "../../common/methods";
 import { Token } from "@dusalabs/sdk";
 import { CHAIN_ID } from "../../common/config";
 
