@@ -50,8 +50,13 @@ export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
 };
 
 export const getClosestTick = (timestamp: number = Date.now()): Date => {
-  const ticks = Math.floor(timestamp / TIME_BETWEEN_TICKS) * TIME_BETWEEN_TICKS;
-  return new Date(ticks);
+  return new Date(
+    Math.floor(timestamp / TIME_BETWEEN_TICKS) * TIME_BETWEEN_TICKS
+  );
+};
+
+export const getHourlyTick = (timestamp: number = Date.now()): Date => {
+  return new Date(Math.floor(timestamp / ONE_HOUR) * ONE_HOUR);
 };
 
 // used for rewards

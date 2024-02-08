@@ -1,7 +1,11 @@
 import { DCA, Prisma, Status } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
-import { getClosestTick, getCurrentEpoch } from "../../common/utils";
+import {
+  getClosestTick,
+  getCurrentEpoch,
+  getHourlyTick,
+} from "../../common/utils";
 import { fetchNewAnalytics } from "../../common/methods";
 
 const coc = (address: string) => ({
@@ -67,7 +71,7 @@ export const updateBin = async (
   // prettier-ignore
   const { binId, feesUsd, volumeUsd, poolAddress } = params;
 
-  const date = getClosestTick();
+  const date = getHourlyTick();
   await prisma.bin
     .upsert({
       create: {
