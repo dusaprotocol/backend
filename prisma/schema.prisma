@@ -149,14 +149,14 @@ model OrderExecution {
 
 model Maker {
   address        String
-  epoch          Int
+  date           DateTime
   poolAddress    String
   accruedFeesX   String
   accruedFeesY   String
   accruedFeesL   String
   accruedFeesUsd Float
 
-  @@id([address, poolAddress, epoch])
+  @@id([address, poolAddress, date])
 }
 
 model Bin {

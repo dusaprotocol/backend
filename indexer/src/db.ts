@@ -3,10 +3,9 @@ import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import {
   getClosestTick,
-  getCurrentEpoch,
+  getDailyTick,
   getHourlyTick,
 } from "../../common/utils";
-import { fetchNewAnalytics } from "../../common/methods";
 
 const coc = (address: string) => ({
   connectOrCreate: {
@@ -65,7 +64,7 @@ export const createLiquidity = async (
     .catch(() => logger.warn("createLiquidity failed", payload));
 };
 
-export const updateBin = async (
+export const updateBinVolume = async (
   params: Omit<Prisma.BinUpsertArgs["create"], "date">
 ) => {
   // prettier-ignore
@@ -145,9 +144,10 @@ export const createAnalytic = async (
 };
 
 export const updateMakerFees = async (
-  params: Omit<Prisma.MakerUncheckedCreateInput, "epoch">
+  params: Omit<Prisma.MakerUncheckedCreateInput, "date">
 ) => {
-  const epoch = getCurrentEpoch();
+  const date = getDailyTick();
+
   const {
     address,
     poolAddress,
@@ -156,15 +156,17 @@ export const updateMakerFees = async (
     accruedFeesY,
     accruedFeesL,
   } = params;
+  const where = {
+    address_poolAddress_date: {
+      address,
+      poolAddress,
+      date,
+    },
+  };
+
   const prev = await prisma.maker
     .findUnique({
-      where: {
-        address_poolAddress_epoch: {
-          address,
-          poolAddress,
-          epoch,
-        },
-      },
+      where,
       select: {
         accruedFeesUsd: true,
         accruedFeesX: true,
@@ -183,13 +185,7 @@ export const updateMakerFees = async (
     );
 
   await prisma.maker.upsert({
-    where: {
-      address_poolAddress_epoch: {
-        address,
-        poolAddress,
-        epoch,
-      },
-    },
+    where,
     update: {
       accruedFeesUsd: { increment: accruedFeesUsd },
       accruedFeesX: (
@@ -205,7 +201,7 @@ export const updateMakerFees = async (
     create: {
       address,
       poolAddress,
-      epoch,
+      date,
       accruedFeesUsd,
       accruedFeesX,
       accruedFeesY,
@@ -213,3 +209,57 @@ export const updateMakerFees = async (
     },
   });
 };
+
+// export const updateStreak = async (address: string, poolAddress: string) => {
+//   const lastDate = new Date();
+//   const prev = await prisma.streak.findUnique({
+//     where: {
+//       address_poolAddress: {
+//         address,
+//         poolAddress,
+//       },
+//     },
+//     select: {
+//       lastDate: true,
+//     },
+//   });
+
+//   // if the last streak was today, return
+//   if (prev?.lastDate && prev.lastDate.getDay() === lastDate.getDay()) return;
+
+//   // if the last streak was before yesterday, reset the streak
+//   if (prev?.lastDate && prev.lastDate.getDay() !== lastDate.getDay() - 1) {
+//     await prisma.streak.update({
+//       where: {
+//         address_poolAddress: {
+//           address,
+//           poolAddress,
+//         },
+//       },
+//       data: {
+//         streak: 1,
+//         lastDate,
+//       },
+//     });
+//     return;
+//   }
+
+//   await prisma.streak.upsert({
+//     where: {
+//       address_poolAddress: {
+//         address,
+//         poolAddress,
+//       },
+//     },
+//     update: {
+//       streak: { increment: 1 },
+//       lastDate,
+//     },
+//     create: {
+//       address,
+//       poolAddress,
+//       streak: 1,
+//       lastDate,
+//     },
+//   });
+// };

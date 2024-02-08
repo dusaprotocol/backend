@@ -59,5 +59,9 @@ export const getHourlyTick = (timestamp: number = Date.now()): Date => {
   return new Date(Math.floor(timestamp / ONE_HOUR) * ONE_HOUR);
 };
 
+export const getDailyTick = (timestamp: number = Date.now()): Date => {
+  return new Date(Math.floor(timestamp / ONE_DAY) * ONE_DAY);
+};
+
 // used for rewards
 export const getCurrentEpoch = () => 1;

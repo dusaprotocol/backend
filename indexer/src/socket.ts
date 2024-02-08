@@ -31,7 +31,7 @@ import {
   findDCA,
   updateDCAStatus,
   updateMakerFees,
-  updateBin,
+  updateBinVolume,
 } from "./db";
 import { web3Client } from "../../common/client";
 import {
@@ -144,7 +144,7 @@ export const processSwap = async (params: {
       ...params,
       ...swapPayload,
     });
-    await updateBin({ binId, feesUsd, volumeUsd, poolAddress });
+    await updateBinVolume({ binId, feesUsd, volumeUsd, poolAddress });
 
     // update maker rewards
     const makers = await getDatastoreKeys(poolAddress).then((r) =>

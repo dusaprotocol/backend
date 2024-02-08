@@ -44,8 +44,6 @@ type Leaderboard = Prisma.MakerGetPayload<{
   select: {
     address: true;
     accruedFeesUsd: true;
-    accruedFeesX: true;
-    accruedFeesY: true;
   };
 }>;
 
@@ -658,34 +656,26 @@ FROM (
   getLeaderboard: t.procedure
     .input(
       z.object({
-        epoch: z.number().min(0),
+        from: z.string().transform((v) => new Date(v)),
+        to: z.string().transform((v) => new Date(v)),
         poolAddress: z.string(),
         take: z.number().min(1).max(100),
       })
     )
     .query(async ({ input, ctx }) => {
-      const { poolAddress, epoch, take } = input;
-      return ctx.prisma.maker
-        .findMany({
-          where: {
-            poolAddress,
-            epoch,
-          },
-          select: {
-            address: true,
-            accruedFeesUsd: true,
-            accruedFeesX: true,
-            accruedFeesY: true,
-          },
-          orderBy: {
-            accruedFeesUsd: "desc",
-          },
-          take,
-        })
-        .catch((err): Leaderboard[] => {
-          logger.error(err);
-          return [];
-        });
+      const { poolAddress, from, to, take } = input;
+      return ctx.prisma.$queryRaw<Leaderboard[]>`
+        SELECT address, SUM(accruedFeesUsd) as accruedFeesUsd
+        FROM Maker
+        WHERE poolAddress = ${poolAddress}
+        AND date BETWEEN ${from} AND ${to}
+        GROUP BY address
+        ORDER BY accruedFeesUsd DESC
+        LIMIT ${take};
+      `.catch((err): Leaderboard[] => {
+        logger.error(err);
+        return [];
+      });
     }),
 });
 
