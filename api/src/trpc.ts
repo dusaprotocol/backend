@@ -162,6 +162,39 @@ export const appRouter = t.router({
           return [];
         });
     }),
+  getBinsTraded: t.procedure
+    .input(
+      z.object({
+        address: z.string(),
+        take: DayWindow,
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { address, take } = input;
+      return ctx.prisma.bin
+        .groupBy({
+          by: ["binId"],
+          where: {
+            poolAddress: address,
+            date: {
+              gt: new Date(Date.now() - ONE_DAY * take),
+            },
+          },
+          _sum: {
+            volumeUsd: true,
+          },
+        })
+        .then((analytics) => {
+          return analytics.map((a) => ({
+            binId: a.binId,
+            volumeUsd: a._sum.volumeUsd || 0,
+          }));
+        });
+      // .catch((err): BinTraded[] => {
+      //   logger.error(err);
+      //   return [];
+      // });
+    }),
   get24H: t.procedure.input(z.string()).query(async ({ input, ctx }) => {
     return ctx.prisma.analytics
       .findMany({
