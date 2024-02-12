@@ -2,6 +2,7 @@ import { IEvent } from "@massalabs/massa-web3";
 import { CHAIN_ID } from "./config";
 import { USDC, WMAS } from "./contracts";
 import {
+  calculateStreak,
   getTokenValue,
   isLiquidityEvent,
   isSwapEvent,
@@ -13,6 +14,7 @@ import {
   swapEvents,
   withdrawEvents,
 } from "../indexer/src/__tests__/placeholder";
+import { ONE_DAY } from "./utils";
 
 describe("getTokenValue", () => {
   it("returns 1 for USDC", async () => {
@@ -82,5 +84,45 @@ describe("isEvent", () => {
     };
 
     expect(isLiquidityEvent(event, poolAddress)).toBe(false);
+  });
+});
+describe("calculateStreak", () => {
+  const address = "AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar";
+  const poolAddress = "AS12mcVCcziH2e3YVXqWzDG6nR8RBQ4FKh8HnZkGGGnh7JuqwUXa";
+  const accruedFeesUsd = 1;
+  const accruedFeesL = "0";
+  const accruedFeesX = "0";
+  const accruedFeesY = "0";
+  const p = {
+    address,
+    poolAddress,
+    accruedFeesUsd,
+    accruedFeesL,
+    accruedFeesX,
+    accruedFeesY,
+  };
+  const params: Parameters<typeof calculateStreak>["0"] = [];
+
+  it("returns 1 for a single record today", () => {
+    const p1 = {
+      ...p,
+      date: new Date(),
+    };
+    expect(calculateStreak([...params, p1])).toBe(1);
+  });
+  it("returns 0 for a single record one week ago", () => {
+    const p1 = { ...p, date: new Date(Date.now() - ONE_DAY * 7) };
+    expect(calculateStreak([...params, p1])).toBe(0);
+  });
+  it("returns 2 for a two records separated by two days", () => {
+    const p1 = {
+      ...p,
+      date: new Date(Date.now() - ONE_DAY * 2),
+    };
+    const p2 = {
+      ...p,
+      date: new Date(Date.now() - ONE_DAY * 4),
+    };
+    expect(calculateStreak([...params, p1, p2])).toBe(2);
   });
 });

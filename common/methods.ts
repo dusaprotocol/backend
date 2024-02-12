@@ -22,7 +22,7 @@ import {
 import { prisma } from "./db";
 import { createAnalytic } from "../indexer/src/db";
 import { DCA, Prisma, Status } from "@prisma/client";
-import { TIME_BETWEEN_TICKS } from "./utils";
+import { ONE_DAY, TIME_BETWEEN_TICKS } from "./utils";
 import { decodeDcaTx } from "../indexer/src/decoder";
 
 export const getPriceFromId = Bin.getPriceFromId;
@@ -297,6 +297,28 @@ export const calculateUSDLocked = async (
     .toSignificant(6);
   return Number(usdLocked);
 };
+
+export const calculateStreak = (
+  params: Prisma.MakerGetPayload<{}>[]
+): number => {
+  if (!params.length) return 0;
+
+  let streak = 0;
+  let lastDay = new Date();
+  params.forEach((r) => {
+    if (r.accruedFeesUsd > 0) {
+      console.log(dayDiff(r.date, lastDay));
+      if (dayDiff(r.date, lastDay) <= 3) {
+        streak++;
+        lastDay = r.date;
+      } else streak = 0;
+    }
+  });
+  return streak;
+};
+
+const dayDiff = (date1: Date, date2: Date): number =>
+  Math.round(Math.abs(date1.getTime() - date2.getTime()) / ONE_DAY);
 
 export const getDatastoreKeys = async (address: string): Promise<string[]> =>
   web3Client

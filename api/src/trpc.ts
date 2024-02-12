@@ -4,8 +4,13 @@ import { z } from "zod";
 import type { Liquidity, Prisma, Swap } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
-import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
-import { getTokenValue } from "../../common/methods";
+import {
+  ONE_DAY,
+  ONE_HOUR,
+  TICKS_PER_DAY,
+  getDailyTick,
+} from "../../common/utils/date";
+import { calculateStreak, getTokenValue } from "../../common/methods";
 import { Token } from "@dusalabs/sdk";
 import { CHAIN_ID } from "../../common/config";
 
@@ -676,6 +681,31 @@ FROM (
         logger.error(err);
         return [];
       });
+    }),
+  getStreak: t.procedure
+    .input(
+      z.object({
+        from: z.string().transform((v) => new Date(v)),
+        to: z.string().transform((v) => new Date(v)),
+        poolAddress: z.string(),
+        address: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { poolAddress, address } = input;
+      const res = await ctx.prisma.maker.findMany({
+        where: {
+          address,
+          poolAddress,
+          date: {
+            gte: input.from,
+            lte: input.to,
+          },
+        },
+      });
+      console.log(res);
+
+      return calculateStreak(res);
     }),
 });
 
