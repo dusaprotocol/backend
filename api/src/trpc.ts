@@ -707,16 +707,21 @@ FROM (
 
       return calculateStreak(res);
     }),
-  getRewardPools: t.procedure
+  getRewardPool: t.procedure
     .input(
       z.object({
         epoch: z.number(),
+        poolAddress: z.string(),
       })
     )
     .query(async ({ input, ctx }) => {
-      return ctx.prisma.rewardPool.findMany({
+      const { epoch, poolAddress } = input;
+      return ctx.prisma.rewardPool.findUnique({
         where: {
-          epoch: input.epoch,
+          poolAddress_epoch: {
+            epoch,
+            poolAddress,
+          },
         },
         include: {
           rewardToken: true,
