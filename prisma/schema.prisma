@@ -17,25 +17,27 @@ model User {
 }
 
 model Token {
-  address       String @id
+  address       String       @id
   name          String
   symbol        String
   decimals      Int
-  poolsAsToken0 Pool[] @relation("pool0")
-  poolsAsToken1 Pool[] @relation("pool1")
+  poolsAsToken0 Pool[]       @relation("pool0")
+  poolsAsToken1 Pool[]       @relation("pool1")
+  rewardPools   RewardPool[]
 }
 
 model Pool {
-  address       String      @id
+  address       String       @id
   binStep       Int
   token0Address String
   token1Address String
-  token0        Token       @relation("pool0", fields: [token0Address], references: [address], onDelete: Cascade)
-  token1        Token       @relation("pool1", fields: [token1Address], references: [address], onDelete: Cascade)
+  token0        Token        @relation("pool0", fields: [token0Address], references: [address], onDelete: Cascade)
+  token1        Token        @relation("pool1", fields: [token1Address], references: [address], onDelete: Cascade)
   analytics     Analytics[]
   swapTxs       Swap[]
   liquidityTxs  Liquidity[]
   orders        Order[]
+  rewardPools   RewardPool[]
 }
 
 model Analytics {
@@ -155,8 +157,20 @@ model Maker {
   accruedFeesY   String
   accruedFeesL   String
   accruedFeesUsd Float
+  score          Float    @default(0)
 
   @@id([address, poolAddress, date])
+}
+
+model RewardPool {
+  poolAddress        String
+  epoch              Int
+  rewardTokenAddress String
+  amount             String
+  rewardToken        Token  @relation(fields: [rewardTokenAddress], references: [address])
+  pool               Pool   @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
+
+  @@id([poolAddress, epoch])
 }
 
 model Bin {

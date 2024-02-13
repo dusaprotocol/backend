@@ -707,6 +707,22 @@ FROM (
 
       return calculateStreak(res);
     }),
+  getRewardPools: t.procedure
+    .input(
+      z.object({
+        epoch: z.number(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      return ctx.prisma.rewardPool.findMany({
+        where: {
+          epoch: input.epoch,
+        },
+        include: {
+          rewardToken: true,
+        },
+      });
+    }),
 });
 
 const getVolumeFees = async (date?: Date) => {
