@@ -43,7 +43,7 @@ model Pool {
 model Analytics {
   date         DateTime
   volume       Int
-  fees         Int
+  fees         Float
   token0Locked String
   token1Locked String
   usdLocked    Int
