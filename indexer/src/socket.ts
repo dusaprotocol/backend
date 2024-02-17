@@ -201,7 +201,7 @@ export const processLiquidity = async (params: {
   const { txHash, userAddress, timestamp, poolAddress, liqEvents, isAdd, token0Address, token1Address } = params;
   const { amountX, amountY, lowerBound, upperBound } =
     decodeLiquidityEvents(liqEvents);
-  const [amount0, amount1] = isAdd ? [amountX, amountY] : [-amountY, -amountX];
+  const [amount0, amount1] = isAdd ? [amountX, amountY] : [-amountX, -amountY];
   const token0 = await getTokenFromAddress(token0Address);
   const token1 = await getTokenFromAddress(token1Address);
   const usdValue = await calculateUSDLocked(token0, amount0, token1, amount1);
