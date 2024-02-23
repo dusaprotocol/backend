@@ -49,6 +49,7 @@ type Leaderboard = Prisma.MakerGetPayload<{
   select: {
     address: true;
     accruedFeesUsd: true;
+    volume: true;
   };
 }>;
 
@@ -670,7 +671,7 @@ FROM (
     .query(async ({ input, ctx }) => {
       const { poolAddress, from, to, take } = input;
       return ctx.prisma.$queryRaw<Leaderboard[]>`
-        SELECT address, SUM(accruedFeesUsd) as accruedFeesUsd
+        SELECT address, SUM(accruedFeesUsd) as accruedFeesUsd, SUM(volume) as volume
         FROM Maker
         WHERE poolAddress = ${poolAddress}
         AND date BETWEEN ${from} AND ${to}
