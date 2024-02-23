@@ -147,15 +147,9 @@ export const updateMakerFees = async (
   params: Omit<Prisma.MakerUncheckedCreateInput, "date">
 ) => {
   const date = getDailyTick();
+  const { address, poolAddress, accruedFeesX, accruedFeesY, accruedFeesL } =
+    params;
 
-  const {
-    address,
-    poolAddress,
-    accruedFeesUsd,
-    accruedFeesX,
-    accruedFeesY,
-    accruedFeesL,
-  } = params;
   const where = {
     address_poolAddress_date: {
       address,
@@ -163,7 +157,6 @@ export const updateMakerFees = async (
       date,
     },
   };
-
   const prev = await prisma.maker
     .findUnique({
       where,
@@ -183,83 +176,21 @@ export const updateMakerFees = async (
           accruedFeesUsd: 0,
         }
     );
-
   await prisma.maker.upsert({
     where,
     update: {
-      accruedFeesUsd: { increment: accruedFeesUsd },
-      accruedFeesX: (
-        BigInt(accruedFeesX) + BigInt(prev.accruedFeesX)
-      ).toString(),
-      accruedFeesY: (
-        BigInt(accruedFeesY) + BigInt(prev.accruedFeesY)
-      ).toString(),
-      accruedFeesL: (
-        BigInt(accruedFeesL) + BigInt(prev.accruedFeesL)
-      ).toString(),
+      accruedFeesUsd: { increment: params.accruedFeesUsd },
+      accruedFeesX: updateFees(prev.accruedFeesX, accruedFeesX),
+      accruedFeesY: updateFees(prev.accruedFeesY, accruedFeesY),
+      accruedFeesL: updateFees(prev.accruedFeesL, accruedFeesL),
+      volume: { increment: params.volume },
     },
     create: {
-      address,
-      poolAddress,
+      ...params,
       date,
-      accruedFeesUsd,
-      accruedFeesX,
-      accruedFeesY,
-      accruedFeesL,
     },
   });
 };
 
-// export const updateStreak = async (address: string, poolAddress: string) => {
-//   const lastDate = new Date();
-//   const prev = await prisma.streak.findUnique({
-//     where: {
-//       address_poolAddress: {
-//         address,
-//         poolAddress,
-//       },
-//     },
-//     select: {
-//       lastDate: true,
-//     },
-//   });
-
-//   // if the last streak was today, return
-//   if (prev?.lastDate && prev.lastDate.getDay() === lastDate.getDay()) return;
-
-//   // if the last streak was before yesterday, reset the streak
-//   if (prev?.lastDate && prev.lastDate.getDay() !== lastDate.getDay() - 1) {
-//     await prisma.streak.update({
-//       where: {
-//         address_poolAddress: {
-//           address,
-//           poolAddress,
-//         },
-//       },
-//       data: {
-//         streak: 1,
-//         lastDate,
-//       },
-//     });
-//     return;
-//   }
-
-//   await prisma.streak.upsert({
-//     where: {
-//       address_poolAddress: {
-//         address,
-//         poolAddress,
-//       },
-//     },
-//     update: {
-//       streak: { increment: 1 },
-//       lastDate,
-//     },
-//     create: {
-//       address,
-//       poolAddress,
-//       streak: 1,
-//       lastDate,
-//     },
-//   });
-// };
+const updateFees = (current: string, increment: string) =>
+  (BigInt(current) + BigInt(increment)).toString();
