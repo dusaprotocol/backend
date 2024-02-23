@@ -67,7 +67,7 @@ export const processInnerSwap = async (params: {
   const binStep = await getBinStep(poolAddress);
   const userAddress = callStack[0];
 
-  processSwap({
+  await processSwap({
     poolAddress,
     tokenInAddress,
     tokenOutAddress,
@@ -77,7 +77,7 @@ export const processInnerSwap = async (params: {
     indexInSlot: i,
     timestamp: getTimestamp(event),
     userAddress,
-  });
+  }).catch((e) => logger.error(e));
 };
 
 export const processSwap = async (params: {
@@ -144,9 +144,12 @@ export const processSwap = async (params: {
       ...params,
       ...swapPayload,
     });
-    await updateBinVolume({ binId, feesUsd, volumeUsd, poolAddress });
+    updateBinVolume({ binId, feesUsd, volumeUsd, poolAddress }).catch((e) =>
+      logger.error(e)
+    );
 
     // update maker rewards
+    // URGENT TODO: use another method (1000 keys limit)
     const makers = await getDatastoreKeys(poolAddress).then((r) =>
       r
         .filter((k) => k.startsWith(`balances::${binId}`)) // only user addresses, no smart contracts
@@ -180,7 +183,7 @@ export const processSwap = async (params: {
         accruedFeesY: accruedFeesY.toString(),
         address: maker,
         poolAddress,
-      });
+      }).catch((e) => logger.error(e));
     });
   });
 };
