@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "prisma db pull && prisma generate && pnpm install:api && pnpm install:indexer && pnpm install:crons",
+    "pi": "prisma db pull && prisma generate",
     "install:api": "cd api && pnpm i",
     "install:indexer": "cd indexer && pnpm i",
     "install:crons": "cd crons && pnpm i",

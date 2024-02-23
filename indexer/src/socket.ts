@@ -135,7 +135,7 @@ export const processSwap = async (params: {
 
   decodedEvents.forEach(async (swapEvent, i) => {
     const binSupply = binSupplies[i];
-    const { activeId: binId, swapForY, feesTotal } = swapEvent;
+    const { activeId: binId, swapForY, feesTotal, amountInToBin } = swapEvent;
 
     // update bin volume
     const { volume: volumeUsd, fees: feesUsd } = await calculateSwapValue({
@@ -159,6 +159,15 @@ export const processSwap = async (params: {
 
     makers.forEach(async (maker, j) => {
       const share = new Fraction(balances[j]).divide(binSupply);
+      const makerVolume = Number(
+        share
+          .multiply(
+            new TokenAmount(tokenIn, amountInToBin).multiply(
+              toFraction(tokenInValue)
+            )
+          )
+          .toSignificant(6)
+      );
       const accruedFees = share.multiply(feesTotal).quotient;
       const accruedFeesX = swapForY ? accruedFees : 0n;
       const accruedFeesY = swapForY ? 0n : accruedFees;
@@ -180,6 +189,7 @@ export const processSwap = async (params: {
         accruedFeesY: accruedFeesY.toString(),
         address: maker,
         poolAddress,
+        volume: makerVolume,
       });
     });
   });
