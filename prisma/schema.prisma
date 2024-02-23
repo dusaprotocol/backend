@@ -191,7 +191,7 @@ model Maker {
   address        String
   date           DateTime
   poolAddress    String
-  volume         Float    @default(0)
+  volume         Float
   accruedFeesX   String
   accruedFeesY   String
   accruedFeesL   String
@@ -222,8 +222,8 @@ model Bin {
 }
 
 model Leaderboard {
-  userAddress   String @unique
-  discordId     String @unique
+  userAddress   String  @unique
+  discordId     String? @unique
   zealySprintId Int
   score         Float
 

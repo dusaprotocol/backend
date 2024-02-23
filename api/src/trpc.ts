@@ -735,7 +735,7 @@ FROM (
     .input(
       z.object({
         zealySprintId: z.number(),
-        take: z.number().min(1).max(100),
+        take: z.number().min(1).max(100).default(50),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -757,7 +757,13 @@ FROM (
     )
     .query(async ({ input, ctx }) => {
       const { zealySprintId, address } = input;
-      return ctx.prisma.$queryRaw`
+      return ctx.prisma.$queryRaw<
+        {
+          userAddress: string;
+          score: number;
+          userRank: number;
+        }[]
+      >`
         SELECT userAddress, score, 
           (SELECT COUNT(*) + 1 
           FROM Leaderboard AS lb2 
@@ -766,11 +772,7 @@ FROM (
         FROM Leaderboard AS lb1
         WHERE userAddress = ${address} 
         AND zealySprintId = ${zealySprintId};
-      `.then((res: any) => {
-        console.log(res);
-        // return res.find((r: any) => r.userAddress === address);
-        return { rank: 69, score: 420 };
-      });
+      `.then((res) => res[0]);
     }),
   registerDiscord: t.procedure
     .input(
@@ -812,6 +814,21 @@ FROM (
       }
 
       return isValid;
+    }),
+  getRegisteredDiscord: t.procedure
+    .input(
+      z.object({
+        userAddress: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { userAddress } = input;
+
+      return ctx.prisma.leaderboard.findUnique({
+        where: {
+          userAddress,
+        },
+      });
     }),
 });
 
