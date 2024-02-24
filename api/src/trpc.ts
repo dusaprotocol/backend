@@ -51,7 +51,9 @@ type Leaderboard = Prisma.MakerGetPayload<{
     accruedFeesUsd: true;
     volume: true;
   };
-}>;
+}> & {
+  feesPct: number;
+};
 
 export const createContext = ({
   req,
@@ -226,27 +228,21 @@ export const appRouter = t.router({
         const today = analytics.slice(0, changeIndex);
         const yesterday = analytics.slice(changeIndex);
 
-        const fees = today.reduce((acc, curr) => acc + Number(curr.fees), 0);
-        const feesYesterday = yesterday.reduce(
-          (acc, curr) => acc + Number(curr.fees),
-          0
-        );
-        const volume = today.reduce(
-          (acc, curr) => acc + Number(curr.volume),
-          0
-        );
-        const volumeYesterday = yesterday.reduce(
-          (acc, curr) => acc + Number(curr.volume),
-          0
-        );
-        const feesPctChange =
-          feesYesterday === 0
-            ? 0
-            : ((fees - feesYesterday) / feesYesterday) * 100;
-        const volumePctChange =
-          volumeYesterday === 0
-            ? 0
-            : ((volume - volumeYesterday) / volumeYesterday) * 100;
+        const reduce = (
+          arr: (Volume & { fees: number })[],
+          key: "volume" | "fees"
+        ) => arr.reduce((acc, curr) => acc + Number(curr[key]), 0);
+
+        const getChange = (today: number, yesterday: number) =>
+          yesterday === 0 ? 0 : ((today - yesterday) / yesterday) * 100;
+
+        const fees = reduce(today, "fees");
+        const feesYesterday = reduce(yesterday, "fees");
+        const volume = reduce(today, "volume");
+        const volumeYesterday = reduce(yesterday, "volume");
+        const feesPctChange = getChange(fees, feesYesterday);
+        const volumePctChange = getChange(volume, volumeYesterday);
+
         return {
           fees,
           volume,
@@ -671,7 +667,7 @@ FROM (
     .query(async ({ input, ctx }) => {
       const { poolAddress, from, to, take } = input;
       return ctx.prisma.$queryRaw<Leaderboard[]>`
-        SELECT address, SUM(accruedFeesUsd) as accruedFeesUsd, SUM(volume) as volume
+        SELECT address, SUM(accruedFeesUsd) as accruedFeesUsd, SUM(volume) as volume, SUM(accruedFeesUsd) / (SELECT SUM(accruedFeesUsd) FROM Maker WHERE poolAddress = ${poolAddress} AND date BETWEEN ${from} AND ${to}) * 100 as feesPct
         FROM Maker
         WHERE poolAddress = ${poolAddress}
         AND date BETWEEN ${from} AND ${to}
