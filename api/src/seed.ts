@@ -169,5 +169,24 @@ const generateDataset = async (poolAddress: string) => {
 const rand = () => Math.random() * 0.01 - 0.005;
 
 (async () => {
-  createPools();
+  const ZEALY_API_KEY = process.env.ZEALY_API_KEY;
+  if (!ZEALY_API_KEY) throw new Error("No ZEALY_API_KEY provided");
+
+  const baseUrl = "https://api-v1.zealy.io";
+  const path = "communities";
+  const subdomain = "thisisatestlol";
+  const endpoint = "leaderboard?";
+  const url = `${baseUrl}/${path}/${subdomain}/${endpoint}`;
+  const params = new URLSearchParams({
+    limit: "10",
+    page: "0",
+  });
+  await fetch(url + params, {
+    headers: {
+      "x-api-key": ZEALY_API_KEY,
+    },
+  })
+    .then((res) => res.json())
+    .then(console.log)
+    .catch(console.error);
 })();
