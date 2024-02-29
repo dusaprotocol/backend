@@ -556,14 +556,14 @@ export const appRouter = t.router({
             userAddress,
           },
           include: {
-            OrderExecution: true,
+            orderExecution: true,
           },
         })
         .catch(
           (
             err
           ): Prisma.OrderGetPayload<{
-            include: { OrderExecution: true };
+            include: { orderExecution: true };
           }>[] => {
             logger.error(err);
             return [];
@@ -713,7 +713,7 @@ FROM (
     )
     .query(async ({ input, ctx }) => {
       const { epoch, poolAddress } = input;
-      return ctx.prisma.rewardPool.findUnique({
+      const res = await ctx.prisma.rewardPool.findUniqueOrThrow({
         where: {
           poolAddress_epoch: {
             epoch,
@@ -721,9 +721,31 @@ FROM (
           },
         },
         include: {
-          rewardToken: true,
+          rewardTokens: {
+            include: {
+              token: true,
+            },
+          },
         },
       });
+
+      const rewardTokensWithValue = await Promise.all(
+        res.rewardTokens.map(async (rewardToken) => ({
+          ...rewardToken,
+          dollarValue: await getTokenValue(
+            new Token(
+              CHAIN_ID,
+              rewardToken.token.address,
+              rewardToken.token.decimals
+            )
+          ),
+        }))
+      );
+
+      return {
+        ...res,
+        rewardTokens: rewardTokensWithValue,
+      };
     }),
 });
 

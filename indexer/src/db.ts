@@ -114,7 +114,7 @@ export const createDCA = async (dca: DCA) =>
       data: {
         ...dca,
         userAddress: undefined,
-        User: coc(dca.userAddress),
+        user: coc(dca.userAddress),
       },
     })
     .catch(() => logger.warn("createDCA failed", dca));

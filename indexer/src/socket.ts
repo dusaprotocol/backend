@@ -282,7 +282,7 @@ export const processDCAExecution = async (
         ...blockInfo,
         amountIn: dca.amountEachDCA,
         amountOut: amountOut.toString(),
-        dCAId: id,
+        dcaId: id,
       },
     });
 
