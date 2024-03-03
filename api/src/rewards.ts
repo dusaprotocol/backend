@@ -5,7 +5,6 @@ import { Fraction, Token, TokenAmount } from "@dusalabs/sdk";
 import { ONE_DAY } from "../../common/utils";
 import { toFraction, toToken } from "../../common/methods";
 import xlsx from "node-xlsx";
-import { CHAIN_ID } from "../../common/config";
 
 // TYPES
 
@@ -23,10 +22,7 @@ type ExcelData = {
   rewardToken: string;
   makerRewards: number;
   makerRewardsRaw: string;
-  season: string;
-  chain: string;
   pairName: string;
-  pid: string;
   rewardEpoch: number;
   rewardAmount: number;
 };
@@ -76,6 +72,7 @@ const saveFile = (data: {}) =>
 
 const saveXLSXFile = (rawData: ExcelData[]) => {
   const data = rawData.map((row) => {
+    return Object.values(row);
     return [
       row.userAddress,
       row.accruedFeesX,
@@ -90,10 +87,7 @@ const saveXLSXFile = (rawData: ExcelData[]) => {
       row.rewardToken,
       row.makerRewards,
       row.makerRewardsRaw,
-      row.season,
-      row.chain,
       row.pairName,
-      row.pid,
       row.rewardEpoch,
       row.rewardAmount,
     ];
@@ -109,6 +103,39 @@ const saveXLSXFile = (rawData: ExcelData[]) => {
     ]),
     (err) => err && console.error(err)
   );
+};
+
+// HELPERS
+
+const getAccruedFees = async (poolAddress: string, makerAddress: string) => {
+  return prisma.maker
+    .findMany({
+      where: {
+        poolAddress,
+        date: {
+          gte: from,
+          lt: to,
+        },
+        address: makerAddress,
+      },
+      select: {
+        accruedFeesX: true,
+        accruedFeesY: true,
+        accruedFeesL: true,
+      },
+    })
+    .then((res) => {
+      return res.reduce(
+        (acc, maker) => {
+          return {
+            accruedFeesX: acc.accruedFeesX + BigInt(maker.accruedFeesX),
+            accruedFeesY: acc.accruedFeesY + BigInt(maker.accruedFeesY),
+            accruedFeesL: acc.accruedFeesL + BigInt(maker.accruedFeesL),
+          };
+        },
+        { accruedFeesX: 0n, accruedFeesY: 0n, accruedFeesL: 0n }
+      );
+    });
 };
 
 // MAIN
@@ -183,96 +210,70 @@ const saveXLSXFile = (rawData: ExcelData[]) => {
       0
     );
 
+    let i = 0;
+    for (const maker of makers) {
+      i++;
+      const accruedFees = await getAccruedFees(poolAddress, maker.address);
+      const percentOfTotalFees = Number(
+        toFraction(maker.accruedFeesUsd)
+          .divide(toFraction(totalFees))
+          .toSignificant(6)
+      );
+      const makerScore = maker.accruedFeesUsd ** FEE_WEIGHT;
+
+      for (const rewardToken of market.rewardTokens) {
+        const totalRewards = BigInt(rewardToken.amount);
+        const makerRewards = new Fraction(totalRewards)
+          .multiply(toFraction(makerScore))
+          .divide(toFraction(totalFeesWeighted));
+        const rewardPercentage = makerRewards
+          .multiply(100n)
+          .divide(totalRewards);
+
+        excelData.push({
+          userAddress: maker.address,
+          accruedFeesX: Number(
+            new TokenAmount(
+              toToken(token0),
+              accruedFees.accruedFeesX
+            ).toSignificant()
+          ),
+          accruedFeesY: Number(
+            new TokenAmount(
+              toToken(token1),
+              accruedFees.accruedFeesY
+            ).toSignificant()
+          ),
+          accruedFeesL: Number(
+            new TokenAmount(
+              toToken(token1),
+              accruedFees.accruedFeesL
+            ).toSignificant()
+          ),
+          accruedFeesUsd: maker.accruedFeesUsd,
+          percentOfTotalFees,
+          pairAddress: poolAddress,
+          makerScore,
+          makerRank: i,
+          rewardPercentage: Number(rewardPercentage.toSignificant(6)),
+          rewardToken: rewardToken.token.symbol,
+          makerRewards: Number(makerRewards.toSignificant(6)),
+          makerRewardsRaw: makerRewards.quotient.toString(),
+          pairName: token0.symbol + "_" + token1.symbol + "-" + binStep,
+          rewardEpoch: epoch,
+          rewardAmount: Number(
+            new TokenAmount(
+              toToken(rewardToken.token),
+              totalRewards
+            ).toSignificant()
+          ),
+        });
+      }
+    }
+
     const rewards: RewardData[] = await Promise.all(
       market.rewardTokens.map(async (rewardToken) => {
-        console.log(rewardToken);
         const totalRewards = BigInt(rewardToken.amount);
-
-        makers.forEach(async (maker, i) => {
-          const accruedFees = await prisma.maker
-            .findMany({
-              where: {
-                poolAddress,
-                date: {
-                  gte: from,
-                  lt: to,
-                },
-                address: maker.address,
-              },
-              select: {
-                accruedFeesX: true,
-                accruedFeesY: true,
-                accruedFeesL: true,
-              },
-            })
-            .then((res) => {
-              return res.reduce(
-                (acc, maker) => {
-                  return {
-                    accruedFeesX: acc.accruedFeesX + BigInt(maker.accruedFeesX),
-                    accruedFeesY: acc.accruedFeesY + BigInt(maker.accruedFeesY),
-                    accruedFeesL: acc.accruedFeesL + BigInt(maker.accruedFeesL),
-                  };
-                },
-                { accruedFeesX: 0n, accruedFeesY: 0n, accruedFeesL: 0n }
-              );
-            });
-          const percentOfTotalFees = Number(
-            toFraction(maker.accruedFeesUsd)
-              .divide(toFraction(totalFees))
-              .toSignificant(6)
-          );
-          const makerScore = maker.accruedFeesUsd ** FEE_WEIGHT;
-          const makerRewards = new Fraction(totalRewards)
-            .multiply(toFraction(maker.accruedFeesUsd ** FEE_WEIGHT))
-            .divide(toFraction(totalFeesWeighted));
-          const rewardPercentage = makerRewards
-            .multiply(100n)
-            .divide(totalRewards);
-
-          excelData.push({
-            userAddress: maker.address,
-            accruedFeesX: Number(
-              new TokenAmount(
-                toToken(token0),
-                accruedFees.accruedFeesX
-              ).toSignificant()
-            ),
-            accruedFeesY: Number(
-              new TokenAmount(
-                toToken(token1),
-                accruedFees.accruedFeesY
-              ).toSignificant()
-            ),
-            accruedFeesL: Number(
-              new TokenAmount(
-                toToken(token1),
-                accruedFees.accruedFeesL
-              ).toSignificant()
-            ),
-            accruedFeesUsd: maker.accruedFeesUsd,
-            percentOfTotalFees,
-            pairAddress: poolAddress,
-            makerScore,
-            makerRank: i + 1,
-            rewardPercentage: Number(rewardPercentage.toSignificant(6)),
-            rewardToken: rewardToken.address,
-            makerRewards: Number(makerRewards.toSignificant(6)),
-            makerRewardsRaw: makerRewards.quotient.toString(),
-            season: "1",
-            chain: CHAIN_ID.toString(),
-            pairName: token0.symbol + "_" + token1.symbol + "-" + binStep,
-            pid: "1",
-            rewardEpoch: epoch,
-            rewardAmount: Number(
-              new TokenAmount(
-                toToken(rewardToken.token),
-                totalRewards
-              ).toSignificant()
-            ),
-          });
-        });
-
         return {
           totalRewards,
           address: rewardToken.address,
@@ -292,7 +293,7 @@ const saveXLSXFile = (rawData: ExcelData[]) => {
     jsonData.markets.push({
       address: poolAddress,
       epoch,
-      start: from.getTime(),
+      start: to.getTime(),
       duration: 0,
       length: market.rewardTokens.length,
       rewards,
