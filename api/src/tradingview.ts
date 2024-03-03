@@ -86,15 +86,20 @@ export const searchSymbols = () => {
 
 // Bars
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#bars
-export const getBars = async (
-  symbol: string,
-  resolution: string,
-  from: number,
-  to: number,
-  countback: number
-) => {
+export const getBars = async ({
+  symbol,
+  resolution,
+  from,
+  to,
+  countback,
+}: {
+  symbol: string;
+  resolution: string;
+  from: number;
+  to: number;
+  countback: number;
+}) => {
   const interval = (to - from) / countback;
-
   const prices = await prisma.analytics
     .findMany({
       select: {

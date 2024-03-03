@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { calculateUSDLocked, radius } from "../common/methods";
+import { calculateUSDLocked, radius, toToken } from "../common/methods";
 import { USDC, WMAS } from "../common/contracts";
-import { Token, WETH as _WETH, parseUnits } from "@dusalabs/sdk";
-import { CHAIN_ID } from "../common/config";
+import { WETH as _WETH, parseUnits } from "@dusalabs/sdk";
 
 describe("calculateUSDLocked", () => {
   it("handle valid pool", async () => {
@@ -18,11 +17,10 @@ describe("calculateUSDLocked", () => {
     expect(value).toBeLessThan(max);
   });
   it("handle invalid pool", async () => {
-    const oldToken = new Token(
-      CHAIN_ID,
-      "AS123aZ3ZbYcTG5qt6YzTQZyZLaqkWtmJyT8EL2kjsZS8gbnXTTeY",
-      6
-    );
+    const oldToken = toToken({
+      address: "AS123aZ3ZbYcTG5qt6YzTQZyZLaqkWtmJyT8EL2kjsZS8gbnXTTeY",
+      decimals: 6,
+    });
     const value = await calculateUSDLocked(
       WMAS,
       parseUnits("1", WMAS.decimals),

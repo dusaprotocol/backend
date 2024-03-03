@@ -4,15 +4,8 @@ import { z } from "zod";
 import type { Liquidity, Prisma, Swap } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
-import {
-  ONE_DAY,
-  ONE_HOUR,
-  TICKS_PER_DAY,
-  getDailyTick,
-} from "../../common/utils/date";
-import { calculateStreak, getTokenValue } from "../../common/methods";
-import { Token } from "@dusalabs/sdk";
-import { CHAIN_ID } from "../../common/config";
+import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
+import { calculateStreak, getTokenValue, toToken } from "../../common/methods";
 
 const DayWindow = z.union([
   z.literal(7),
@@ -652,7 +645,7 @@ FROM (
     )
     .query(async ({ input }) => {
       const { tokenAddress, tokenDecimals } = input;
-      const token = new Token(CHAIN_ID, tokenAddress, tokenDecimals);
+      const token = toToken({ address: tokenAddress, decimals: tokenDecimals });
       return getTokenValue(token);
     }),
   getLeaderboard: t.procedure
@@ -732,13 +725,7 @@ FROM (
       const rewardTokensWithValue = await Promise.all(
         res.rewardTokens.map(async (rewardToken) => ({
           ...rewardToken,
-          dollarValue: await getTokenValue(
-            new Token(
-              CHAIN_ID,
-              rewardToken.token.address,
-              rewardToken.token.decimals
-            )
-          ),
+          dollarValue: await getTokenValue(toToken(rewardToken.token)),
         }))
       );
 

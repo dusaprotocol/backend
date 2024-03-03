@@ -116,6 +116,23 @@ export const toFraction = (price: number): Fraction => {
   return new Fraction(value, BigInt(1e18));
 };
 
+export const toToken = (
+  {
+    address,
+    decimals,
+    symbol,
+    name,
+  }: {
+    address: string;
+    decimals: number;
+    symbol?: string;
+    name?: string;
+  },
+  chainId = CHAIN_ID
+): Token => {
+  return new Token(chainId, address, decimals, symbol, name);
+};
+
 export const getTokenFromAddress = async (
   tokenAddress: string
 ): Promise<Token> => {
@@ -131,13 +148,7 @@ export const getTokenFromAddress = async (
     return fetchTokenFromAddress(address);
   }
 
-  return new Token(
-    CHAIN_ID,
-    token.address,
-    token.decimals,
-    token.symbol,
-    token.name
-  );
+  return toToken(token);
 };
 
 export const fetchDCA = async (
@@ -177,7 +188,7 @@ export const fetchTokenFromAddress = async (
     token.decimals(),
   ]);
 
-  return new Token(CHAIN_ID, token.address, decimals, symbol, name);
+  return toToken({ address: token.address, decimals, symbol, name });
 };
 
 export const fetchNewAnalytics = async (
@@ -185,7 +196,7 @@ export const fetchNewAnalytics = async (
 ) => {
   const { address: poolAddress, binStep } = pool;
   const [token0, token1] = [pool.token0, pool.token1].map((token) => {
-    return new Token(CHAIN_ID, token.address, token.decimals);
+    return toToken(token);
   });
   const pairInfo = await new ILBPair(
     poolAddress,

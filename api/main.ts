@@ -43,10 +43,10 @@ app.get("/search", (req, res) => {
 app.get("/history", async (req, res) => {
   const symbol = req.query.symbol as string;
   const resolution = req.query.resolution as string;
-  const from = parseInt(req.query.from as string);
-  const to = parseInt(req.query.to as string);
-  const countback = parseInt(req.query.countback as string);
-  const history = await getBars(symbol, resolution, from, to, countback);
+  const from = Number(req.query.from);
+  const to = Number(req.query.to);
+  const countback = Number(req.query.countback);
+  const history = await getBars({ symbol, resolution, from, to, countback });
   res.send(history);
 });
 app.get("/time", (req, res) => {

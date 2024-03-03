@@ -89,6 +89,7 @@ describe("isEvent", () => {
 describe("calculateStreak", () => {
   const address = "AU1cBirTno1FrMVpUMT96KiQ97wBqqM1z9uJLr3XZKQwJjFLPEar";
   const poolAddress = "AS12mcVCcziH2e3YVXqWzDG6nR8RBQ4FKh8HnZkGGGnh7JuqwUXa";
+  const volume = 1;
   const accruedFeesUsd = 1;
   const accruedFeesL = "0";
   const accruedFeesX = "0";
@@ -96,6 +97,7 @@ describe("calculateStreak", () => {
   const p = {
     address,
     poolAddress,
+    volume,
     accruedFeesUsd,
     accruedFeesL,
     accruedFeesX,
