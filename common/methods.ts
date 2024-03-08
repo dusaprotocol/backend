@@ -191,13 +191,18 @@ export const fetchTokenFromAddress = async (
   return toToken({ address: token.address, decimals, symbol, name });
 };
 
+/**
+ * Fetch a pool information (reserves, price, volume) and insert it into the database
+ * @param pool
+ * @returns
+ */
 export const fetchNewAnalytics = async (
   pool: Prisma.PoolGetPayload<{ include: { token0: true; token1: true } }>
 ) => {
   const { address: poolAddress, binStep } = pool;
-  const [token0, token1] = [pool.token0, pool.token1].map((token) => {
-    return toToken(token);
-  });
+  const [token0, token1] = [pool.token0, pool.token1].map((token) =>
+    toToken(token)
+  );
   const pairInfo = await new ILBPair(
     poolAddress,
     web3Client
@@ -232,19 +237,6 @@ export const fetchNewAnalytics = async (
     });
 
   const openId = pairInfo.activeId;
-  const closeId = await prisma.swap
-    .findFirst({
-      where: {
-        poolAddress,
-        timestamp: {
-          gte: new Date(Date.now() - TIME_BETWEEN_TICKS),
-        },
-      },
-      orderBy: {
-        timestamp: "desc",
-      },
-    })
-    .then((res) => res?.binId || openId);
   const { highId, lowId } = await prisma.swap
     .aggregate({
       where: {
@@ -266,16 +258,29 @@ export const fetchNewAnalytics = async (
         lowId: res._min.binId || openId,
       };
     });
-  const [open, close, high, low] = [openId, closeId, highId, lowId].map(
-    (binId) =>
-      adjustPrice(
-        getPriceFromId(binId, binStep),
-        token0.decimals,
-        token1.decimals
-      )
+  const [open, high, low] = [openId, highId, lowId].map((binId) =>
+    adjustPrice(
+      getPriceFromId(binId, binStep),
+      token0.decimals,
+      token1.decimals
+    )
   );
+  if (!open) throw new Error("Invalid price");
 
-  if (!open) throw new Error("Price is 0");
+  // update previous tick with close, high and low
+  await prisma.analytics.update({
+    where: {
+      poolAddress_date: {
+        poolAddress,
+        date: new Date(Date.now() - TIME_BETWEEN_TICKS),
+      },
+    },
+    data: {
+      close: open,
+      high,
+      low,
+    },
+  });
 
   return await createAnalytic({
     poolAddress,
@@ -284,10 +289,10 @@ export const fetchNewAnalytics = async (
     usdLocked,
     volume,
     fees,
-    close,
     open,
-    high,
-    low,
+    close: open,
+    high: open,
+    low: open,
   });
 };
 
