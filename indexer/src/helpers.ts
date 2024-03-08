@@ -67,8 +67,14 @@ export async function handleNewSlotExecutionOutputs(
           await processOrderExecution(eventData, { period, thread, blockId });
         }
       } else return;
-    } catch (err) {
+    } catch (err: any) {
       logger.warn(JSON.stringify(event));
+      await prisma.log.create({
+        data: {
+          data: Buffer.from(JSON.stringify(event)),
+          message: err.message,
+        },
+      });
       throw err;
     }
   });
@@ -228,8 +234,14 @@ export async function handleNewOperations(message: NewOperationsResponse) {
         });
       } else throw new Error("Unknown router method:" + targetFunction);
     }
-  } catch (err) {
-    logger.warn(JSON.stringify(events));
+  } catch (err: any) {
+    logger.warn(JSON.stringify(events, null, 4));
+    await prisma.log.create({
+      data: {
+        data: Buffer.from(JSON.stringify(events)),
+        message: err.message,
+      },
+    });
     throw err;
   }
 }

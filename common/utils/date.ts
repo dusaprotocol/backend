@@ -17,11 +17,27 @@ export const TICKS_PER_DAY = ONE_DAY / TIME_BETWEEN_TICKS;
 export const EVERY_TICK = "*/5 * * * *" as const;
 export const EVERY_PERIOD = "*/16 * * * * *" as const;
 
+// UNIX timestamp of the first slot
+export const genesisTimestamp = await web3Client
+  .publicApi()
+  .getNodeStatus()
+  .then((r) => r.config.genesis_timestamp);
+
+/**
+ * Returns the approximate timestamp of a slot, based on the network's genesis timestamp
+ * @param slot
+ * @returns
+ */
 export const parseSlot = (slot: Slot | ISlot): number =>
   genesisTimestamp +
   Number(slot.period) * ONE_PERIOD +
   (slot.thread / 2) * 1000;
 
+/**
+ * Returns the slot corresponding to the given timestamp
+ * @param timestamp
+ * @returns
+ */
 export const parseTimestamp = (
   timestamp: number,
   genesisTimestamp: number
@@ -34,11 +50,11 @@ export const parseTimestamp = (
   };
 };
 
-export const genesisTimestamp = await web3Client
-  .publicApi()
-  .getNodeStatus()
-  .then((r) => r.config.genesis_timestamp);
-
+/**
+ * Returns the timestamp at which the event was emitted
+ * @param event
+ * @returns
+ */
 export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
   if (!event.context) return new Date();
 
@@ -49,19 +65,31 @@ export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
   return new Date(parseSlot(slot));
 };
 
+/**
+ * Returns the closest tick to the given timestamp (rounded down)
+ * @param timestamp
+ * @returns
+ */
 export const getClosestTick = (timestamp: number = Date.now()): Date => {
   return new Date(
     Math.floor(timestamp / TIME_BETWEEN_TICKS) * TIME_BETWEEN_TICKS
   );
 };
 
+/**
+ * Returns the closest hourly tick to the given timestamp (rounded down)
+ * @param timestamp
+ * @returns
+ */
 export const getHourlyTick = (timestamp: number = Date.now()): Date => {
   return new Date(Math.floor(timestamp / ONE_HOUR) * ONE_HOUR);
 };
 
+/**
+ * Returns the closest daily tick to the given timestamp (rounded down)
+ * @param timestamp
+ * @returns
+ */
 export const getDailyTick = (timestamp: number = Date.now()): Date => {
   return new Date(Math.floor(timestamp / ONE_DAY) * ONE_DAY);
 };
-
-// used for rewards
-export const getCurrentEpoch = () => 1;

@@ -233,6 +233,13 @@ model UserAnalytics {
   @@index([date], map: "date")
 }
 
+model Log {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  message   String
+  data      Bytes
+}
+
 enum Status {
   ACTIVE
   STOPPED
