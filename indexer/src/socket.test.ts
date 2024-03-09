@@ -103,7 +103,7 @@ describe("helpers", async () => {
       feesIn: parseUnits("0.01", tokenIn.decimals),
     };
 
-    const { volume, fees } = await Socket.calculateSwapValue({
+    const { volume, fees } = Socket.calculateSwapValue({
       ...params,
     });
 
@@ -126,7 +126,7 @@ describe("helpers", async () => {
       feesIn: parseUnits("0.01", tokenIn.decimals),
     };
 
-    const { volume, fees } = await Socket.calculateSwapValue(params);
+    const { volume, fees } = Socket.calculateSwapValue(params);
 
     const [minVolume, maxVolume] = Methods.radius(5, 10);
     expect(volume).toBeGreaterThan(minVolume);

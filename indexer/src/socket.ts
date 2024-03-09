@@ -106,7 +106,7 @@ export const processSwap = async (params: {
   const tokenInValue = await getTokenValue(tokenIn);
   const tokenYValue = await getTokenValue(tokenY);
 
-  const { volume, fees } = await calculateSwapValue({
+  const { volume, fees } = calculateSwapValue({
     tokenIn,
     valueIn: tokenInValue,
     ...params,
@@ -138,10 +138,9 @@ export const processSwap = async (params: {
     const { activeId: binId, swapForY, feesTotal, amountInToBin } = swapEvent;
 
     // update bin volume
-    const { volume: volumeUsd, fees: feesUsd } = await calculateSwapValue({
+    const { volume: volumeUsd, fees: feesUsd } = calculateSwapValue({
       tokenIn,
       valueIn: tokenInValue,
-      ...params,
       ...swapPayload,
     });
     updateBinVolume({ binId, feesUsd, volumeUsd, poolAddress }).catch((e) =>
@@ -152,7 +151,7 @@ export const processSwap = async (params: {
     // URGENT TODO: use another method (1000 keys limit)
     const makers = await getDatastoreKeys(poolAddress).then((r) =>
       r
-        .filter((k) => k.startsWith(`balances::${binId}`)) // only user addresses, no smart contracts
+        .filter((k) => k.startsWith(`balances::${binId}`))
         .map((k) => k.split(`::${binId}`)[1])
     );
     const balances = await pair.balanceOfBatch(
@@ -232,7 +231,7 @@ export const processLiquidity = async (params: {
   });
 };
 
-export const calculateSwapValue = async (params: {
+export const calculateSwapValue = (params: {
   tokenIn: Token;
   valueIn: number;
   amountIn: bigint;

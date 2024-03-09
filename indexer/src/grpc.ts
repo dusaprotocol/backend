@@ -1,7 +1,6 @@
 import { ChannelCredentials } from "@grpc/grpc-js";
 import { GrpcTransport } from "@protobuf-ts/grpc-transport";
 import logger from "../../common/logger";
-import { ONE_MINUTE } from "../../common/utils";
 import {
   NewSlotExecutionOutputsRequest,
   NewOperationsRequest,
@@ -9,8 +8,9 @@ import {
 import { PublicServiceClient as MassaServiceClient } from "../gen/ts/massa/api/v1/public.client";
 import { ExecutionOutputStatus } from "../gen/ts/massa/model/v1/execution";
 import { handleNewOperations, handleNewSlotExecutionOutputs } from "./helpers";
-import { RpcOptions, DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
+import { DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
 import { grpcDefaultHost, grpcPort } from "../../common/config";
+import { OpType } from "../gen/ts/massa/model/v1/operation";
 
 const createClient = (host: string = grpcDefaultHost) =>
   new MassaServiceClient(
@@ -76,7 +76,16 @@ export const subscribeNewSlotExecutionOutputs = async () => {
 
 export const subscribeNewOperations = async () => {
   const req: NewOperationsRequest = {
-    filters: [], // TODO: add filters
+    filters: [
+      {
+        filter: {
+          oneofKind: "operationTypes",
+          operationTypes: {
+            opTypes: [OpType.CALL_SC, OpType.EXECUTE_SC],
+          },
+        },
+      },
+    ],
   };
 
   return subscribe(baseClient, "newOperations", req, handleNewOperations);
