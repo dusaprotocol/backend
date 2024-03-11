@@ -269,7 +269,7 @@ export const processDCAExecution = async (
     if (resRetry) return resRetry;
 
     return fetchDCA(id, user).then(async (_dca) => {
-      await createDCA(_dca).catch(() => logger.warn("createDCA failed", _dca));
+      await createDCA(_dca);
       return _dca;
     });
   });

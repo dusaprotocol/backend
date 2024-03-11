@@ -156,21 +156,23 @@ export const fetchNewAnalytics = async (
   if (!open) throw new Error("Invalid price");
 
   // update previous tick with close, high and low
-  await prisma.analytics.update({
-    where: {
-      poolAddress_date: {
-        poolAddress,
-        date: new Date(Date.now() - TIME_BETWEEN_TICKS),
+  await prisma.analytics
+    .update({
+      where: {
+        poolAddress_date: {
+          poolAddress,
+          date: new Date(Date.now() - TIME_BETWEEN_TICKS),
+        },
       },
-    },
-    data: {
-      close: open,
-      high,
-      low,
-    },
-  });
+      data: {
+        close: open,
+        high,
+        low,
+      },
+    })
+    .catch(() => logger.warn("failed to update previous tick"));
 
-  return await createAnalytic({
+  return createAnalytic({
     poolAddress,
     token0Locked: token0Locked.toString(),
     token1Locked: token1Locked.toString(),

@@ -155,12 +155,14 @@ export const createAnalytic = async (
 ) => {
   const date = getClosestTick();
 
-  return await prisma.analytics.create({
-    data: {
-      ...args,
-      date,
-    },
-  });
+  return prisma.analytics
+    .create({
+      data: {
+        ...args,
+        date,
+      },
+    })
+    .catch(() => logger.warn("createAnalytic failed", args));
 };
 
 export const updateMakerFees = async (
