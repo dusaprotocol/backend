@@ -18,10 +18,12 @@ const co = (address: string) => ({
   connect: { address },
 });
 
-export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
+export const createSwap = async (
+  payload: Prisma.SwapUncheckedCreateInput
+): Promise<boolean> => {
   // prettier-ignore
   const { poolAddress, userAddress, amountIn, amountOut, feesIn, swapForY, binId, timestamp, txHash, usdValue, feesUsdValue, indexInSlot } = payload;
-  await prisma.swap
+  return prisma.swap
     .create({
       data: {
         pool: co(poolAddress),
@@ -38,7 +40,16 @@ export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
         swapForY,
       },
     })
-    .catch(() => logger.warn("createSwap failed", payload));
+    .then(() => true)
+    .catch((err) => {
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code !== "P2002") {
+          // unique constraint failed
+          logger.warn("createSwap failed", payload);
+        }
+      }
+      return false;
+    });
 };
 
 export const createLiquidity = async (

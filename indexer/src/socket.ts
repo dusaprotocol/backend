@@ -113,7 +113,7 @@ export const processSwap = async (params: {
     ...swapPayload,
   });
 
-  await createSwap({
+  const success = await createSwap({
     ...swapPayload,
     timestamp,
     txHash,
@@ -126,6 +126,7 @@ export const processSwap = async (params: {
     amountOut: swapPayload.amountOut.toString(),
     feesIn: swapPayload.feesIn.toString(),
   });
+  if (!success) return;
 
   // update maker fees
   const pair = new ILBPair(poolAddress, web3Client);
@@ -258,39 +259,35 @@ export const processDCAExecution = async (
   eventData: string,
   blockInfo: { thread: number; period: number; blockId: string }
 ) => {
-  if (eventData.startsWith("DCA_EXECUTED:")) {
-    const { amountOut, id, user } = EventDecoder.decodeDCAExecution(eventData);
-    const dca = await findDCA(id).then(async (res) => {
-      if (res) return res;
+  const { amountOut, id, user } = EventDecoder.decodeDCAExecution(eventData);
+  const dca = await findDCA(id).then(async (res) => {
+    if (res) return res;
 
-      await wait(ONE_MINUTE / 2);
-      const resRetry = await findDCA(id);
-      if (resRetry) return resRetry;
+    await wait(ONE_MINUTE / 2);
+    const resRetry = await findDCA(id);
+    if (resRetry) return resRetry;
 
-      return fetchDCA(id, user).then(async (_dca) => {
-        await createDCA(_dca).catch(() =>
-          logger.warn("createDCA failed", _dca)
-        );
-        return _dca;
-      });
+    return fetchDCA(id, user).then(async (_dca) => {
+      await createDCA(_dca).catch(() => logger.warn("createDCA failed", _dca));
+      return _dca;
     });
-    if (!dca) return;
+  });
+  if (!dca) return;
 
-    await prisma.dCAExecution.create({
-      data: {
-        ...blockInfo,
-        amountIn: dca.amountEachDCA,
-        amountOut: amountOut.toString(),
-        dcaId: id,
-      },
-    });
+  await prisma.dCAExecution.create({
+    data: {
+      ...blockInfo,
+      amountIn: dca.amountEachDCA,
+      amountOut: amountOut.toString(),
+      dcaId: id,
+    },
+  });
 
-    if (
-      dca.endTime.getTime() !== dca.startTime.getTime() &&
-      dca.endTime.getTime() < Date.now()
-    )
-      updateDCAStatus(id, Status.ENDED);
-  }
+  if (
+    dca.endTime.getTime() !== dca.startTime.getTime() &&
+    dca.endTime.getTime() < Date.now()
+  )
+    updateDCAStatus(id, Status.ENDED);
 };
 
 export const processOrderExecution = async (
