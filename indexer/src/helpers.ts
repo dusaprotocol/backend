@@ -5,14 +5,16 @@ import {
   SwapRouterMethod,
   LiquidityRouterMethod,
 } from "@dusalabs/sdk";
-import { bytesToStr, withTimeoutRejection } from "@massalabs/massa-web3";
-import { dcaSC, orderSC, routerSC } from "../../common/contracts";
-import { prisma } from "../../common/db";
 import {
-  fetchPairAddress,
-  isLiquidityEvent,
-  isSwapEvent,
-} from "../../common/methods";
+  IEvent,
+  bytesToStr,
+  strToBytes,
+  withTimeoutRejection,
+} from "@massalabs/massa-web3";
+import { ADDRESSES, dcaSC, orderSC, routerSC } from "../../common/contracts";
+import { prisma } from "../../common/db";
+import { fetchPairAddress } from "../../common/datastoreFetcher";
+import { isLiquidityEvent, isSwapEvent } from "../../common/methods";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import {
   decodeDcaTx,
@@ -28,13 +30,46 @@ import {
   processOrderExecution,
 } from "./socket";
 import {
+  NewFilledBlocksResponse,
   NewOperationsResponse,
   NewSlotExecutionOutputsResponse,
 } from "../gen/ts/massa/api/v1/public";
-import { pollAsyncEvents } from "./eventPoller";
+import { createEventPoller, pollAsyncEvents } from "./eventPoller";
 import { createDCA, findDCA, updateDCAStatus } from "./db";
 import { DCA, Status } from "@prisma/client";
 import logger from "../../common/logger";
+import { BytesMapFieldEntry } from "../gen/ts/massa/model/v1/commons";
+import { SignedOperation } from "../gen/ts/massa/model/v1/operation";
+
+export async function handleNewFilledBlocks(message: NewFilledBlocksResponse) {
+  if (!message.filledBlock) return;
+
+  const { header, operations } = message.filledBlock;
+  const blockId = header?.secureHash;
+  if (!blockId || !operations.length) return;
+
+  const slot = header?.content?.slot;
+  if (!slot) return;
+
+  const indexedOperations = operations.filter(
+    ({ operation }) => operation && needIndexing(operation)
+  );
+  if (!indexedOperations.length) return;
+
+  await prisma.block
+    .create({
+      data: {
+        id: blockId,
+        period: Number(slot.period),
+        thread: slot.thread,
+      },
+    })
+    .then(() => logger.info(`Block ${blockId} indexed`));
+
+  indexedOperations.forEach(async (op, i) => {
+    op.operation && processSignedOperation(op.operation, i, blockId);
+  });
+}
 
 export async function handleNewSlotExecutionOutputs(
   message: NewSlotExecutionOutputsResponse
@@ -82,24 +117,60 @@ export async function handleNewSlotExecutionOutputs(
 
 export async function handleNewOperations(message: NewOperationsResponse) {
   if (!message.signedOperation) return;
+  if (!needIndexing(message.signedOperation)) return;
+  processSignedOperation(message.signedOperation);
+}
+
+const processSignedOperation = async (
+  signedOperation: SignedOperation,
+  indexInBlock: number = 0,
+  blockId: string = ""
+) => {
   const {
     secureHash: txHash,
     contentCreatorAddress: userAddress,
     content: operation,
-  } = message.signedOperation;
+  } = signedOperation;
   const opType = operation?.op?.type;
   if (opType?.oneofKind !== "callSc") return;
 
-  const { targetAddress, targetFunction, parameter, coins } = opType.callSc;
+  const { targetAddress, targetFunction, parameter, coins, maxGas } =
+    opType.callSc;
   const indexedSC = [dcaSC, orderSC, routerSC];
   if (!indexedSC.includes(targetAddress)) return;
 
-  const { events, eventPoller, isError } = await withTimeoutRejection(
-    pollAsyncEvents(txHash),
+  const eventPoller = createEventPoller(txHash);
+  const { events, isError } = await withTimeoutRejection(
+    pollAsyncEvents(eventPoller),
     ONE_MINUTE
-  );
+  ).catch(() => {
+    logger.warn(`Timeout for ${txHash}`);
+    return { events: [] as IEvent[], isError: false };
+  });
   eventPoller.stopPolling();
   if (isError) return;
+
+  await prisma.operation.create({
+    data: {
+      data: Buffer.from(parameter),
+      targetAddress,
+      targetFunction,
+      callerAddress: userAddress,
+      value: coins?.mantissa || 0,
+      id: txHash,
+      blockId,
+      maxGas,
+      events: {
+        createMany: {
+          data: events.map((event) => ({
+            data: Buffer.from(strToBytes(event.data)),
+            emitterAddress: event.context.call_stack[0],
+            indexInSlot: event.context.index_in_slot,
+          })),
+        },
+      },
+    },
+  });
 
   try {
     // PERIPHERY CONTRACTS
@@ -244,10 +315,25 @@ export async function handleNewOperations(message: NewOperationsResponse) {
     });
     throw err;
   }
-}
+};
 
 const isSwapMethod = (str: string): str is SwapRouterMethod =>
   !!SWAP_ROUTER_METHODS.find((method) => str === method);
 
 const isLiquidtyMethod = (str: string): str is LiquidityRouterMethod =>
   !!LIQUIDITY_ROUTER_METHODS.find((method) => str === method);
+
+const needIndexing2 = (entry: BytesMapFieldEntry) => {
+  return (
+    // !bytesToStr(entry.key).startsWith("BALANCE") &&
+    !bytesToStr(entry.key).startsWith("ALLOWANCE") &&
+    !bytesToStr(entry.key).startsWith("oracle::") &&
+    !bytesToStr(entry.key).startsWith("status")
+  );
+};
+
+const needIndexing = (op: SignedOperation) => {
+  const opType = op.content?.op?.type;
+  if (opType?.oneofKind !== "callSc") return false;
+  return ADDRESSES.includes(opType.callSc.targetAddress);
+};

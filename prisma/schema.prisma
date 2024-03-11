@@ -240,6 +240,50 @@ model Log {
   data      Bytes
 }
 
+model Block {
+  id            String         @id
+  period        Int
+  thread        Int
+  operations    Operation[]
+  ledgerChanges LedgerChange[]
+  createdAt     DateTime       @default(now())
+}
+
+model Operation {
+  id             String   @id
+  targetAddress  String
+  targetFunction String
+  value          BigInt
+  maxGas         BigInt
+  indexInBlock   Int      @default(0)
+  data           Bytes
+  blockId        String
+  callerAddress  String
+  events         Event[]
+  block          Block    @relation(fields: [blockId], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model Event {
+  id             Int       @id @default(autoincrement())
+  emitterAddress String
+  operationId    String
+  data           Bytes
+  indexInSlot    Int
+  operation      Operation @relation(fields: [operationId], references: [id])
+  createdAt      DateTime  @default(now())
+}
+
+model LedgerChange {
+  id        Int      @id @default(autoincrement())
+  address   String
+  key       Bytes
+  value     Bytes
+  blockId   String
+  block     Block    @relation(fields: [blockId], references: [id])
+  createdAt DateTime @default(now())
+}
+
 enum Status {
   ACTIVE
   STOPPED

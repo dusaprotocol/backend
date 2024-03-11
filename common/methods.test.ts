@@ -1,13 +1,7 @@
 import { IEvent } from "@massalabs/massa-web3";
 import { CHAIN_ID } from "./config";
 import { USDC, WMAS } from "./contracts";
-import {
-  calculateStreak,
-  getTokenValue,
-  isLiquidityEvent,
-  isSwapEvent,
-  radius,
-} from "./methods";
+import { calculateStreak, isLiquidityEvent, radius } from "./methods";
 import { WETH as _WETH, WBTC as _WBTC, USDT as _USDT } from "@dusalabs/sdk";
 import { describe, expect, it } from "vitest";
 import {
@@ -15,6 +9,7 @@ import {
   withdrawEvents,
 } from "../indexer/src/__tests__/placeholder";
 import { ONE_DAY } from "./utils";
+import { getTokenValue } from "./datastoreFetcher";
 
 describe("getTokenValue", () => {
   it("returns 1 for USDC", async () => {

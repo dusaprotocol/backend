@@ -5,7 +5,8 @@ import type { Liquidity, Prisma, Swap } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
-import { calculateStreak, getTokenValue, toToken } from "../../common/methods";
+import { calculateStreak, toToken } from "../../common/methods";
+import { getTokenValue } from "../../common/datastoreFetcher";
 
 const DayWindow = z.union([
   z.literal(7),

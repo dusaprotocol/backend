@@ -54,10 +54,10 @@ export const createSwap = async (
 
 export const createLiquidity = async (
   payload: Prisma.LiquidityUncheckedCreateInput
-) => {
+): Promise<boolean> => {
   // prettier-ignore
   const { poolAddress, userAddress, amount0, amount1, lowerBound, upperBound, timestamp, txHash, usdValue, indexInSlot } = payload;
-  await prisma.liquidity
+  return prisma.liquidity
     .create({
       data: {
         pool: co(poolAddress),
@@ -72,7 +72,16 @@ export const createLiquidity = async (
         indexInSlot,
       },
     })
-    .catch(() => logger.warn("createLiquidity failed", payload));
+    .then(() => true)
+    .catch((err) => {
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code !== "P2002") {
+          // unique constraint failed
+          logger.warn("createLiquidity failed", payload);
+        }
+      }
+      return false;
+    });
 };
 
 export const updateBinVolume = async (

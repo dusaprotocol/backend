@@ -1,16 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { handleNewOperations } from "./helpers";
-import { NewOperationsResponse } from "../gen/ts/massa/api/v1/public";
-import * as db from "./db";
+import { handleNewOperations } from "../helpers";
+import { NewOperationsResponse } from "../../gen/ts/massa/api/v1/public";
+import * as db from "../db";
 import { LB_ROUTER_ADDRESS, SWAP_ROUTER_METHODS } from "@dusalabs/sdk";
-import { CHAIN_ID } from "../../common/config";
-import { web3Client } from "../../common/client";
-import { swapParams } from "./__tests__/placeholder";
-import * as DateUtils from "../../common/utils/date";
+import { CHAIN_ID } from "../../../common/config";
+import { web3Client } from "../../../common/client";
+import { swapParams } from "./placeholder";
+import * as DateUtils from "../../../common/utils/date";
 import { EventPoller as _EventPoller } from "@massalabs/massa-web3";
-import * as EventPoller from "./eventPoller";
-import { nullFilters } from "../../common/utils";
+import * as EventPoller from "../eventPoller";
+import { nullFilters } from "../../../common/utils";
 
 const emptyMessage: Required<NewOperationsResponse> = {
   signedOperation: {
@@ -26,7 +26,7 @@ const emptyMessage: Required<NewOperationsResponse> = {
 };
 const maxGas = 0n;
 
-const fn = () => Promise.resolve();
+const fn = () => Promise.resolve(true);
 const spyCreateSwap = vi.spyOn(db, "createSwap").mockImplementation(fn);
 const spyCreateLiquidity = vi
   .spyOn(db, "createLiquidity")

@@ -1,13 +1,8 @@
 import {
-  adjustPrice,
   calculateUSDLocked,
-  fetchDCA,
-  getBinStep,
   getCallee,
-  getDatastoreKeys,
   getPriceFromId,
   getTokenFromAddress,
-  getTokenValue,
   sortTokens,
   toFraction,
 } from "../../common/methods";
@@ -50,6 +45,12 @@ import {
 import { Status } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
+import {
+  fetchDCA,
+  getBinStep,
+  getDatastoreKeys,
+  getTokenValue,
+} from "../../common/datastoreFetcher";
 
 export const processInnerSwap = async (params: {
   event: ScExecutionEvent;
