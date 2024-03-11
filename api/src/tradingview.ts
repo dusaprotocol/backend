@@ -1,5 +1,6 @@
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
+import { TICKS_PER_DAY } from "../../common/utils";
 
 interface BarsData {
   t: number[];
@@ -9,10 +10,18 @@ interface BarsData {
   l: number[];
   v: number[];
 }
-interface BarsResponse extends BarsData {
-  s: "ok" | "no_data" | "error";
-  errmsg?: string;
-}
+type BarsResponse =
+  | (BarsData & {
+      s: "ok";
+    })
+  | {
+      s: "error";
+      errmsg: string;
+    }
+  | {
+      s: "no_data";
+      nextTime?: number;
+    };
 
 const supported_resolutions = [
   "5",
@@ -98,8 +107,10 @@ export const getBars = async ({
   from: number;
   to: number;
   countback: number;
-}) => {
-  const interval = (to - from) / countback;
+}): Promise<BarsResponse> => {
+  let take = countback;
+  if (resolution === "1D") take = countback * TICKS_PER_DAY;
+
   const prices = await prisma.analytics
     .findMany({
       select: {
@@ -113,14 +124,36 @@ export const getBars = async ({
       where: {
         poolAddress: symbol,
         date: {
-          gte: new Date(from * 1000),
-          lte: new Date(to * 1000),
+          gte: countback ? undefined : new Date(from * 1000),
+          lt: new Date(to * 1000),
         },
       },
       orderBy: {
         date: "desc",
       },
-      take: countback,
+      take,
+    })
+    .then((res) => {
+      if (resolution !== "1D") return res;
+
+      const threshold = TICKS_PER_DAY;
+      let date = res[0].date;
+      res.forEach((price, i) => {
+        if (i % threshold === threshold - 1) {
+          const slice = res.slice(i + 1 - threshold, i + 1);
+          res.push({
+            ...price,
+            close: res.length > 0 ? res[res.length - 1].open : price.open,
+            high: Math.max(...slice.map((p) => p.high)),
+            low: Math.min(...slice.map((p) => p.low)),
+            date,
+          });
+          date = price.date;
+          return;
+        }
+      });
+
+      return res;
     })
     .catch((err) => {
       logger.error("getBars error", err);
