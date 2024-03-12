@@ -1,5 +1,5 @@
 import { DCA, Prisma, Status } from "@prisma/client";
-import { prisma } from "../../common/db";
+import { handlePrismaError, prisma } from "../../common/db";
 import logger from "../../common/logger";
 import {
   getClosestTick,
@@ -42,12 +42,6 @@ export const createSwap = async (
     })
     .then(() => true)
     .catch((err) => {
-      if (err instanceof Prisma.PrismaClientKnownRequestError) {
-        if (err.code !== "P2002") {
-          // unique constraint failed
-          logger.warn("createSwap failed", payload);
-        }
-      }
       return false;
     });
 };
@@ -74,12 +68,7 @@ export const createLiquidity = async (
     })
     .then(() => true)
     .catch((err) => {
-      if (err instanceof Prisma.PrismaClientKnownRequestError) {
-        if (err.code !== "P2002") {
-          // unique constraint failed
-          logger.warn("createLiquidity failed", payload);
-        }
-      }
+      handlePrismaError(err);
       return false;
     });
 };
@@ -137,14 +126,7 @@ export const createDCA = async (dca: DCA) =>
         user: coc(dca.userAddress),
       },
     })
-    .catch((err) => {
-      if (err instanceof Prisma.PrismaClientKnownRequestError) {
-        if (err.code !== "P2002") {
-          // unique constraint failed
-          logger.warn("createDCA failed", dca);
-        }
-      }
-    });
+    .catch(handlePrismaError);
 
 export const updateDCAStatus = async (id: number, status: Status) => {
   await prisma.dCA.update({

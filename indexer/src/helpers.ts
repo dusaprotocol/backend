@@ -12,7 +12,7 @@ import {
   withTimeoutRejection,
 } from "@massalabs/massa-web3";
 import { ADDRESSES, dcaSC, orderSC, routerSC } from "../../common/contracts";
-import { prisma } from "../../common/db";
+import { handlePrismaError, prisma } from "../../common/db";
 import { fetchPairAddress } from "../../common/datastoreFetcher";
 import { isLiquidityEvent, isSwapEvent } from "../../common/methods";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
@@ -64,14 +64,7 @@ export async function handleNewFilledBlocks(message: NewFilledBlocksResponse) {
         thread: slot.thread,
       },
     })
-    .catch((err) => {
-      if (err instanceof Prisma.PrismaClientKnownRequestError) {
-        if (err.code !== "P2002") {
-          // unique constraint failed
-          logger.warn("createBlock failed", blockId);
-        }
-      }
-    });
+    .catch(handlePrismaError);
 
   indexedOperations.forEach(async (op, i) => {
     op.operation && processSignedOperation(op.operation, i, blockId);
@@ -179,14 +172,7 @@ const processSignedOperation = async (
         },
       },
     })
-    .catch((err) => {
-      if (err instanceof Prisma.PrismaClientKnownRequestError) {
-        if (err.code !== "P2002") {
-          // unique constraint failed
-          logger.warn("createOperation failed", txHash);
-        }
-      }
-    });
+    .catch(handlePrismaError);
 
   try {
     // PERIPHERY CONTRACTS
