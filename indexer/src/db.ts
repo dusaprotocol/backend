@@ -42,6 +42,7 @@ export const createSwap = async (
     })
     .then(() => true)
     .catch((err) => {
+      handlePrismaError(err);
       return false;
     });
 };
@@ -141,18 +142,15 @@ export const updateDCAStatus = async (id: number, status: Status) => {
 
 export const createAnalytic = async (
   args: Omit<Prisma.AnalyticsUncheckedCreateInput, "date">
-) => {
-  const date = getClosestTick();
-
-  return prisma.analytics
+) =>
+  prisma.analytics
     .create({
       data: {
         ...args,
-        date,
+        date: getClosestTick(),
       },
     })
-    .catch(() => logger.warn("createAnalytic failed", args));
-};
+    .catch(handlePrismaError);
 
 export const updateMakerFees = async (
   params: Omit<Prisma.MakerUncheckedCreateInput, "date">

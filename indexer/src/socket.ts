@@ -29,21 +29,11 @@ import {
   updateBinVolume,
 } from "./db";
 import { web3Client } from "../../common/client";
-import {
-  ONE_MINUTE,
-  getClosestTick,
-  getTimestamp,
-  wait,
-} from "../../common/utils";
+import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
-import {
-  Args,
-  bytesToStr,
-  bytesToU256,
-  strToBytes,
-} from "@massalabs/massa-web3";
+import { bytesToStr } from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
-import { prisma } from "../../common/db";
+import { handlePrismaError, prisma } from "../../common/db";
 import logger from "../../common/logger";
 import {
   fetchDCA,
@@ -275,14 +265,16 @@ export const processDCAExecution = async (
   });
   if (!dca) return;
 
-  await prisma.dCAExecution.create({
-    data: {
-      ...blockInfo,
-      amountIn: dca.amountEachDCA,
-      amountOut: amountOut.toString(),
-      dcaId: id,
-    },
-  });
+  await prisma.dCAExecution
+    .create({
+      data: {
+        ...blockInfo,
+        amountIn: dca.amountEachDCA,
+        amountOut: amountOut.toString(),
+        dcaId: id,
+      },
+    })
+    .catch(handlePrismaError);
 
   if (
     dca.endTime.getTime() !== dca.startTime.getTime() &&
@@ -303,14 +295,16 @@ export const processOrderExecution = async (
   });
   if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
 
-  await prisma.orderExecution.create({
-    data: {
-      ...blockInfo,
-      amountIn: order.amountIn,
-      amountOut: amountOut.toString(),
-      orderId: id,
-    },
-  });
+  await prisma.orderExecution
+    .create({
+      data: {
+        ...blockInfo,
+        amountIn: order.amountIn,
+        amountOut: amountOut.toString(),
+        orderId: id,
+      },
+    })
+    .catch(handlePrismaError);
   await prisma.order.update({
     where: {
       id,

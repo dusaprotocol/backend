@@ -218,15 +218,17 @@ const processSignedOperation = async (
           const { id } = EventDecoder.decodeLimitOrder(event);
           if (!id) return;
 
-          await prisma.order.create({
-            data: {
-              ...order,
-              id,
-              userAddress,
-              txHash,
-              status: "ACTIVE",
-            },
-          });
+          await prisma.order
+            .create({
+              data: {
+                ...order,
+                id,
+                userAddress,
+                txHash,
+                status: "ACTIVE",
+              },
+            })
+            .catch(handlePrismaError);
           break;
         }
         case "removeLimitOrder":
