@@ -42,6 +42,7 @@ export const PAIRS = await web3Client
     return bytesToStr(bs)
       .split(":")
       .filter((s) => s);
-  });
+  })
+  .catch(() => [] as string[]);
 
 export const ADDRESSES = [...CORE, ...TOKENS, ...PAIRS];
