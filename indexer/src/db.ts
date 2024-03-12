@@ -137,7 +137,14 @@ export const createDCA = async (dca: DCA) =>
         user: coc(dca.userAddress),
       },
     })
-    .catch(() => logger.warn("createDCA failed", dca));
+    .catch((err) => {
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code !== "P2002") {
+          // unique constraint failed
+          logger.warn("createDCA failed", dca);
+        }
+      }
+    });
 
 export const updateDCAStatus = async (id: number, status: Status) => {
   await prisma.dCA.update({

@@ -35,8 +35,8 @@ import {
   NewSlotExecutionOutputsResponse,
 } from "../gen/ts/massa/api/v1/public";
 import { createEventPoller, pollAsyncEvents } from "./eventPoller";
-import { createDCA, findDCA, updateDCAStatus } from "./db";
-import { DCA, Status } from "@prisma/client";
+import { createDCA, updateDCAStatus } from "./db";
+import { Prisma, Status } from "@prisma/client";
 import logger from "../../common/logger";
 import { BytesMapFieldEntry } from "../gen/ts/massa/model/v1/commons";
 import { SignedOperation } from "../gen/ts/massa/model/v1/operation";
@@ -64,7 +64,14 @@ export async function handleNewFilledBlocks(message: NewFilledBlocksResponse) {
         thread: slot.thread,
       },
     })
-    .then(() => logger.info(`Block ${blockId} indexed`));
+    .catch((err) => {
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code !== "P2002") {
+          // unique constraint failed
+          logger.warn("createBlock failed", blockId);
+        }
+      }
+    });
 
   indexedOperations.forEach(async (op, i) => {
     op.operation && processSignedOperation(op.operation, i, blockId);
@@ -150,27 +157,36 @@ const processSignedOperation = async (
   eventPoller.stopPolling();
   if (isError) return;
 
-  await prisma.operation.create({
-    data: {
-      data: Buffer.from(parameter),
-      targetAddress,
-      targetFunction,
-      callerAddress: userAddress,
-      value: coins?.mantissa || 0,
-      id: txHash,
-      blockId,
-      maxGas,
-      events: {
-        createMany: {
-          data: events.map((event) => ({
-            data: Buffer.from(strToBytes(event.data)),
-            emitterAddress: event.context.call_stack[0],
-            indexInSlot: event.context.index_in_slot,
-          })),
+  await prisma.operation
+    .create({
+      data: {
+        data: Buffer.from(parameter),
+        targetAddress,
+        targetFunction,
+        callerAddress: userAddress,
+        value: coins?.mantissa || 0,
+        id: txHash,
+        blockId,
+        maxGas,
+        events: {
+          createMany: {
+            data: events.map((event) => ({
+              data: Buffer.from(strToBytes(event.data)),
+              emitterAddress: event.context.call_stack[0],
+              indexInSlot: event.context.index_in_slot,
+            })),
+          },
         },
       },
-    },
-  });
+    })
+    .catch((err) => {
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code !== "P2002") {
+          // unique constraint failed
+          logger.warn("createOperation failed", txHash);
+        }
+      }
+    });
 
   try {
     // PERIPHERY CONTRACTS

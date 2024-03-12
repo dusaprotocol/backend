@@ -219,10 +219,6 @@ export const calculateStreak = (
     currentDate = new Date(currentDate.getTime() - ONE_DAY);
   }
 
-  console.log(
-    params.map((p) => p.date),
-    currentDate
-  );
   while (true) {
     // check if there is a record for the current week range
     if (
