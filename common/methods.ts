@@ -4,8 +4,8 @@ import logger from "./logger";
 import { Bin, Fraction, ILBPair, Token, TokenAmount } from "@dusalabs/sdk";
 import { prisma } from "./db";
 import { createAnalytic } from "../indexer/src/db";
-import { DCA, Prisma, Status } from "@prisma/client";
-import { ONE_DAY, TIME_BETWEEN_TICKS } from "./utils";
+import { Prisma, Token as PrismaToken } from "@prisma/client";
+import { ONE_DAY, TIME_BETWEEN_TICKS, getClosestTick } from "./utils";
 import { fetchTokenFromAddress, getTokenValue } from "./datastoreFetcher";
 import { web3Client } from "./client";
 
@@ -45,20 +45,10 @@ export const toFraction = (price: number): Fraction => {
 };
 
 export const toToken = (
-  {
-    address,
-    decimals,
-    symbol,
-    name,
-  }: {
-    address: string;
-    decimals: number;
-    symbol?: string;
-    name?: string;
-  },
+  token: Omit<PrismaToken, "name" | "symbol">,
   chainId = CHAIN_ID
 ): Token => {
-  return new Token(chainId, address, decimals, symbol, name);
+  return new Token(chainId, token.address, token.decimals);
 };
 
 export const getTokenFromAddress = async (
@@ -161,7 +151,7 @@ export const fetchNewAnalytics = async (
       where: {
         poolAddress_date: {
           poolAddress,
-          date: new Date(Date.now() - TIME_BETWEEN_TICKS),
+          date: getClosestTick(Date.now() - TIME_BETWEEN_TICKS),
         },
       },
       data: {

@@ -101,13 +101,9 @@ export const fetchTokenFromAddress = async (
   tokenAddress: string
 ): Promise<Token> => {
   const token = new IERC20(tokenAddress, web3Client);
-  const [name, symbol, decimals] = await Promise.all([
-    token.name(),
-    token.symbol(),
-    token.decimals(),
-  ]);
+  const decimals = await token.decimals();
 
-  return toToken({ address: token.address, decimals, symbol, name });
+  return toToken({ address: token.address, decimals });
 };
 
 export const getDatastoreKeys = async (address: string): Promise<string[]> =>
