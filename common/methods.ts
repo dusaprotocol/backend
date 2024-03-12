@@ -5,7 +5,12 @@ import { Bin, Fraction, ILBPair, Token, TokenAmount } from "@dusalabs/sdk";
 import { prisma } from "./db";
 import { createAnalytic } from "../indexer/src/db";
 import { Prisma, Token as PrismaToken } from "@prisma/client";
-import { ONE_DAY, TIME_BETWEEN_TICKS, getClosestTick } from "./utils";
+import {
+  ONE_DAY,
+  TIME_BETWEEN_TICKS,
+  getClosestTick,
+  getDailyTick,
+} from "./utils";
 import { fetchTokenFromAddress, getTokenValue } from "./datastoreFetcher";
 import { web3Client } from "./client";
 
@@ -194,27 +199,46 @@ export const calculateUSDLocked = async (
   return Number(usdLocked);
 };
 
+/**
+ * Calculate the weekly streak of a maker
+ * @param params - list of dates
+ * @returns
+ */
 export const calculateStreak = (
   params: Prisma.MakerGetPayload<{}>[]
 ): number => {
   if (!params.length) return 0;
 
-  let streak = 0;
-  let lastDay = new Date();
-  params.forEach((r) => {
-    if (r.accruedFeesUsd > 0) {
-      console.log(dayDiff(r.date, lastDay));
-      if (dayDiff(r.date, lastDay) <= 3) {
-        streak++;
-        lastDay = r.date;
-      } else streak = 0;
-    }
-  });
-  return streak;
-};
+  const today = getDailyTick();
 
-const dayDiff = (date1: Date, date2: Date): number =>
-  Math.round(Math.abs(date1.getTime() - date2.getTime()) / ONE_DAY);
+  let streak = 0;
+  let currentDate = today;
+
+  // start on Monday
+  while (currentDate.getDay() !== 1) {
+    currentDate = new Date(currentDate.getTime() - ONE_DAY);
+  }
+
+  console.log(
+    params.map((p) => p.date),
+    currentDate
+  );
+  while (true) {
+    // check if there is a record for the current week range
+    if (
+      params.some(
+        (p) =>
+          p.date.getTime() < currentDate.getTime() &&
+          p.date.getTime() > currentDate.getTime() - ONE_DAY * 7
+      )
+    ) {
+      streak++;
+    } else {
+      return streak;
+    }
+    currentDate = new Date(currentDate.getTime() - ONE_DAY * 7);
+  }
+};
 
 // TESTING PURPOSE
 

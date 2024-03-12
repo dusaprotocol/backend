@@ -8,7 +8,7 @@ import {
   swapEvents,
   withdrawEvents,
 } from "../indexer/src/__tests__/placeholder";
-import { ONE_DAY } from "./utils";
+import { ONE_DAY, getDailyTick } from "./utils";
 import { getTokenValue } from "./datastoreFetcher";
 
 describe("getTokenValue", () => {
@@ -99,27 +99,25 @@ describe("calculateStreak", () => {
     accruedFeesY,
   };
   const params: Parameters<typeof calculateStreak>["0"] = [];
+  const now = getDailyTick().getTime();
 
-  it("returns 1 for a single record today", () => {
+  it("returns 0 for a single record two weeks ago", () => {
+    const p1 = { ...p, date: new Date(now - ONE_DAY * 14) };
+    expect(calculateStreak([p1])).toBe(0);
+  });
+  it("returns 1 for a single record last week", () => {
+    const p1 = { ...p, date: new Date(now - ONE_DAY * 7) };
+    expect(calculateStreak([p1])).toBe(1);
+  });
+  it("returns 1 for two records in the same week", () => {
     const p1 = {
       ...p,
-      date: new Date(),
-    };
-    expect(calculateStreak([...params, p1])).toBe(1);
-  });
-  it("returns 0 for a single record one week ago", () => {
-    const p1 = { ...p, date: new Date(Date.now() - ONE_DAY * 7) };
-    expect(calculateStreak([...params, p1])).toBe(0);
-  });
-  it("returns 2 for a two records separated by two days", () => {
-    const p1 = {
-      ...p,
-      date: new Date(Date.now() - ONE_DAY * 2),
+      date: new Date(now - ONE_DAY * 2),
     };
     const p2 = {
       ...p,
-      date: new Date(Date.now() - ONE_DAY * 4),
+      date: new Date(now - ONE_DAY * 4),
     };
-    expect(calculateStreak([...params, p1, p2])).toBe(2);
+    expect(calculateStreak([p1, p2])).toBe(1);
   });
 });
