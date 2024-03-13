@@ -1,10 +1,11 @@
-import { Prisma } from "@prisma/client";
+import { Token as PrismaToken } from "@prisma/client";
 import { prisma } from "../../common/db";
 import { writeFile } from "fs";
 import { Fraction, Token, TokenAmount } from "@dusalabs/sdk";
 import { ONE_DAY } from "../../common/utils";
 import { toFraction, toToken } from "../../common/methods";
 import xlsx from "node-xlsx";
+import { BigintIsh } from "@dusalabs/sdk/dist/constants";
 
 // TYPES
 
@@ -58,8 +59,8 @@ type JSONData = {
 const FEE_WEIGHT = 0.7;
 
 const epoch = 1;
-const from = new Date(Date.now() - ONE_DAY * 7);
-const to = new Date();
+const from = new Date(Date.UTC(2024, 2, 4));
+const to = new Date(from.getTime() + ONE_DAY * 7);
 
 // SAVE FILE
 
@@ -185,22 +186,18 @@ const getAccruedFees = async (poolAddress: string, makerAddress: string) => {
           accruedFeesUsd: true,
         },
       })
-      .then((makers) => {
-        return (
-          makers
-            .map((maker) => {
-              return {
-                address: maker.address,
-                volume: maker._sum.volume || 0,
-                accruedFeesUsd: maker._sum.accruedFeesUsd || 0,
-              };
-            })
-            // sort by accruedFeesUsd desc
-            .sort((a, b) => b.accruedFeesUsd - a.accruedFeesUsd)
-        );
+      .then((res) => {
+        return res
+          .map((maker) => {
+            return {
+              address: maker.address,
+              volume: maker._sum.volume || 0,
+              accruedFeesUsd: maker._sum.accruedFeesUsd || 0,
+            };
+          })
+          .sort((a, b) => b.accruedFeesUsd - a.accruedFeesUsd);
       });
 
-    const totalVolume = makers.reduce((acc, maker) => acc + maker.volume, 0);
     const totalFees = makers.reduce(
       (acc, maker) => acc + maker.accruedFeesUsd,
       0
@@ -230,26 +227,14 @@ const getAccruedFees = async (poolAddress: string, makerAddress: string) => {
           .multiply(100n)
           .divide(totalRewards);
 
+        const parse = (token: PrismaToken, val: BigintIsh) =>
+          Number(new TokenAmount(toToken(token), val).toSignificant(6));
+
         excelData.push({
           userAddress: maker.address,
-          accruedFeesX: Number(
-            new TokenAmount(
-              toToken(token0),
-              accruedFees.accruedFeesX
-            ).toSignificant()
-          ),
-          accruedFeesY: Number(
-            new TokenAmount(
-              toToken(token1),
-              accruedFees.accruedFeesY
-            ).toSignificant()
-          ),
-          accruedFeesL: Number(
-            new TokenAmount(
-              toToken(token1),
-              accruedFees.accruedFeesL
-            ).toSignificant()
-          ),
+          accruedFeesX: parse(token0, accruedFees.accruedFeesX),
+          accruedFeesY: parse(token1, accruedFees.accruedFeesY),
+          accruedFeesL: parse(token1, accruedFees.accruedFeesL),
           accruedFeesUsd: maker.accruedFeesUsd,
           percentOfTotalFees,
           pairAddress: poolAddress,
@@ -261,12 +246,7 @@ const getAccruedFees = async (poolAddress: string, makerAddress: string) => {
           makerRewardsRaw: makerRewards.quotient.toString(),
           pairName: token0.symbol + "_" + token1.symbol + "-" + binStep,
           rewardEpoch: epoch,
-          rewardAmount: Number(
-            new TokenAmount(
-              toToken(rewardToken.token),
-              totalRewards
-            ).toSignificant()
-          ),
+          rewardAmount: parse(rewardToken.token, totalRewards),
         });
       }
     }

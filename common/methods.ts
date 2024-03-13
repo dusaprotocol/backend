@@ -197,7 +197,8 @@ export const fetchTokenFromAddress = async (
  * @returns
  */
 export const fetchNewAnalytics = async (
-  pool: Prisma.PoolGetPayload<{ include: { token0: true; token1: true } }>
+  pool: Prisma.PoolGetPayload<{ include: { token0: true; token1: true } }>,
+  now = Date.now()
 ) => {
   const { address: poolAddress, binStep } = pool;
   const [token0, token1] = [pool.token0, pool.token1].map((token) =>
@@ -221,7 +222,7 @@ export const fetchNewAnalytics = async (
       where: {
         poolAddress,
         timestamp: {
-          gte: new Date(Date.now() - TIME_BETWEEN_TICKS),
+          gte: new Date(now - TIME_BETWEEN_TICKS),
         },
       },
       _sum: {
@@ -242,7 +243,7 @@ export const fetchNewAnalytics = async (
       where: {
         poolAddress,
         timestamp: {
-          gte: new Date(Date.now() - TIME_BETWEEN_TICKS),
+          gte: new Date(now - TIME_BETWEEN_TICKS),
         },
       },
       _max: {
@@ -272,7 +273,7 @@ export const fetchNewAnalytics = async (
     where: {
       poolAddress_date: {
         poolAddress,
-        date: new Date(Date.now() - TIME_BETWEEN_TICKS),
+        date: new Date(now - TIME_BETWEEN_TICKS),
       },
     },
     data: {
