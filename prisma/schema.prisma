@@ -112,7 +112,6 @@ model DCA {
 }
 
 model DCAExecution {
-  id        Int    @id @default(autoincrement())
   amountIn  String
   amountOut String
   thread    Int
@@ -120,6 +119,8 @@ model DCAExecution {
   blockId   String
   dcaId     Int
   dca       DCA    @relation(fields: [dcaId], references: [id], onDelete: Cascade)
+
+  @@id([dcaId, blockId])
 }
 
 model Order {
@@ -139,7 +140,6 @@ model Order {
 }
 
 model OrderExecution {
-  id        Int    @id @default(autoincrement())
   amountIn  String
   amountOut String
   thread    Int
@@ -238,6 +238,50 @@ model Log {
   createdAt DateTime @default(now())
   message   String
   data      Bytes
+}
+
+model Block {
+  id            String         @id
+  period        Int
+  thread        Int
+  createdAt     DateTime       @default(now())
+  operations    Operation[]
+  ledgerChanges LedgerChange[]
+}
+
+model Operation {
+  id             String   @id
+  targetAddress  String
+  targetFunction String
+  value          BigInt
+  maxGas         BigInt
+  indexInBlock   Int      @default(0)
+  data           Bytes
+  blockId        String
+  callerAddress  String
+  createdAt      DateTime @default(now())
+  events         Event[]
+  block          Block    @relation(fields: [blockId], references: [id])
+}
+
+model Event {
+  id             Int       @id @default(autoincrement())
+  emitterAddress String
+  operationId    String
+  data           Bytes
+  indexInSlot    Int
+  createdAt      DateTime  @default(now())
+  operation      Operation @relation(fields: [operationId], references: [id])
+}
+
+model LedgerChange {
+  id        Int      @id @default(autoincrement())
+  address   String
+  key       Bytes
+  value     Bytes
+  blockId   String
+  createdAt DateTime @default(now())
+  block     Block    @relation(fields: [blockId], references: [id])
 }
 
 enum Status {

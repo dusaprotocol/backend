@@ -4,10 +4,15 @@ import logger from "../../common/logger";
 import {
   NewSlotExecutionOutputsRequest,
   NewOperationsRequest,
+  NewFilledBlocksRequest,
 } from "../gen/ts/massa/api/v1/public";
 import { PublicServiceClient as MassaServiceClient } from "../gen/ts/massa/api/v1/public.client";
 import { ExecutionOutputStatus } from "../gen/ts/massa/model/v1/execution";
-import { handleNewOperations, handleNewSlotExecutionOutputs } from "./helpers";
+import {
+  handleNewFilledBlocks,
+  handleNewOperations,
+  handleNewSlotExecutionOutputs,
+} from "./helpers";
 import { DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
 import { grpcDefaultHost, grpcPort } from "../../common/config";
 import { OpType } from "../gen/ts/massa/model/v1/operation";
@@ -30,13 +35,11 @@ type ExtractFunctionKeys<T> = {
 type ClientActions = ExtractFunctionKeys<MassaServiceClient>;
 
 const subscribe = async (
-  client: MassaServiceClient,
   method: ClientActions,
   req: any,
   handler: (message: any) => Promise<void>
-  // TODO: replace 'any'
 ) => {
-  const stream = client[method]();
+  const stream = baseClient[method]();
   stream.requests.send(req);
 
   logger.info(`${method}:${new Date().toString()}`);
@@ -63,11 +66,10 @@ export const subscribeNewSlotExecutionOutputs = async () => {
           status: ExecutionOutputStatus.CANDIDATE,
         },
       },
-    ], // TODO: add filters
+    ],
   };
 
   return subscribe(
-    baseClient,
     "newSlotExecutionOutputs",
     req,
     handleNewSlotExecutionOutputs
@@ -88,5 +90,13 @@ export const subscribeNewOperations = async () => {
     ],
   };
 
-  return subscribe(baseClient, "newOperations", req, handleNewOperations);
+  return subscribe("newOperations", req, handleNewOperations);
+};
+
+export const subscribeNewFilledBlocks = async () => {
+  const req: NewFilledBlocksRequest = {
+    filters: [],
+  };
+
+  return subscribe("newFilledBlocks", req, handleNewFilledBlocks);
 };

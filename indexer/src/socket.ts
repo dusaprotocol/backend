@@ -1,13 +1,7 @@
 import {
-  adjustPrice,
-  calculateUSDLocked,
-  fetchDCA,
-  getBinStep,
+  calculateUSDValue,
   getCallee,
-  getDatastoreKeys,
   getPriceFromId,
-  getTokenFromAddress,
-  getTokenValue,
   sortTokens,
   toFraction,
 } from "../../common/methods";
@@ -32,24 +26,21 @@ import {
   updateDCAStatus,
   updateMakerFees,
   updateBinVolume,
+  getTokenFromAddress,
 } from "./db";
 import { web3Client } from "../../common/client";
-import {
-  ONE_MINUTE,
-  getClosestTick,
-  getTimestamp,
-  wait,
-} from "../../common/utils";
+import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
-import {
-  Args,
-  bytesToStr,
-  bytesToU256,
-  strToBytes,
-} from "@massalabs/massa-web3";
+import { bytesToStr } from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
-import { prisma } from "../../common/db";
+import { handlePrismaError, prisma } from "../../common/db";
 import logger from "../../common/logger";
+import {
+  fetchDCA,
+  getBinStep,
+  getDatastoreKeys,
+  getTokenValue,
+} from "../../common/datastoreFetcher";
 
 export const processInnerSwap = async (params: {
   event: ScExecutionEvent;
@@ -113,7 +104,7 @@ export const processSwap = async (params: {
     ...swapPayload,
   });
 
-  await createSwap({
+  const success = await createSwap({
     ...swapPayload,
     timestamp,
     txHash,
@@ -126,6 +117,7 @@ export const processSwap = async (params: {
     amountOut: swapPayload.amountOut.toString(),
     feesIn: swapPayload.feesIn.toString(),
   });
+  if (!success) return;
 
   // update maker fees
   const pair = new ILBPair(poolAddress, web3Client);
@@ -216,7 +208,16 @@ export const processLiquidity = async (params: {
   const [amount0, amount1] = isAdd ? [amountX, amountY] : [-amountX, -amountY];
   const token0 = await getTokenFromAddress(token0Address);
   const token1 = await getTokenFromAddress(token1Address);
-  const usdValue = await calculateUSDLocked(token0, amount0, token1, amount1);
+  const [token0Value, token1Value] = await Promise.all([
+    getTokenValue(token0),
+    getTokenValue(token1),
+  ]);
+  const usdValue = calculateUSDValue(
+    new TokenAmount(token0, amount0),
+    token0Value,
+    new TokenAmount(token1, amount1),
+    token1Value
+  );
 
   await createLiquidity({
     amount0: amount0.toString(),
@@ -258,39 +259,37 @@ export const processDCAExecution = async (
   eventData: string,
   blockInfo: { thread: number; period: number; blockId: string }
 ) => {
-  if (eventData.startsWith("DCA_EXECUTED:")) {
-    const { amountOut, id, user } = EventDecoder.decodeDCAExecution(eventData);
-    const dca = await findDCA(id).then(async (res) => {
-      if (res) return res;
+  const { amountOut, id, user } = EventDecoder.decodeDCAExecution(eventData);
+  const dca = await findDCA(id).then(async (res) => {
+    if (res) return res;
 
-      await wait(ONE_MINUTE / 2);
-      const resRetry = await findDCA(id);
-      if (resRetry) return resRetry;
+    await wait(ONE_MINUTE / 2);
+    const resRetry = await findDCA(id);
+    if (resRetry) return resRetry;
 
-      return fetchDCA(id, user).then(async (_dca) => {
-        await createDCA(_dca).catch(() =>
-          logger.warn("createDCA failed", _dca)
-        );
-        return _dca;
-      });
+    return fetchDCA(id, user).then(async (_dca) => {
+      await createDCA(_dca);
+      return _dca;
     });
-    if (!dca) return;
+  });
+  if (!dca) return;
 
-    await prisma.dCAExecution.create({
+  await prisma.dCAExecution
+    .create({
       data: {
         ...blockInfo,
         amountIn: dca.amountEachDCA,
         amountOut: amountOut.toString(),
         dcaId: id,
       },
-    });
+    })
+    .catch(handlePrismaError);
 
-    if (
-      dca.endTime.getTime() !== dca.startTime.getTime() &&
-      dca.endTime.getTime() < Date.now()
-    )
-      updateDCAStatus(id, Status.ENDED);
-  }
+  if (
+    dca.endTime.getTime() !== dca.startTime.getTime() &&
+    dca.endTime.getTime() < Date.now()
+  )
+    updateDCAStatus(id, Status.ENDED);
 };
 
 export const processOrderExecution = async (
@@ -303,16 +302,18 @@ export const processOrderExecution = async (
       id,
     },
   });
-  if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
+  if (!order) return;
 
-  await prisma.orderExecution.create({
-    data: {
-      ...blockInfo,
-      amountIn: order.amountIn,
-      amountOut: amountOut.toString(),
-      orderId: id,
-    },
-  });
+  await prisma.orderExecution
+    .create({
+      data: {
+        ...blockInfo,
+        amountIn: order.amountIn,
+        amountOut: amountOut.toString(),
+        orderId: id,
+      },
+    })
+    .catch(handlePrismaError);
   await prisma.order.update({
     where: {
       id,
