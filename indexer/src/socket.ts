@@ -2,7 +2,6 @@ import {
   calculateUSDValue,
   getCallee,
   getPriceFromId,
-  getTokenFromAddress,
   sortTokens,
   toFraction,
 } from "../../common/methods";
@@ -27,6 +26,7 @@ import {
   updateDCAStatus,
   updateMakerFees,
   updateBinVolume,
+  getTokenFromAddress,
 } from "./db";
 import { web3Client } from "../../common/client";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";

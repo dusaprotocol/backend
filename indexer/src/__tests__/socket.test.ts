@@ -76,22 +76,11 @@ describe("socket", () => {
   });
 });
 
-describe("helpers", async () => {
-  const poolAddress = await DF.fetchPairAddress(
-    outputToken.address,
-    inputToken.address,
-    binStep
-  );
-  const activeId = await new ILBPair(poolAddress, web3Client)
-    .getReservesAndId()
-    .then((res) => res.activeId);
-
-  // const getOppositeBinId = (binId: number) => REAL_ID_SHIFT * 2 - binId;
-
+describe("calculateSwapValue", async () => {
   it("should calculate swap value correctly with MAS out", async () => {
     const tokenIn = inputToken; // USDC
     const tokenOut = outputToken; // WMAS
-    const valueIn = await DF.getTokenValue(tokenIn);
+    const valueIn = 1;
     const params: Parameters<typeof Socket.calculateSwapValue>["0"] = {
       tokenIn: tokenIn,
       valueIn,
@@ -103,18 +92,13 @@ describe("helpers", async () => {
       ...params,
     });
 
-    const [minVolume, maxVolume] = Methods.radius(1, 10);
-    expect(volume).toBeGreaterThan(minVolume);
-    expect(volume).toBeLessThan(maxVolume);
-
-    const [minFees, maxFees] = Methods.radius(0.01, 10);
-    expect(fees).toBeGreaterThan(minFees);
-    expect(fees).toBeLessThan(maxFees);
+    expect(volume).toStrictEqual(1);
+    expect(fees).toStrictEqual(0.01);
   });
   it("should calculate swap value correctly with MAS in", async () => {
     const tokenIn = outputToken; // MAS
     const tokenOut = inputToken; // USDC
-    const valueIn = await DF.getTokenValue(tokenIn);
+    const valueIn = 5;
     const params: Parameters<typeof Socket.calculateSwapValue>["0"] = {
       tokenIn: tokenIn,
       valueIn,
@@ -124,12 +108,7 @@ describe("helpers", async () => {
 
     const { volume, fees } = Socket.calculateSwapValue(params);
 
-    const [minVolume, maxVolume] = Methods.radius(5, 10);
-    expect(volume).toBeGreaterThan(minVolume);
-    expect(volume).toBeLessThan(maxVolume);
-
-    const [minFees, maxFees] = Methods.radius(0.05, 10);
-    expect(fees).toBeGreaterThan(minFees);
-    expect(fees).toBeLessThan(maxFees);
+    expect(volume).toStrictEqual(5);
+    expect(fees).toStrictEqual(0.05);
   });
 });

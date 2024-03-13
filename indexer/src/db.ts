@@ -6,6 +6,9 @@ import {
   getDailyTick,
   getHourlyTick,
 } from "../../common/utils";
+import { toToken } from "../../common/methods";
+import { Token } from "@dusalabs/sdk";
+import { fetchTokenFromAddress } from "../../common/datastoreFetcher";
 
 const coc = (address: string) => ({
   connectOrCreate: {
@@ -203,3 +206,21 @@ export const updateMakerFees = async (
 
 const updateFees = (current: string, increment: string) =>
   (BigInt(current) + BigInt(increment)).toString();
+
+export const getTokenFromAddress = async (
+  tokenAddress: string
+): Promise<Token> => {
+  const address = tokenAddress.replace("_", ""); // TEMP: handle MAS/WMAS
+
+  const token = await prisma.token.findUnique({
+    where: {
+      address,
+    },
+  });
+  if (!token) {
+    logger.warn(`Token ${address} not found in DB`);
+    return fetchTokenFromAddress(address);
+  }
+
+  return toToken(token);
+};
