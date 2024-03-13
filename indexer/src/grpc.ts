@@ -38,7 +38,6 @@ const subscribe = async (
   method: ClientActions,
   req: any,
   handler: (message: any) => Promise<void>
-  // TODO: replace 'any'
 ) => {
   const stream = baseClient[method]();
   stream.requests.send(req);
@@ -67,7 +66,7 @@ export const subscribeNewSlotExecutionOutputs = async () => {
           status: ExecutionOutputStatus.CANDIDATE,
         },
       },
-    ], // TODO: add filters
+    ],
   };
 
   return subscribe(

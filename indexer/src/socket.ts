@@ -1,5 +1,5 @@
 import {
-  calculateUSDLocked,
+  calculateUSDValue,
   getCallee,
   getPriceFromId,
   getTokenFromAddress,
@@ -208,7 +208,16 @@ export const processLiquidity = async (params: {
   const [amount0, amount1] = isAdd ? [amountX, amountY] : [-amountX, -amountY];
   const token0 = await getTokenFromAddress(token0Address);
   const token1 = await getTokenFromAddress(token1Address);
-  const usdValue = await calculateUSDLocked(token0, amount0, token1, amount1);
+  const [token0Value, token1Value] = await Promise.all([
+    getTokenValue(token0),
+    getTokenValue(token1),
+  ]);
+  const usdValue = calculateUSDValue(
+    new TokenAmount(token0, amount0),
+    token0Value,
+    new TokenAmount(token1, amount1),
+    token1Value
+  );
 
   await createLiquidity({
     amount0: amount0.toString(),
@@ -293,7 +302,7 @@ export const processOrderExecution = async (
       id,
     },
   });
-  if (!order) return; // TODO: fetch order from datastore or wait 1 min and retry
+  if (!order) return;
 
   await prisma.orderExecution
     .create({

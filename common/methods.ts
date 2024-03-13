@@ -92,11 +92,15 @@ export const fetchNewAnalytics = async (
   ).getReservesAndId();
 
   const { reserveX: token0Locked, reserveY: token1Locked } = pairInfo;
-  const usdLocked = await calculateUSDLocked(
-    token0,
-    token0Locked,
-    token1,
-    token1Locked
+  const [token0Value, token1Value] = await Promise.all([
+    getTokenValue(token0),
+    getTokenValue(token1),
+  ]);
+  const usdLocked = calculateUSDValue(
+    new TokenAmount(token0, token0Locked),
+    token0Value,
+    new TokenAmount(token1, token1Locked),
+    token1Value
   );
 
   const { volume, fees } = await prisma.swap
@@ -181,23 +185,18 @@ export const fetchNewAnalytics = async (
   });
 };
 
-export const calculateUSDLocked = async (
-  token0: Token,
-  token0Locked: bigint,
-  token1: Token,
-  token1Locked: bigint
-): Promise<number> => {
-  const [token0Value, token1Value] = await Promise.all(
-    [token0, token1].map((token) => getTokenValue(token))
+export const calculateUSDValue = (
+  amount0: TokenAmount,
+  token0Value: number,
+  amount1: TokenAmount,
+  token1Value: number
+): number =>
+  Number(
+    amount0
+      .multiply(toFraction(token0Value))
+      .add(amount1.multiply(toFraction(token1Value)))
+      .toSignificant(6)
   );
-  const usdLocked = new TokenAmount(token0, token0Locked)
-    .multiply(toFraction(token0Value))
-    .add(
-      new TokenAmount(token1, token1Locked).multiply(toFraction(token1Value))
-    )
-    .toSignificant(6);
-  return Number(usdLocked);
-};
 
 /**
  * Calculate the weekly streak of a maker
@@ -235,10 +234,3 @@ export const calculateStreak = (
     currentDate = new Date(currentDate.getTime() - ONE_DAY * 7);
   }
 };
-
-// TESTING PURPOSE
-
-export const radius = (x: number, pct: number): [number, number] => [
-  x - (x * pct) / 100,
-  x + (x * pct) / 100,
-];

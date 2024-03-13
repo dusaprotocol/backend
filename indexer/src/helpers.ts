@@ -201,7 +201,7 @@ const processSignedOperation = async (
           updateDCAStatus(id, Status.STOPPED);
           break;
         }
-        case "updateDCA": // TODO: update DCA
+        case "updateDCA":
         default:
           break;
       }
