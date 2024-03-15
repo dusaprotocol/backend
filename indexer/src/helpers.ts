@@ -5,15 +5,10 @@ import {
   SwapRouterMethod,
   LiquidityRouterMethod,
 } from "@dusalabs/sdk";
-import {
-  IEvent,
-  bytesToStr,
-  strToBytes,
-  withTimeoutRejection,
-} from "@massalabs/massa-web3";
+import { bytesToStr, strToBytes } from "@massalabs/massa-web3";
 import { ADDRESSES, dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { handlePrismaError, prisma } from "../../common/db";
-import { fetchPairAddress } from "../../common/datastoreFetcher";
+import { fetchEvents, fetchPairAddress } from "../../common/datastoreFetcher";
 import { isLiquidityEvent, isSwapEvent } from "../../common/methods";
 import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import {
@@ -34,7 +29,6 @@ import {
   NewOperationsResponse,
   NewSlotExecutionOutputsResponse,
 } from "../gen/ts/massa/api/v1/public";
-import { createEventPoller, pollAsyncEvents } from "./eventPoller";
 import { createDCA, updateDCAStatus } from "./db";
 import { Prisma, Status } from "@prisma/client";
 import logger from "../../common/logger";
@@ -139,15 +133,7 @@ const processSignedOperation = async (
   const indexedSC = [dcaSC, orderSC, routerSC];
   if (!indexedSC.includes(targetAddress)) return;
 
-  const eventPoller = createEventPoller(txHash);
-  const { events, isError } = await withTimeoutRejection(
-    pollAsyncEvents(eventPoller),
-    ONE_MINUTE
-  ).catch(() => {
-    logger.warn(`Timeout for ${txHash}`);
-    return { events: [] as IEvent[], isError: false };
-  });
-  eventPoller.stopPolling();
+  const { isError, events } = await fetchEvents(txHash);
   if (isError) return;
 
   await prisma.operation

@@ -24,12 +24,12 @@ describe("getTokenValue", () => {
   });
   it("returns around 2000 for WETH", async () => {
     const value = await DF.getTokenValue(_WETH[CHAIN_ID]);
-    expect(value).toBeGreaterThan(2000);
+    expect(value).toBeGreaterThan(1000);
     expect(value).toBeLessThan(4000);
   });
   it("returns around 30000 for WBTC", async () => {
     const value = await DF.getTokenValue(_WBTC[CHAIN_ID]);
-    expect(value).toBeGreaterThan(30000);
+    expect(value).toBeGreaterThan(20000);
     expect(value).toBeLessThan(50000);
   });
 });

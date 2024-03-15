@@ -3,7 +3,7 @@ import { prisma } from "../../common/db";
 import { writeFile } from "fs";
 import { Fraction, Token, TokenAmount } from "@dusalabs/sdk";
 import { ONE_DAY } from "../../common/utils";
-import { toFraction, toToken } from "../../common/methods";
+import { roundFraction, toFraction, toToken } from "../../common/methods";
 import xlsx from "node-xlsx";
 import { BigintIsh } from "@dusalabs/sdk/dist/constants";
 
@@ -74,24 +74,6 @@ const saveFile = (data: {}) =>
 const saveXLSXFile = (rawData: ExcelData[]) => {
   const data = rawData.map((row) => {
     return Object.values(row);
-    return [
-      row.userAddress,
-      row.accruedFeesX,
-      row.accruedFeesY,
-      row.accruedFeesL,
-      row.accruedFeesUsd,
-      row.percentOfTotalFees,
-      row.pairAddress,
-      row.makerScore,
-      row.makerRank,
-      row.rewardPercentage,
-      row.rewardToken,
-      row.makerRewards,
-      row.makerRewardsRaw,
-      row.pairName,
-      row.rewardEpoch,
-      row.rewardAmount,
-    ];
   });
   writeFile(
     "dataset.xlsx",
@@ -211,11 +193,7 @@ const getAccruedFees = async (poolAddress: string, makerAddress: string) => {
     for (const maker of makers) {
       i++;
       const accruedFees = await getAccruedFees(poolAddress, maker.address);
-      const percentOfTotalFees = Number(
-        toFraction(maker.accruedFeesUsd)
-          .divide(toFraction(totalFees))
-          .toSignificant(6)
-      );
+      const percentOfTotalFees = maker.accruedFeesUsd / totalFees;
       const makerScore = maker.accruedFeesUsd ** FEE_WEIGHT;
 
       for (const rewardToken of market.rewardTokens) {
@@ -228,7 +206,7 @@ const getAccruedFees = async (poolAddress: string, makerAddress: string) => {
           .divide(totalRewards);
 
         const parse = (token: PrismaToken, val: BigintIsh) =>
-          Number(new TokenAmount(toToken(token), val).toSignificant(6));
+          roundFraction(new TokenAmount(toToken(token), val));
 
         excelData.push({
           userAddress: maker.address,
@@ -240,9 +218,9 @@ const getAccruedFees = async (poolAddress: string, makerAddress: string) => {
           pairAddress: poolAddress,
           makerScore,
           makerRank: i,
-          rewardPercentage: Number(rewardPercentage.toSignificant(6)),
+          rewardPercentage: roundFraction(rewardPercentage),
           rewardToken: rewardToken.token.symbol,
-          makerRewards: Number(makerRewards.toSignificant(6)),
+          makerRewards: roundFraction(makerRewards),
           makerRewardsRaw: makerRewards.quotient.toString(),
           pairName: token0.symbol + "_" + token1.symbol + "-" + binStep,
           rewardEpoch: epoch,

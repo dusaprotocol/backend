@@ -46,17 +46,19 @@ export const toToken = (
   return new Token(chainId, token.address, token.decimals);
 };
 
+export const roundFraction = (amount: Fraction, precision = 6) =>
+  Number(amount.toSignificant(precision));
+
 export const calculateUSDValue = (
   amount0: TokenAmount,
   token0Value: number,
   amount1: TokenAmount,
   token1Value: number
 ): number =>
-  Number(
+  roundFraction(
     amount0
       .multiply(toFraction(token0Value))
       .add(amount1.multiply(toFraction(token1Value)))
-      .toSignificant(6)
   );
 
 /**

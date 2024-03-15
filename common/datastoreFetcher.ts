@@ -1,4 +1,9 @@
-import { strToBytes, bytesToStr, Args } from "@massalabs/massa-web3";
+import {
+  strToBytes,
+  bytesToStr,
+  Args,
+  withTimeoutRejection,
+} from "@massalabs/massa-web3";
 import { web3Client } from "./client";
 import { USDC, WMAS, dcaSC, factorySC } from "./contracts";
 import {
@@ -10,9 +15,12 @@ import {
   parseUnits,
 } from "@dusalabs/sdk";
 import { CHAIN_ID } from "./config";
-import { toToken } from "./methods";
+import { roundFraction, toToken } from "./methods";
 import { DCA, Status } from "@prisma/client";
 import { decodeDcaTx } from "../indexer/src/decoder";
+import { createEventPoller, pollAsyncEvents } from "../indexer/src/eventPoller";
+import { ONE_MINUTE } from "./utils";
+import logger from "./logger";
 
 export const fetchPairAddress = async (
   token0: string,
@@ -56,7 +64,7 @@ export const getTokenValueUsingQuoter = async (
     CHAIN_ID
   );
   try {
-    return Number(bestTrade.executionPrice.toSignificant());
+    return roundFraction(bestTrade.executionPrice);
   } catch (e) {
     return 0;
   }
@@ -113,3 +121,16 @@ export const getDatastoreKeys = async (address: string): Promise<string[]> =>
     .then((r) =>
       r[0].candidate_datastore_keys.map((v) => String.fromCharCode(...v))
     );
+
+export const fetchEvents = async (txHash: string) => {
+  const eventPoller = createEventPoller(txHash);
+  const res = await withTimeoutRejection(
+    pollAsyncEvents(eventPoller),
+    ONE_MINUTE
+  ).catch(() => {
+    logger.warn(`Timeout for ${txHash}`);
+    return { events: [], isError: false };
+  });
+  eventPoller.stopPolling();
+  return res;
+};

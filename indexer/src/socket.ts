@@ -2,6 +2,7 @@ import {
   calculateUSDValue,
   getCallee,
   getPriceFromId,
+  roundFraction,
   sortTokens,
   toFraction,
 } from "../../common/methods";
@@ -153,14 +154,12 @@ export const processSwap = async (params: {
 
     makers.forEach(async (maker, j) => {
       const share = new Fraction(balances[j]).divide(binSupply);
-      const makerVolume = Number(
-        share
-          .multiply(
-            new TokenAmount(tokenIn, amountInToBin).multiply(
-              toFraction(tokenInValue)
-            )
+      const makerVolume = roundFraction(
+        share.multiply(
+          new TokenAmount(tokenIn, amountInToBin).multiply(
+            toFraction(tokenInValue)
           )
-          .toSignificant(6)
+        )
       );
       const accruedFees = share.multiply(feesTotal).quotient;
       const accruedFeesX = swapForY ? accruedFees : 0n;
@@ -169,10 +168,8 @@ export const processSwap = async (params: {
       const accruedFeesL = swapForY
         ? new Fraction(accruedFeesX).multiply(toFraction(price)).quotient
         : accruedFeesY;
-      const accruedFeesUsd = Number(
-        new TokenAmount(tokenY, accruedFeesL)
-          .multiply(toFraction(tokenYValue))
-          .toSignificant(6)
+      const accruedFeesUsd = roundFraction(
+        new TokenAmount(tokenY, accruedFeesL).multiply(toFraction(tokenYValue))
       );
       if (accruedFeesUsd === 0) return;
 
@@ -232,7 +229,7 @@ export const processLiquidity = async (params: {
   });
 };
 
-export const calculateSwapValue = (params: {
+const calculateSwapValue = (params: {
   tokenIn: Token;
   valueIn: number;
   amountIn: bigint;
@@ -241,15 +238,11 @@ export const calculateSwapValue = (params: {
   // prettier-ignore
   const { tokenIn, valueIn, amountIn, feesIn } = params;
 
-  const volume = Number(
-    new TokenAmount(tokenIn, amountIn)
-      .multiply(toFraction(valueIn))
-      .toSignificant(6)
+  const volume = roundFraction(
+    new TokenAmount(tokenIn, amountIn).multiply(toFraction(valueIn))
   );
-  const fees = Number(
-    new TokenAmount(tokenIn, feesIn)
-      .multiply(toFraction(valueIn))
-      .toSignificant(6)
+  const fees = roundFraction(
+    new TokenAmount(tokenIn, feesIn).multiply(toFraction(valueIn))
   );
 
   return { volume, fees };

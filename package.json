@@ -12,6 +12,7 @@
     "start:indexer": "cd indexer && pnpm start",
     "start:crons": "cd crons && pnpm start",
     "test": "vitest --no-threads",
+    "reward": "tsx ./api/src/rewards.ts",
     "reset": "prisma migrate reset --force && prisma db push",
     "seed": "tsx ./api/src/seed.ts"
   },
