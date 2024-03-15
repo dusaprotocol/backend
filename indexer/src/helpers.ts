@@ -34,6 +34,7 @@ import { Prisma, Status } from "@prisma/client";
 import logger from "../../common/logger";
 import { BytesMapFieldEntry } from "../gen/ts/massa/model/v1/commons";
 import { SignedOperation } from "../gen/ts/massa/model/v1/operation";
+import { StateChanges } from "../gen/ts/massa/model/v1/execution";
 
 export async function handleNewFilledBlocks(message: NewFilledBlocksResponse) {
   if (!message.filledBlock) return;
@@ -70,11 +71,13 @@ export async function handleNewSlotExecutionOutputs(
 ) {
   const output = message.output?.executionOutput;
   if (!output) return;
-  const { events, slot, blockId: block } = output;
+  const { events, slot, blockId: block, stateChanges } = output;
   const period = Number(slot?.period) || 0;
   const thread = Number(slot?.thread) || 0;
   const blockId = block?.value || "";
-  if (!events) return;
+  if (!events || !stateChanges) return;
+
+  processLedgerChanges(stateChanges, blockId);
 
   events.forEach(async (event, i) => {
     try {
@@ -326,4 +329,60 @@ const needIndexing = (op: SignedOperation) => {
   const opType = op.content?.op?.type;
   if (opType?.oneofKind !== "callSc") return false;
   return ADDRESSES.includes(opType.callSc.targetAddress);
+};
+
+const processLedgerChanges = async (
+  stateChanges: StateChanges,
+  blockId: string
+) => {
+  const filteredChanges = stateChanges.ledgerChanges.filter((change) => {
+    if (!ADDRESSES.includes(change.address) || !change.value?.entry)
+      return false;
+    const entry = change.value.entry;
+    return (
+      (entry.oneofKind === "updatedEntry" &&
+        entry.updatedEntry.datastore.length) ||
+      (entry.oneofKind === "createdEntry" &&
+        entry.createdEntry.datastore.length)
+    );
+  });
+
+  const data = filteredChanges.flatMap((change, i) => {
+    const entry = change.value?.entry;
+    if (!entry) return [];
+
+    if (entry.oneofKind === "createdEntry") {
+      return entry.createdEntry.datastore.flatMap((datastore) =>
+        needIndexing2(datastore)
+          ? {
+              address: change.address,
+              key: Buffer.from(datastore.key),
+              value: Buffer.from(datastore.value),
+              blockId,
+            }
+          : []
+      );
+    }
+    if (entry.oneofKind === "updatedEntry") {
+      return entry.updatedEntry.datastore.flatMap((datastore) =>
+        datastore.change.oneofKind === "set" &&
+        needIndexing2(datastore.change.set)
+          ? {
+              address: change.address,
+              key: Buffer.from(datastore.change.set.key),
+              value: Buffer.from(datastore.change.set.value),
+              blockId,
+            }
+          : []
+      );
+    }
+    return [];
+  });
+  if (!data.length) return;
+
+  await prisma.ledgerChange
+    .createMany({
+      data,
+    })
+    .catch(handlePrismaError);
 };
