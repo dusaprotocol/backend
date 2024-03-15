@@ -18,7 +18,7 @@ const cache = apicache.options({
 
 const app = express();
 app.use(cors());
-app.use(cache("5 minutes"));
+app.use(cache("1 minute"));
 app.use("/trpc", expressMiddleware);
 
 // Health check

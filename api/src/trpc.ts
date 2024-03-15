@@ -693,10 +693,15 @@ FROM (
             lte: input.to,
           },
         },
+        orderBy: {
+          date: "desc",
+        },
       });
-      console.log(res);
 
-      return calculateStreak(res);
+      return {
+        streak: calculateStreak(res),
+        lastDate: res[0]?.date,
+      };
     }),
   getRewardPool: t.procedure
     .input(
