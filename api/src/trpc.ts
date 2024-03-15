@@ -676,8 +676,6 @@ FROM (
   getStreak: t.procedure
     .input(
       z.object({
-        from: z.string().transform((v) => new Date(v)),
-        to: z.string().transform((v) => new Date(v)),
         poolAddress: z.string(),
         address: z.string(),
       })
@@ -688,10 +686,6 @@ FROM (
         where: {
           address,
           poolAddress,
-          date: {
-            gte: input.from,
-            lte: input.to,
-          },
         },
         orderBy: {
           date: "desc",
