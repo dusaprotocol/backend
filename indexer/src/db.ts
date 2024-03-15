@@ -144,16 +144,19 @@ export const updateDCAStatus = async (id: number, status: Status) => {
 };
 
 export const createAnalytic = async (
-  args: Omit<Prisma.AnalyticsUncheckedCreateInput, "date">
-) =>
+  args: Prisma.AnalyticsUncheckedCreateInput
+): Promise<boolean> =>
   prisma.analytics
     .create({
       data: {
         ...args,
-        date: getClosestTick(),
       },
     })
-    .catch(handlePrismaError);
+    .then(() => true)
+    .catch((err) => {
+      handlePrismaError(err);
+      return false;
+    });
 
 export const updateMakerFees = async (
   params: Omit<Prisma.MakerUncheckedCreateInput, "date">
