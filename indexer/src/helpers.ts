@@ -107,7 +107,6 @@ export async function handleNewSlotExecutionOutputs(
           message: err.message,
         },
       });
-      throw err;
     }
   });
 }
@@ -306,7 +305,6 @@ const processSignedOperation = async (
         message: err.message,
       },
     });
-    throw err;
   }
 };
 
