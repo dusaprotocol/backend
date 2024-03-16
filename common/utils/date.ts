@@ -10,8 +10,8 @@ export const ONE_DAY = 24 * ONE_HOUR;
 export const ONE_PERIOD = 16_000;
 
 // (changes here should be reflected in the interface)
-export const TIME_BETWEEN_TICKS = 5 * ONE_MINUTE;
-export const TICKS_PER_DAY = ONE_DAY / TIME_BETWEEN_TICKS;
+export const ONE_TICK = 5 * ONE_MINUTE;
+export const TICKS_PER_DAY = ONE_DAY / ONE_TICK;
 
 // Cron expressions
 export const EVERY_TICK = "*/5 * * * *" as const;
@@ -71,9 +71,7 @@ export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
  * @returns
  */
 export const getClosestTick = (timestamp: number = Date.now()): Date => {
-  return new Date(
-    Math.floor(timestamp / TIME_BETWEEN_TICKS) * TIME_BETWEEN_TICKS
-  );
+  return new Date(Math.floor(timestamp / ONE_TICK) * ONE_TICK);
 };
 
 /**

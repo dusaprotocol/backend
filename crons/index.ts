@@ -12,7 +12,7 @@ import { getTokenValue } from "../common/datastoreFetcher";
 import {
   ONE_DAY,
   TICKS_PER_DAY,
-  TIME_BETWEEN_TICKS,
+  ONE_TICK,
   getClosestTick,
 } from "../common/utils";
 import { createAnalytic } from "../indexer/src/db";
@@ -25,7 +25,7 @@ const fillMissingTicks = async (
   ticks: Prisma.AnalyticsGetPayload<{}>[]
 ) => {
   for (let i = 0; i < TICKS_PER_DAY; i++) {
-    const date = getClosestTick(Date.now() - ONE_DAY + i * TIME_BETWEEN_TICKS);
+    const date = getClosestTick(Date.now() - ONE_DAY + i * ONE_TICK);
     if (!ticks.find((tick) => tick.date.getTime() === date.getTime())) {
       const success = await main(pool, date.getTime());
       console.log("missing tick", date, "success", success);
@@ -34,7 +34,7 @@ const fillMissingTicks = async (
 };
 
 const main = async (pool: Pool, now = Date.now()) => {
-  logger.silly(`[${new Date().toISOString()}]: running the analytics task`);
+  logger.silly(`[${new Date().toString()}]: ${pool.address}`);
 
   const { address: poolAddress, binStep } = pool;
   const [token0, token1] = [pool.token0, pool.token1].map((token) =>
@@ -62,7 +62,8 @@ const main = async (pool: Pool, now = Date.now()) => {
       where: {
         poolAddress,
         timestamp: {
-          gte: new Date(now - TIME_BETWEEN_TICKS),
+          gte: getClosestTick(now - ONE_TICK),
+          lt: getClosestTick(now),
         },
       },
       _sum: {
@@ -83,7 +84,8 @@ const main = async (pool: Pool, now = Date.now()) => {
       where: {
         poolAddress,
         timestamp: {
-          gte: new Date(now - TIME_BETWEEN_TICKS),
+          gte: getClosestTick(now - ONE_TICK),
+          lt: getClosestTick(now),
         },
       },
       _max: {
@@ -108,7 +110,7 @@ const main = async (pool: Pool, now = Date.now()) => {
   );
   if (!open) throw new Error("Invalid price");
 
-  const lastTick = getClosestTick(now - TIME_BETWEEN_TICKS);
+  const lastTick = getClosestTick(now - ONE_TICK);
   await prisma.analytics
     .update({
       where: {
@@ -127,7 +129,7 @@ const main = async (pool: Pool, now = Date.now()) => {
 
   return createAnalytic({
     poolAddress,
-    date: new Date(now),
+    date: getClosestTick(now),
     token0Locked: token0Locked.toString(),
     token1Locked: token1Locked.toString(),
     usdLocked,

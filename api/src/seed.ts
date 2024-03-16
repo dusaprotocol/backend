@@ -7,7 +7,7 @@ import { prisma } from "../../common/db";
 import { IERC20, ILBPair, PairV2 } from "@dusalabs/sdk";
 import {
   TICKS_PER_DAY,
-  TIME_BETWEEN_TICKS,
+  ONE_TICK,
   getClosestTick,
   parseSlot,
 } from "../../common/utils/date";
@@ -113,7 +113,7 @@ const generateDataset = async (poolAddress: string) => {
 
   const data: Prisma.AnalyticsCreateManyArgs["data"] = [];
   for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
-    const date = getClosestTick(Date.now() - i * TIME_BETWEEN_TICKS);
+    const date = getClosestTick(Date.now() - i * ONE_TICK);
     if (prevPrice === 1) {
       data.push({
         poolAddress: pool.address,
