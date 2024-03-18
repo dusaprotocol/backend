@@ -229,24 +229,34 @@ const getAccruedFees = async (poolAddress: string, makerAddress: string) => {
       }
     }
 
-    const rewards: RewardData[] = await Promise.all(
-      market.rewardTokens.map(async (rewardToken) => {
-        const totalRewards = BigInt(rewardToken.amount);
-        return {
-          totalRewards,
-          address: rewardToken.address,
-          length: makers.length,
-          users: makers.map((maker) => {
-            return {
-              address: maker.address,
-              amount: new Fraction(totalRewards)
-                .multiply(toFraction(maker.accruedFeesUsd ** FEE_WEIGHT))
-                .divide(toFraction(totalFeesWeighted)).quotient,
-            };
-          }),
-        };
-      })
-    );
+    const rewards: RewardData[] = market.rewardTokens.map((rewardToken) => {
+      const totalRewards = BigInt(rewardToken.amount);
+      return {
+        totalRewards,
+        address: rewardToken.address,
+        length: makers.length,
+        users: makers.map((maker) => {
+          return {
+            address: maker.address,
+            amount: new Fraction(totalRewards)
+              .multiply(toFraction(maker.accruedFeesUsd ** FEE_WEIGHT))
+              .divide(toFraction(totalFeesWeighted)).quotient,
+          };
+        }),
+      };
+    });
+
+    // fix rounding errors
+    rewards.forEach((reward, i) => {
+      const rewardSum = reward.users.reduce(
+        (acc, user) => acc + user.amount,
+        0n
+      );
+      if (reward.totalRewards != rewardSum) {
+        const diff = reward.totalRewards - rewardSum;
+        reward.users[reward.users.length - 1].amount += diff;
+      }
+    });
 
     jsonData.markets.push({
       address: poolAddress,
