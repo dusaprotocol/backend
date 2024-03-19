@@ -39,29 +39,13 @@ model TokenBalance {
 }
 
 model Token {
-  address       String           @id
-  name          String
-  symbol        String
-  decimals      Int
-  poolsAsToken0 Pool[]           @relation("pool0")
-  poolsAsToken1 Pool[]           @relation("pool1")
-  poolsAsReward RewardPool[]
-  analytics     TokenAnalytics[]
-}
-
-model TokenAnalytics {
-  date         DateTime
-  volume       Int
-  fees         Float
-  close        Float
-  high         Float
-  low          Float
-  open         Float
-  tokenAddress String
-  token        Token    @relation(fields: [tokenAddress], references: [address], onDelete: Cascade)
-
-  @@id([tokenAddress, date])
-  @@index([date], map: "date")
+  address        String        @id
+  name           String
+  symbol         String
+  decimals       Int
+  poolsAsToken0  Pool[]        @relation("pool0")
+  poolsAsToken1  Pool[]        @relation("pool1")
+  tokensAsReward RewardToken[]
 }
 
 model Pool {
@@ -146,18 +130,19 @@ model DCA {
   tokenIn       String
   tokenOut      String
   execution     DCAExecution[]
-  User          User           @relation(fields: [userAddress], references: [address])
+  user          User           @relation(fields: [userAddress], references: [address])
 }
 
 model DCAExecution {
-  id        Int    @id @default(autoincrement())
   amountIn  String
   amountOut String
   thread    Int
   period    Int
-  dCAId     Int
   blockId   String
-  DCA       DCA    @relation(fields: [dCAId], references: [id], onDelete: Cascade)
+  dcaId     Int
+  dca       DCA    @relation(fields: [dcaId], references: [id], onDelete: Cascade)
+
+  @@id([dcaId, blockId])
 }
 
 model Order {
@@ -171,20 +156,19 @@ model Order {
   userAddress    String
   status         Status
   binId          Int
-  User           User            @relation(fields: [userAddress], references: [address])
-  Pool           Pool            @relation(fields: [poolAddress], references: [address])
-  OrderExecution OrderExecution?
+  user           User            @relation(fields: [userAddress], references: [address])
+  pool           Pool            @relation(fields: [poolAddress], references: [address])
+  orderExecution OrderExecution?
 }
 
 model OrderExecution {
-  id        Int    @id @default(autoincrement())
   amountIn  String
   amountOut String
   thread    Int
   period    Int
   orderId   Int    @unique
   blockId   String
-  Order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model Maker {
@@ -196,19 +180,29 @@ model Maker {
   accruedFeesY   String
   accruedFeesL   String
   accruedFeesUsd Float
+  volume         Float
 
   @@id([address, poolAddress, date])
 }
 
 model RewardPool {
-  poolAddress        String
-  epoch              Int
-  rewardTokenAddress String
-  amount             String
-  rewardToken        Token  @relation(fields: [rewardTokenAddress], references: [address])
-  pool               Pool   @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
+  epoch        Int
+  poolAddress  String
+  pool         Pool          @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
+  rewardTokens RewardToken[]
 
   @@id([poolAddress, epoch])
+}
+
+model RewardToken {
+  amount            String
+  address           String
+  rewardEpoch       Int
+  rewardPoolAddress String
+  rewardPool        RewardPool @relation(fields: [rewardPoolAddress, rewardEpoch], references: [poolAddress, epoch], onDelete: Cascade)
+  token             Token      @relation(fields: [address], references: [address], onDelete: Cascade)
+
+  @@id([rewardPoolAddress, rewardEpoch, address])
 }
 
 model Bin {
@@ -222,12 +216,95 @@ model Bin {
 }
 
 model Leaderboard {
-  userAddress   String  @unique
-  discordId     String? @unique
-  zealySprintId Int
+  userAddress   String @unique
+  discordId     String @unique
   score         Float
+  zealySprintId Int
 
   @@id([zealySprintId, userAddress])
+}
+
+model TokenAnalytics {
+  date         DateTime
+  volume       Int
+  fees         Float
+  close        Float
+  high         Float
+  low          Float
+  open         Float
+  tokenAddress String
+
+  @@id([tokenAddress, date])
+  @@index([date], map: "date")
+}
+
+model TokenBalance {
+  id                       Int       @id @default(autoincrement())
+  tokenAddress             String
+  balance                  String
+  value                    Float
+  userAnalyticsUserAddress String?
+  userAnalyticsDate        DateTime?
+}
+
+model UserAnalytics {
+  date        DateTime
+  totalValue  Float
+  userAddress String
+
+  @@id([userAddress, date])
+  @@index([date], map: "date")
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  message   String
+  data      Bytes
+}
+
+model Block {
+  id            String         @id
+  period        Int
+  thread        Int
+  createdAt     DateTime       @default(now())
+  operations    Operation[]
+  ledgerChanges LedgerChange[]
+}
+
+model Operation {
+  id             String   @id
+  targetAddress  String
+  targetFunction String
+  value          BigInt
+  maxGas         BigInt
+  indexInBlock   Int      @default(0)
+  data           Bytes
+  blockId        String
+  callerAddress  String
+  createdAt      DateTime @default(now())
+  events         Event[]
+  block          Block    @relation(fields: [blockId], references: [id])
+}
+
+model Event {
+  id             Int       @id @default(autoincrement())
+  emitterAddress String
+  operationId    String
+  data           Bytes
+  indexInSlot    Int
+  createdAt      DateTime  @default(now())
+  operation      Operation @relation(fields: [operationId], references: [id])
+}
+
+model LedgerChange {
+  id        Int      @id @default(autoincrement())
+  address   String
+  key       Bytes
+  value     Bytes
+  blockId   String
+  createdAt DateTime @default(now())
+  block     Block    @relation(fields: [blockId], references: [id])
 }
 
 enum Status {

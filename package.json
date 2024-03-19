@@ -12,6 +12,7 @@
     "start:indexer": "cd indexer && pnpm start",
     "start:crons": "cd crons && pnpm start",
     "test": "vitest --no-threads",
+    "reward": "tsx ./api/src/rewards.ts",
     "reset": "prisma migrate reset --force && prisma db push",
     "seed": "tsx ./api/src/seed.ts"
   },
@@ -19,10 +20,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@dusalabs/sdk": "^0.4.27",
+    "@dusalabs/sdk": "^0.4.28",
     "@massalabs/massa-web3": "3.0.4-dev.20240116124851",
     "@prisma/client": "^5.8.1",
     "dotenv": "^16.4.1",
+    "node-xlsx": "^0.23.0",
     "tsx": "^4.7.0",
     "winston": "^3.11.0"
   },
@@ -30,6 +32,7 @@
     "prisma": "^5.8.1",
     "tslib": "^2.6.2",
     "typescript": "^4.9.5",
-    "vitest": "^0.34.6"
+    "vitest": "^0.34.6",
+    "vitest-mock-extended": "^1.3.1"
   }
 }

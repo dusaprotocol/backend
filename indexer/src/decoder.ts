@@ -8,7 +8,6 @@ import {
   LimitOrder,
   SwapEvent,
 } from "@dusalabs/sdk";
-import { getTokenFromAddress } from "../../common/methods";
 import { NativeAmount } from "../gen/ts/massa/model/v1/amount";
 import { WMAS } from "../../common/contracts";
 import { DCA, Order } from "@prisma/client";
