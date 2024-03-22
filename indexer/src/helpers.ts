@@ -10,7 +10,6 @@ import { ADDRESSES, dcaSC, orderSC, routerSC } from "../../common/contracts";
 import { handlePrismaError, prisma } from "../../common/db";
 import { fetchEvents, fetchPairAddress } from "../../common/datastoreFetcher";
 import { isLiquidityEvent, isSwapEvent } from "../../common/methods";
-import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
 import {
   decodeDcaTx,
   decodeSwapTx,
@@ -35,6 +34,7 @@ import logger from "../../common/logger";
 import { BytesMapFieldEntry } from "../gen/ts/massa/model/v1/commons";
 import { SignedOperation } from "../gen/ts/massa/model/v1/operation";
 import { StateChanges } from "../gen/ts/massa/model/v1/execution";
+import { getEventTimestamp } from "./utils";
 
 export async function handleNewFilledBlocks(message: NewFilledBlocksResponse) {
   if (!message.filledBlock) return;
@@ -244,7 +244,7 @@ const processSignedOperation = async (
 
     // ROUTER CONTRACT
     else {
-      const timestamp = getTimestamp(events[0]);
+      const timestamp = getEventTimestamp(events[0]);
 
       if (isSwapMethod(targetFunction)) {
         const swapParams = decodeSwapTx(targetFunction, parameter, coins);

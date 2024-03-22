@@ -242,11 +242,10 @@ export const calcPoolValue = (
 ) => {
   const token0Amount = new TokenAmount(pool.token0, pool.amount0);
   const token1Amount = new TokenAmount(pool.token1, pool.amount1);
-  const value = Number(
+  const value = roundFraction(
     token0Amount
       .multiply(toFraction(token0Value))
       .add(token1Amount.multiply(toFraction(token1Value)))
-      .toSignificant(6)
   );
   return value;
 };

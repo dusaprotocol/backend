@@ -1,18 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 
 import { handleNewOperations } from "../helpers";
-import * as Helpers from "../helpers";
 import { NewOperationsResponse } from "../../gen/ts/massa/api/v1/public";
 import * as db from "../db";
 import { LB_ROUTER_ADDRESS, SWAP_ROUTER_METHODS } from "@dusalabs/sdk";
 import { CHAIN_ID } from "../../../common/config";
 import { swapParams } from "./placeholder";
-import * as EventPoller from "../eventPoller";
 import { IEvent } from "@massalabs/massa-web3";
-import * as WEB3 from "@massalabs/massa-web3";
 import { EventPoller as _EventPoller } from "@massalabs/massa-web3";
-import { nullFilters } from "../../../common/utils";
-import { prisma } from "../../../common/lib/__mocks__/prisma";
 
 vi.mock("../../../common/datastoreFetcher", () => ({
   fetchEvents: async () => ({ events: [] as IEvent[], isError: false }),

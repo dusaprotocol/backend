@@ -9,7 +9,6 @@ import {
   TICKS_PER_DAY,
   ONE_TICK,
   getClosestTick,
-  parseSlot,
 } from "../../common/utils/date";
 import { getBinStep } from "../../common/datastoreFetcher";
 
