@@ -1,5 +1,5 @@
 import type { Pool, Prisma } from "@prisma/client";
-import { adjustPrice, getBinStep, getPriceFromId } from "../../common/methods";
+import { adjustPrice, getPriceFromId } from "../../common/methods";
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
 import { bytesToStr, strToBytes } from "@massalabs/massa-web3";
@@ -7,9 +7,11 @@ import { prisma } from "../../common/db";
 import { IERC20, ILBPair, PairV2 } from "@dusalabs/sdk";
 import {
   TICKS_PER_DAY,
-  TIME_BETWEEN_TICKS,
+  ONE_TICK,
   getClosestTick,
+  parseSlot,
 } from "../../common/utils/date";
+import { getBinStep } from "../../common/datastoreFetcher";
 
 type AddressBinStep = Pick<Pool, "address" | "binStep">;
 
@@ -118,7 +120,7 @@ const generateDataset = async (poolAddress: string) => {
 
   const data: Prisma.AnalyticsCreateManyArgs["data"] = [];
   for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
-    const date = getClosestTick(Date.now() - i * TIME_BETWEEN_TICKS);
+    const date = getClosestTick(Date.now() - i * ONE_TICK);
     if (prevPrice === 1) {
       data.push({
         poolAddress: pool.address,

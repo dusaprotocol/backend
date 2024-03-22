@@ -4,15 +4,9 @@ import { z } from "zod";
 import type { Liquidity, Prisma, Swap } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
-import {
-  ONE_DAY,
-  ONE_HOUR,
-  TICKS_PER_DAY,
-  getDailyTick,
-} from "../../common/utils/date";
-import { calculateStreak, getTokenValue } from "../../common/methods";
-import { Token } from "@dusalabs/sdk";
-import { CHAIN_ID } from "../../common/config";
+import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
+import { calculateStreak, toToken } from "../../common/methods";
+import { getTokenValue } from "../../common/datastoreFetcher";
 import { Address, PublicKey, WalletClient } from "@massalabs/massa-web3";
 import { web3Client } from "../../common/client";
 
@@ -53,7 +47,9 @@ type Leaderboard = Prisma.MakerGetPayload<{
     accruedFeesUsd: true;
     volume: true;
   };
-}>;
+}> & {
+  feesPct: number;
+};
 
 export const createContext = ({
   req,
@@ -228,27 +224,21 @@ export const appRouter = t.router({
         const today = analytics.slice(0, changeIndex);
         const yesterday = analytics.slice(changeIndex);
 
-        const fees = today.reduce((acc, curr) => acc + Number(curr.fees), 0);
-        const feesYesterday = yesterday.reduce(
-          (acc, curr) => acc + Number(curr.fees),
-          0
-        );
-        const volume = today.reduce(
-          (acc, curr) => acc + Number(curr.volume),
-          0
-        );
-        const volumeYesterday = yesterday.reduce(
-          (acc, curr) => acc + Number(curr.volume),
-          0
-        );
-        const feesPctChange =
-          feesYesterday === 0
-            ? 0
-            : ((fees - feesYesterday) / feesYesterday) * 100;
-        const volumePctChange =
-          volumeYesterday === 0
-            ? 0
-            : ((volume - volumeYesterday) / volumeYesterday) * 100;
+        const reduce = (
+          arr: (Volume & { fees: number })[],
+          key: "volume" | "fees"
+        ) => arr.reduce((acc, curr) => acc + Number(curr[key]), 0);
+
+        const getChange = (today: number, yesterday: number) =>
+          yesterday === 0 ? 0 : ((today - yesterday) / yesterday) * 100;
+
+        const fees = reduce(today, "fees");
+        const feesYesterday = reduce(yesterday, "fees");
+        const volume = reduce(today, "volume");
+        const volumeYesterday = reduce(yesterday, "volume");
+        const feesPctChange = getChange(fees, feesYesterday);
+        const volumePctChange = getChange(volume, volumeYesterday);
+
         return {
           fees,
           volume,
@@ -562,14 +552,14 @@ export const appRouter = t.router({
             userAddress,
           },
           include: {
-            OrderExecution: true,
+            orderExecution: true,
           },
         })
         .catch(
           (
             err
           ): Prisma.OrderGetPayload<{
-            include: { OrderExecution: true };
+            include: { orderExecution: true };
           }>[] => {
             logger.error(err);
             return [];
@@ -658,7 +648,7 @@ FROM (
     )
     .query(async ({ input }) => {
       const { tokenAddress, tokenDecimals } = input;
-      const token = new Token(CHAIN_ID, tokenAddress, tokenDecimals);
+      const token = toToken({ address: tokenAddress, decimals: tokenDecimals });
       return getTokenValue(token);
     }),
   getLeaderboard: t.procedure
@@ -673,7 +663,7 @@ FROM (
     .query(async ({ input, ctx }) => {
       const { poolAddress, from, to, take } = input;
       return ctx.prisma.$queryRaw<Leaderboard[]>`
-        SELECT address, SUM(accruedFeesUsd) as accruedFeesUsd, SUM(volume) as volume
+        SELECT address, SUM(accruedFeesUsd) as accruedFeesUsd, SUM(volume) as volume, SUM(accruedFeesUsd) / (SELECT SUM(accruedFeesUsd) FROM Maker WHERE poolAddress = ${poolAddress} AND date BETWEEN ${from} AND ${to}) * 100 as feesPct
         FROM Maker
         WHERE poolAddress = ${poolAddress}
         AND date BETWEEN ${from} AND ${to}
@@ -688,8 +678,6 @@ FROM (
   getStreak: t.procedure
     .input(
       z.object({
-        from: z.string().transform((v) => new Date(v)),
-        to: z.string().transform((v) => new Date(v)),
         poolAddress: z.string(),
         address: z.string(),
       })
@@ -700,15 +688,16 @@ FROM (
         where: {
           address,
           poolAddress,
-          date: {
-            gte: input.from,
-            lte: input.to,
-          },
+        },
+        orderBy: {
+          date: "desc",
         },
       });
-      console.log(res);
 
-      return calculateStreak(res);
+      return {
+        streak: calculateStreak(res),
+        lastDate: res[0]?.date,
+      };
     }),
   getRewardPool: t.procedure
     .input(
@@ -719,7 +708,7 @@ FROM (
     )
     .query(async ({ input, ctx }) => {
       const { epoch, poolAddress } = input;
-      return ctx.prisma.rewardPool.findUnique({
+      const res = await ctx.prisma.rewardPool.findUniqueOrThrow({
         where: {
           poolAddress_epoch: {
             epoch,
@@ -727,52 +716,25 @@ FROM (
           },
         },
         include: {
-          rewardToken: true,
+          rewardTokens: {
+            include: {
+              token: true,
+            },
+          },
         },
       });
-    }),
-  getGlobalLeaderboard: t.procedure
-    .input(
-      z.object({
-        zealySprintId: z.number(),
-        take: z.number().min(1).max(100).default(50),
-      })
-    )
-    .query(async ({ input, ctx }) => {
-      const { zealySprintId, take } = input;
-      return ctx.prisma.leaderboard.findMany({
-        where: {},
-        take,
-        orderBy: {
-          score: "desc",
-        },
-      });
-    }),
-  getGlobalLeaderboardRank: t.procedure
-    .input(
-      z.object({
-        zealySprintId: z.number(),
-        address: z.string(),
-      })
-    )
-    .query(async ({ input, ctx }) => {
-      const { zealySprintId, address } = input;
-      return ctx.prisma.$queryRaw<
-        {
-          userAddress: string;
-          score: number;
-          userRank: number;
-        }[]
-      >`
-        SELECT userAddress, score, 
-          (SELECT COUNT(*) + 1 
-          FROM Leaderboard AS lb2 
-          WHERE lb2.score > lb1.score 
-          AND lb2.zealySprintId = lb1.zealySprintId) AS userRank
-        FROM Leaderboard AS lb1
-        WHERE userAddress = ${address} 
-        AND zealySprintId = ${zealySprintId};
-      `.then((res) => res[0]);
+
+      const rewardTokensWithValue = await Promise.all(
+        res.rewardTokens.map(async (rewardToken) => ({
+          ...rewardToken,
+          dollarValue: await getTokenValue(toToken(rewardToken.token)),
+        }))
+      );
+
+      return {
+        ...res,
+        rewardTokens: rewardTokensWithValue,
+      };
     }),
   registerDiscord: t.procedure
     .input(
@@ -829,6 +791,49 @@ FROM (
           userAddress,
         },
       });
+    }),
+  getGlobalLeaderboard: t.procedure
+    .input(
+      z.object({
+        zealySprintId: z.number(),
+        take: z.number().min(1).max(100).default(50),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { zealySprintId, take } = input;
+      return ctx.prisma.leaderboard.findMany({
+        where: {},
+        take,
+        orderBy: {
+          score: "desc",
+        },
+      });
+    }),
+  getGlobalLeaderboardRank: t.procedure
+    .input(
+      z.object({
+        zealySprintId: z.number(),
+        address: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { zealySprintId, address } = input;
+      return ctx.prisma.$queryRaw<
+        {
+          userAddress: string;
+          score: number;
+          userRank: number;
+        }[]
+      >`
+        SELECT userAddress, score, 
+          (SELECT COUNT(*) + 1 
+          FROM Leaderboard AS lb2 
+          WHERE lb2.score > lb1.score 
+          AND lb2.zealySprintId = lb1.zealySprintId) AS userRank
+        FROM Leaderboard AS lb1
+        WHERE userAddress = ${address} 
+        AND zealySprintId = ${zealySprintId};
+      `.then((res) => res[0]);
     }),
 });
 

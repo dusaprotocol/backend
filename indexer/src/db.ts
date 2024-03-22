@@ -1,11 +1,14 @@
 import { DCA, Prisma, Status } from "@prisma/client";
-import { prisma } from "../../common/db";
+import { handlePrismaError, prisma } from "../../common/db";
 import logger from "../../common/logger";
 import {
   getClosestTick,
   getDailyTick,
   getHourlyTick,
 } from "../../common/utils";
+import { toToken } from "../../common/methods";
+import { Token } from "@dusalabs/sdk";
+import { fetchTokenFromAddress } from "../../common/datastoreFetcher";
 
 const coc = (address: string) => ({
   connectOrCreate: {
@@ -18,10 +21,12 @@ const co = (address: string) => ({
   connect: { address },
 });
 
-export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
+export const createSwap = async (
+  payload: Prisma.SwapUncheckedCreateInput
+): Promise<boolean> => {
   // prettier-ignore
   const { poolAddress, userAddress, amountIn, amountOut, feesIn, swapForY, binId, timestamp, txHash, usdValue, feesUsdValue, indexInSlot } = payload;
-  await prisma.swap
+  return prisma.swap
     .create({
       data: {
         pool: co(poolAddress),
@@ -38,15 +43,19 @@ export const createSwap = async (payload: Prisma.SwapUncheckedCreateInput) => {
         swapForY,
       },
     })
-    .catch(() => logger.warn("createSwap failed", payload));
+    .then(() => true)
+    .catch((err) => {
+      handlePrismaError(err);
+      return false;
+    });
 };
 
 export const createLiquidity = async (
   payload: Prisma.LiquidityUncheckedCreateInput
-) => {
+): Promise<boolean> => {
   // prettier-ignore
   const { poolAddress, userAddress, amount0, amount1, lowerBound, upperBound, timestamp, txHash, usdValue, indexInSlot } = payload;
-  await prisma.liquidity
+  return prisma.liquidity
     .create({
       data: {
         pool: co(poolAddress),
@@ -61,7 +70,11 @@ export const createLiquidity = async (
         indexInSlot,
       },
     })
-    .catch(() => logger.warn("createLiquidity failed", payload));
+    .then(() => true)
+    .catch((err) => {
+      handlePrismaError(err);
+      return false;
+    });
 };
 
 export const updateBinVolume = async (
@@ -114,10 +127,10 @@ export const createDCA = async (dca: DCA) =>
       data: {
         ...dca,
         userAddress: undefined,
-        User: coc(dca.userAddress),
+        user: coc(dca.userAddress),
       },
     })
-    .catch(() => logger.warn("createDCA failed", dca));
+    .catch(handlePrismaError);
 
 export const updateDCAStatus = async (id: number, status: Status) => {
   await prisma.dCA.update({
@@ -131,17 +144,19 @@ export const updateDCAStatus = async (id: number, status: Status) => {
 };
 
 export const createAnalytic = async (
-  args: Omit<Prisma.AnalyticsUncheckedCreateInput, "date">
-) => {
-  const date = getClosestTick();
-
-  return await prisma.analytics.create({
-    data: {
-      ...args,
-      date,
-    },
-  });
-};
+  args: Prisma.AnalyticsUncheckedCreateInput
+): Promise<boolean> =>
+  prisma.analytics
+    .create({
+      data: {
+        ...args,
+      },
+    })
+    .then(() => true)
+    .catch((err) => {
+      handlePrismaError(err);
+      return false;
+    });
 
 export const updateMakerFees = async (
   params: Omit<Prisma.MakerUncheckedCreateInput, "date">
@@ -194,3 +209,21 @@ export const updateMakerFees = async (
 
 const updateFees = (current: string, increment: string) =>
   (BigInt(current) + BigInt(increment)).toString();
+
+export const getTokenFromAddress = async (
+  tokenAddress: string
+): Promise<Token> => {
+  const address = tokenAddress.replace("_", ""); // TEMP: handle MAS/WMAS
+
+  const token = await prisma.token.findUnique({
+    where: {
+      address,
+    },
+  });
+  if (!token) {
+    logger.warn(`Token ${address} not found in DB`);
+    return fetchTokenFromAddress(address);
+  }
+
+  return toToken(token);
+};

@@ -5,10 +5,10 @@ import {
   decodeLiquidityTx,
   decodeSwapEvents,
   decodeSwapTx,
-} from "./decoder";
+} from "../decoder";
 import { Args, ArrayTypes } from "@massalabs/massa-web3";
 import { Address } from "@dusalabs/sdk";
-import { WMAS, USDC } from "../../common/contracts";
+import { WMAS, USDC } from "../../../common/contracts";
 import {
   swapParams,
   swapOptions,
@@ -16,7 +16,7 @@ import {
   swapEvents,
   withdrawEvents,
   depositEvents,
-} from "./__tests__/placeholder";
+} from "./placeholder";
 
 const inputToken = USDC;
 const outputToken = WMAS;
