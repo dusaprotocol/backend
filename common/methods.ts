@@ -11,8 +11,8 @@ import { Prisma, Token as PrismaToken } from "@prisma/client";
 import { ONE_DAY, getDailyTick } from "./utils";
 import { web3Client } from "./client";
 
-export const getPriceFromId = Bin.getPriceFromId;
-export const getIdFromPrice = Bin.getIdFromPrice;
+export const getPriceFromId = _Bin.getPriceFromId;
+export const getIdFromPrice = _Bin.getIdFromPrice;
 
 export const getCallee = (callStack: string[]): string => {
   return callStack[callStack.length - 1];

@@ -9,6 +9,7 @@ import { calculateStreak, toToken } from "../../common/methods";
 import { getTokenValue } from "../../common/datastoreFetcher";
 import { Address, PublicKey, WalletClient } from "@massalabs/massa-web3";
 import { web3Client } from "../../common/client";
+import axios from 'axios';
 
 const DayWindow = z.union([
   z.literal(7),
@@ -792,6 +793,64 @@ FROM (
         },
       });
     }),
+    // discordOAuthURL: t.procedure.query(() => {
+    //   const url = `${process.env.DISCORD_URL_OAUTH}`;
+    //   return { url };
+    // }),
+    exchangeDiscordToken: t.procedure
+    .input(z.object({ code: z.string() }))
+    .mutation(async ({ input }) => {
+      try {
+        const { DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI } = process.env;
+
+        const headers = {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${Buffer.from(`${DISCORD_CLIENT_ID}:${DISCORD_CLIENT_SECRET}`).toString('base64')}`,
+        };
+
+        const params = new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: input.code,
+          redirect_uri: DISCORD_REDIRECT_URI,
+        });
+
+        const response = await fetch('https://discord.com/api/v10/oauth2/token', {
+          method: 'POST',
+          headers,
+          body: params,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { access_token: data.access_token };
+      } catch (error) {
+        console.error(error);
+        throw error;
+      }
+    }),
+  getUserInfo: t.procedure
+    .input(z.object({ accessToken: z.string() }))
+    .query(async ({ input }) => {
+      try {
+        const response = await fetch('https://discord.com/api/users/@me', {
+          headers: {
+            'Authorization': `Bearer ${input.accessToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error(error);
+        throw error;
+      }
+    }),
   getGlobalLeaderboard: t.procedure
     .input(
       z.object({
@@ -800,7 +859,7 @@ FROM (
       })
     )
     .query(async ({ input, ctx }) => {
-      const { zealySprintId, take } = input;
+      const { take } = input;
       return ctx.prisma.leaderboard.findMany({
         where: {},
         take,

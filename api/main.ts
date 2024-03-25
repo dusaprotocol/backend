@@ -10,6 +10,7 @@ import {
 } from "./src/tradingview";
 import apicache from "apicache";
 import { expressHandler } from "trpc-playground/handlers/express";
+import request from "superagent";
 
 const cache = apicache.options({
   headers: {
