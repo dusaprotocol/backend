@@ -6,8 +6,8 @@ import {
   ON_MASSA_EVENT_ERROR,
   IEvent,
 } from "@massalabs/massa-web3";
-import { web3Client } from "../../common/client";
-import logger from "../../common/logger";
+import { web3Client } from "./client";
+import logger from "./logger";
 
 interface IEventPollerResult {
   isError: boolean;

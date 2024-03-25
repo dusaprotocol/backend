@@ -30,7 +30,7 @@ import {
   getTokenFromAddress,
 } from "./db";
 import { web3Client } from "../../common/client";
-import { ONE_MINUTE, getTimestamp, wait } from "../../common/utils";
+import { ONE_MINUTE, wait } from "../../common/utils";
 import { ScExecutionEvent } from "../gen/ts/massa/model/v1/execution";
 import { bytesToStr } from "@massalabs/massa-web3";
 import { Status } from "@prisma/client";
@@ -42,6 +42,7 @@ import {
   getDatastoreKeys,
   getTokenValue,
 } from "../../common/datastoreFetcher";
+import { getEventTimestamp } from "./utils";
 
 export const processInnerSwap = async (params: {
   event: ScExecutionEvent;
@@ -67,7 +68,7 @@ export const processInnerSwap = async (params: {
     swapEvents: [eventData],
     txHash: blockId,
     indexInSlot: i,
-    timestamp: getTimestamp(event),
+    timestamp: getEventTimestamp(event),
     userAddress,
   }).catch((e) => logger.error(e));
 };

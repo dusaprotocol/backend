@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { expressMiddleware } from "./src/trpc";
+import { appRouter, expressMiddleware } from "./src/trpc";
 import {
   getBars,
   getConfig,
@@ -9,6 +9,8 @@ import {
   searchSymbols,
 } from "./src/tradingview";
 import apicache from "apicache";
+import { expressHandler } from "trpc-playground/handlers/express";
+import request from "superagent";
 
 const cache = apicache.options({
   headers: {
@@ -16,10 +18,23 @@ const cache = apicache.options({
   },
 }).middleware;
 
+const trpcApiEndpoint = "/trpc";
+const playgroundEndpoint = "/trpc-playground";
+
 const app = express();
 app.use(cors());
 app.use(cache("1 minute"));
-app.use("/trpc", expressMiddleware);
+app.use(trpcApiEndpoint, expressMiddleware);
+
+// Dev only
+// app.use(
+//   playgroundEndpoint,
+//   await expressHandler({
+//     trpcApiEndpoint,
+//     playgroundEndpoint,
+//     router: appRouter,
+//   })
+// );
 
 // Health check
 app.get("/", (req, res) => {

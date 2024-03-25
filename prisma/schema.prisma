@@ -9,11 +9,33 @@ datasource db {
 }
 
 model User {
-  address      String      @unique
+  address      String          @unique
   swapTxs      Swap[]
   liquidityTxs Liquidity[]
   dcas         DCA[]
   orders       Order[]
+  analytics    UserAnalytics[]
+}
+
+model UserAnalytics {
+  date        DateTime
+  totalValue  Float
+  userAddress String
+  user        User           @relation(fields: [userAddress], references: [address], onDelete: Cascade)
+  balances    TokenBalance[]
+
+  @@id([userAddress, date])
+  @@index([date], map: "date")
+}
+
+model TokenBalance {
+  id                       Int            @id @default(autoincrement())
+  tokenAddress             String
+  balance                  String
+  value                    Float
+  userAnalyticsUserAddress String?
+  userAnalyticsDate        DateTime?
+  userAnalytics            UserAnalytics? @relation(fields: [userAnalyticsUserAddress, userAnalyticsDate], references: [userAddress, date])
 }
 
 model Token {
@@ -212,24 +234,6 @@ model TokenAnalytics {
   tokenAddress String
 
   @@id([tokenAddress, date])
-  @@index([date], map: "date")
-}
-
-model TokenBalance {
-  id                       Int       @id @default(autoincrement())
-  tokenAddress             String
-  balance                  String
-  value                    Float
-  userAnalyticsUserAddress String?
-  userAnalyticsDate        DateTime?
-}
-
-model UserAnalytics {
-  date        DateTime
-  totalValue  Float
-  userAddress String
-
-  @@id([userAddress, date])
   @@index([date], map: "date")
 }
 
