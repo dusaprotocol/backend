@@ -1,4 +1,4 @@
-import express from "express";
+`import express from "express";
 import cors from "cors";
 import { appRouter, expressMiddleware } from "./src/trpc";
 import {
@@ -23,7 +23,17 @@ const playgroundEndpoint = "/trpc-playground";
 const app = express();
 app.use(cors());
 app.use(cache("1 minute"));
-app.use("/trpc", expressMiddleware);
+app.use(trpcApiEndpoint, expressMiddleware);
+
+// Dev only
+// app.use(
+//   playgroundEndpoint,
+//   await expressHandler({
+//     trpcApiEndpoint,
+//     playgroundEndpoint,
+//     router: appRouter,
+//   })
+// );
 
 // Health check
 app.get("/", (req, res) => {

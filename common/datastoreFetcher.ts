@@ -18,7 +18,7 @@ import { CHAIN_ID } from "./config";
 import { roundFraction, toToken } from "./methods";
 import { DCA, Status } from "@prisma/client";
 import { decodeDcaTx } from "../indexer/src/decoder";
-import { createEventPoller, pollAsyncEvents } from "../indexer/src/eventPoller";
+import { createEventPoller, pollAsyncEvents } from "./eventPoller";
 import { ONE_MINUTE } from "./utils";
 import logger from "./logger";
 

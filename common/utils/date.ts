@@ -1,7 +1,5 @@
 import { IEvent, ISlot } from "@massalabs/massa-web3";
 import { web3Client } from "../client";
-import { ScExecutionEvent } from "../../indexer/gen/ts/massa/model/v1/execution";
-import { Slot } from "../../indexer/gen/ts/massa/model/v1/slot";
 
 // Constants (in ms)
 export const ONE_MINUTE = 60 * 1000;
@@ -24,16 +22,6 @@ export const genesisTimestamp = await web3Client
   .then((r) => r.config.genesis_timestamp);
 
 /**
- * Returns the approximate timestamp of a slot, based on the network's genesis timestamp
- * @param slot
- * @returns
- */
-export const parseSlot = (slot: Slot | ISlot): number =>
-  genesisTimestamp +
-  Number(slot.period) * ONE_PERIOD +
-  (slot.thread / 2) * 1000;
-
-/**
  * Returns the slot corresponding to the given timestamp
  * @param timestamp
  * @returns
@@ -48,21 +36,6 @@ export const parseTimestamp = (
     period: Math.floor(elapsedInMs / ONE_PERIOD),
     thread: Math.floor(((elapsedInMs % ONE_PERIOD) / 1000) * 2),
   };
-};
-
-/**
- * Returns the timestamp at which the event was emitted
- * @param event
- * @returns
- */
-export const getTimestamp = (event: IEvent | ScExecutionEvent) => {
-  if (!event.context) return new Date();
-
-  const slot =
-    "slot" in event.context ? event.context.slot : event.context.originSlot;
-  if (!slot) return new Date();
-
-  return new Date(parseSlot(slot));
 };
 
 /**

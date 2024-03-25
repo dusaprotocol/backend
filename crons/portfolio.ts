@@ -7,10 +7,10 @@ import { web3Client } from "../common/client";
 import {
   calcPoolValue,
   fetchUserLiquidity,
-  getTokenValue,
   toFraction,
 } from "../common/methods";
 import { CHAIN_ID } from "../common/config";
+import { getTokenValue } from "../common/datastoreFetcher";
 
 (async () => {
   const users = await prisma.user.findMany();

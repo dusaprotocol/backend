@@ -7,6 +7,8 @@ import logger from "../../common/logger";
 import { ONE_DAY, ONE_HOUR, TICKS_PER_DAY } from "../../common/utils/date";
 import { calculateStreak, toToken } from "../../common/methods";
 import { getTokenValue } from "../../common/datastoreFetcher";
+import { Address, PublicKey, WalletClient } from "@massalabs/massa-web3";
+import { web3Client } from "../../common/client";
 
 const DayWindow = z.union([
   z.literal(7),
@@ -733,6 +735,105 @@ FROM (
         ...res,
         rewardTokens: rewardTokensWithValue,
       };
+    }),
+  registerDiscord: t.procedure
+    .input(
+      z.object({
+        userAddress: z.string(),
+        discordId: z.string(),
+        publicKey: z.string(),
+        signature: z.string(),
+        message: z.string(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const { publicKey, signature, message, discordId } = input;
+      const userAddress = input.userAddress; // Address.fromPublicKey(new PublicKey(publicKey));
+
+      const isValid = await web3Client
+        .wallet()
+        .verifySignature(message, { base58Encoded: signature, publicKey });
+
+      if (isValid) {
+        const zealySprintId = 1;
+        await ctx.prisma.leaderboard.upsert({
+          create: {
+            userAddress,
+            discordId,
+            score: 0,
+            zealySprintId,
+          },
+          update: {
+            discordId,
+          },
+          where: {
+            zealySprintId_userAddress: {
+              userAddress,
+              zealySprintId,
+            },
+          },
+        });
+      }
+
+      return isValid;
+    }),
+  getRegisteredDiscord: t.procedure
+    .input(
+      z.object({
+        userAddress: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { userAddress } = input;
+
+      return ctx.prisma.leaderboard.findUnique({
+        where: {
+          userAddress,
+        },
+      });
+    }),
+  getGlobalLeaderboard: t.procedure
+    .input(
+      z.object({
+        zealySprintId: z.number(),
+        take: z.number().min(1).max(100).default(50),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { zealySprintId, take } = input;
+      return ctx.prisma.leaderboard.findMany({
+        where: {},
+        take,
+        orderBy: {
+          score: "desc",
+        },
+      });
+    }),
+  getGlobalLeaderboardRank: t.procedure
+    .input(
+      z.object({
+        zealySprintId: z.number(),
+        address: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { zealySprintId, address } = input;
+      return ctx.prisma.$queryRaw<
+        {
+          userAddress: string;
+          score: number;
+          userRank: number;
+        }[]
+      >`
+        SELECT userAddress, score, 
+          (SELECT COUNT(*) + 1 
+          FROM Leaderboard AS lb2 
+          WHERE lb2.score > lb1.score 
+          AND lb2.zealySprintId = lb1.zealySprintId) AS userRank
+        FROM Leaderboard AS lb1
+        WHERE userAddress = ${address} 
+        AND zealySprintId = ${zealySprintId};
+      `.then((res) => res[0]);
     }),
 });
 
