@@ -1,5 +1,5 @@
 import type { Pool, Prisma } from "@prisma/client";
-import { adjustPrice, getPriceFromId } from "../../common/methods";
+import { adjustPrice, getPriceFromId, toToken } from "../../common/methods";
 import { web3Client } from "../../common/client";
 import { factorySC } from "../../common/contracts";
 import { bytesToStr, strToBytes } from "@massalabs/massa-web3";
@@ -11,7 +11,7 @@ import {
   getClosestTick,
   parseSlot,
 } from "../../common/utils/date";
-import { getBinStep } from "../../common/datastoreFetcher";
+import { getBinStep, getTokenValue } from "../../common/datastoreFetcher";
 
 type AddressBinStep = Pick<Pool, "address" | "binStep">;
 
@@ -114,30 +114,16 @@ const generateDataset = async (poolAddress: string) => {
   const data: Prisma.AnalyticsCreateManyArgs["data"] = [];
   for (let i = 0; i < TICKS_PER_DAY * 30; i++) {
     const date = getClosestTick(Date.now() - i * ONE_TICK);
-    if (prevPrice === 1) {
-      data.push({
-        poolAddress: pool.address,
-        token0Locked: "0",
-        token1Locked: "0",
-        usdLocked: 0,
-        close: 1,
-        high: 1,
-        low: 1,
-        open: 1,
-        date,
-        fees: 0,
-        volume: 0,
-      });
-      continue;
-    }
 
     const price = prevPrice * (1 + rand());
-    const open = price;
+    const open = prevPrice === 1 ? 1 : price;
     const close = prevPrice;
     const max = Math.max(prevPrice, price);
     const min = Math.min(prevPrice, price);
-    const high = Math.random() > 0.5 ? max * (1 + rand()) : max;
-    const low = Math.random() > 0.5 ? min * (1 - rand()) : min;
+    const high =
+      prevPrice === 1 ? 1 : Math.random() > 0.5 ? max * (1 + rand()) : max;
+    const low =
+      prevPrice === 1 ? 1 : Math.random() > 0.5 ? min * (1 - rand()) : min;
     prevPrice = price;
 
     data.push({
@@ -151,6 +137,8 @@ const generateDataset = async (poolAddress: string) => {
       open,
       date,
       fees: 0,
+      volume0: "0",
+      volume1: "0",
       volume: 0,
     });
   }
@@ -163,10 +151,4 @@ const generateDataset = async (poolAddress: string) => {
 
 const rand = () => Math.random() * 0.02 - 0.01;
 
-(async () => {
-  prisma.dCAExecution
-    .findMany({ orderBy: { id: "desc" }, take: 10 })
-    .then((res) => {
-      res.forEach((r) => console.log(r, new Date(parseSlot({ ...r }))));
-    });
-})();
+(async () => {})();

@@ -15,7 +15,7 @@ import {
   ONE_TICK,
   getClosestTick,
 } from "../common/utils";
-import { createAnalytic } from "../indexer/src/db";
+import { createAnalytic, getHighLow } from "../indexer/src/db";
 import { Prisma } from "@prisma/client";
 
 type Pool = Prisma.PoolGetPayload<{ include: { token0: true; token1: true } }>;
@@ -57,6 +57,29 @@ const main = async (pool: Pool, now = Date.now()) => {
     token1Value
   );
 
+  const volumes = await prisma.swap.findMany({
+    where: {
+      poolAddress,
+      timestamp: {
+        gte: getClosestTick(now - ONE_DAY),
+        lt: getClosestTick(now),
+      },
+    },
+    select: {
+      amountIn: true,
+      amountOut: true,
+      swapForY: true,
+    },
+  });
+  const volumeX = volumes.reduce(
+    (acc, curr) => acc + BigInt(curr.swapForY ? curr.amountIn : curr.amountOut),
+    0n
+  );
+  const volumeY = volumes.reduce(
+    (acc, curr) => acc + BigInt(curr.swapForY ? curr.amountOut : curr.amountIn),
+    0n
+  );
+
   const { volume, fees } = await prisma.swap
     .aggregate({
       where: {
@@ -79,34 +102,18 @@ const main = async (pool: Pool, now = Date.now()) => {
     });
 
   const openId = pairInfo.activeId;
-  const { highId, lowId } = await prisma.swap
-    .aggregate({
-      where: {
-        poolAddress,
-        timestamp: {
-          gte: getClosestTick(now - ONE_TICK),
-          lt: getClosestTick(now),
-        },
-      },
-      _max: {
-        binId: true,
-      },
-      _min: {
-        binId: true,
-      },
-    })
-    .then((res) => {
-      return {
-        highId: res._max.binId || openId,
-        lowId: res._min.binId || openId,
-      };
-    });
-  const [open, high, low] = [openId, highId, lowId].map((binId) =>
-    adjustPrice(
-      getPriceFromId(binId, binStep),
-      token0.decimals,
-      token1.decimals
-    )
+  const { highId, lowId } = await getHighLow(
+    poolAddress,
+    getClosestTick(now - ONE_TICK),
+    getClosestTick(now)
+  );
+  const [open, high, low] = [openId, highId || openId, lowId || openId].map(
+    (binId) =>
+      adjustPrice(
+        getPriceFromId(binId, binStep),
+        token0.decimals,
+        token1.decimals
+      )
   );
   if (!open) throw new Error("Invalid price");
 
@@ -133,6 +140,8 @@ const main = async (pool: Pool, now = Date.now()) => {
     token0Locked: token0Locked.toString(),
     token1Locked: token1Locked.toString(),
     usdLocked,
+    volume0: volumeX.toString(),
+    volume1: volumeY.toString(),
     volume,
     fees,
     open,

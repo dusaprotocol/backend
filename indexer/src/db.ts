@@ -227,3 +227,28 @@ export const getTokenFromAddress = async (
 
   return toToken(token);
 };
+
+export const getHighLow = async (poolAddress: string, gte: Date, lt: Date) => {
+  return prisma.swap
+    .aggregate({
+      where: {
+        poolAddress,
+        timestamp: {
+          gte,
+          lt,
+        },
+      },
+      _max: {
+        binId: true,
+      },
+      _min: {
+        binId: true,
+      },
+    })
+    .then((res) => {
+      return {
+        highId: res._max.binId,
+        lowId: res._min.binId,
+      };
+    });
+};

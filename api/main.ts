@@ -8,6 +8,7 @@ import {
   resolveSymbol,
   searchSymbols,
 } from "./src/tradingview";
+import { getTickers } from "./src/coingecko";
 import apicache from "apicache";
 
 const cache = apicache.options({
@@ -26,6 +27,10 @@ app.get("/", (req, res) => {
   console.log(req.ip);
   res.send("Hello World!");
 });
+
+// ========================================
+//               TRADING VIEW            //
+// ========================================
 
 app.get("/config", (req, res) => {
   const config = getConfig();
@@ -54,11 +59,20 @@ app.get("/time", (req, res) => {
   res.send(time.toString()); // express doesnt allow sending numbers (could be interpreted as status code)
 });
 
+// ========================================
+//                COINGECKO              //
+// ========================================
+
+app.get("/tickers", async (req, res) => {
+  const tickers = await getTickers();
+  res.send(tickers);
+});
+
 const port: number = parseInt(process.env.PORT || "3001");
 app.listen(port);
 console.log("Listening on port", port);
 
 // @ts-ignore: Unreachable code error
-BigInt.prototype.toJSON = function (): number {
-  return Number(this);
+BigInt.prototype.toJSON = function (): string {
+  return this.toString();
 };
