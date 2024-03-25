@@ -5,6 +5,6 @@ gRPC.subscribeNewSlotExecutionOutputs();
 gRPC.subscribeNewFilledBlocks();
 
 // @ts-ignore: Unreachable code error
-BigInt.prototype.toJSON = function (): number {
-  return Number(this);
+BigInt.prototype.toJSON = function (): string {
+  return this.toString();
 };

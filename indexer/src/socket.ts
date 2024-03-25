@@ -3,7 +3,6 @@ import {
   getCallee,
   getPriceFromId,
   roundFraction,
-  sortTokens,
   toFraction,
 } from "../../common/methods";
 import {
@@ -94,7 +93,12 @@ export const processSwap = async (params: {
       getTokenFromAddress(address)
     )
   );
-  const [_, tokenY] = sortTokens(tokenIn, tokenOut);
+
+  const tokenYAddress = await new ILBPair(poolAddress, web3Client)
+    .getTokens()
+    .then((res) => res[1]);
+  const tokenY = tokenYAddress === tokenIn.address ? tokenIn : tokenOut;
+
   const tokenInValue = await getTokenValue(tokenIn);
   const tokenYValue = await getTokenValue(tokenY);
 

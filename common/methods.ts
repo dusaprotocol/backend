@@ -20,14 +20,6 @@ export const isSwapEvent = (event: IEvent, poolAddress: string): boolean =>
   getCallee(event.context.call_stack) === poolAddress &&
   event.data.startsWith("SWAP:");
 
-export const sortTokenAddresses = (
-  tokenA: string,
-  tokenB: string
-): [string, string] => (tokenA < tokenB ? [tokenA, tokenB] : [tokenB, tokenA]);
-
-export const sortTokens = (tokenA: Token, tokenB: Token): [Token, Token] =>
-  tokenA.address < tokenB.address ? [tokenA, tokenB] : [tokenB, tokenA];
-
 export const adjustPrice = (
   price: number,
   decimals0: number,
